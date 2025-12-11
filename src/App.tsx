@@ -11,6 +11,7 @@ import Clients from "./pages/Clients";
 import ClientNew from "./pages/ClientNew";
 import ClientDetail from "./pages/ClientDetail";
 import Documents from "./pages/Documents";
+import ClientPortal from "./pages/ClientPortal";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 
@@ -51,6 +52,7 @@ const App = () => (
                 <Documents />
               </ProtectedRoute>
             } />
+            <Route path="/client-portal" element={<ClientPortal />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

@@ -15,7 +15,9 @@ import {
   DollarSign,
   ChevronDown,
   ChevronUp,
-  Eye
+  Eye,
+  Send,
+  Loader2
 } from 'lucide-react';
 import { RoadmapPreview } from './RoadmapPreview';
 
@@ -49,20 +51,62 @@ interface Roadmap {
 interface RoadmapGeneratorProps {
   clientId: string;
   clientName: string;
+  clientEmail?: string;
 }
 
 type PhaseKey = 'phase1_tasks' | 'phase2_tasks' | 'phase3_tasks' | 'phase4_tasks' | 'phase5_tasks' | 'phase6_tasks';
 
-export function RoadmapGenerator({ clientId, clientName }: RoadmapGeneratorProps) {
+export function RoadmapGenerator({ clientId, clientName, clientEmail }: RoadmapGeneratorProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [roadmaps, setRoadmaps] = useState<Roadmap[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [sending, setSending] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
 
   const [editForm, setEditForm] = useState<Partial<Roadmap> | null>(null);
+
+  const sendToClient = async (roadmapId: string) => {
+    if (!clientEmail) {
+      toast({
+        variant: 'destructive',
+        title: 'No email address',
+        description: 'This client does not have an email address configured.',
+      });
+      return;
+    }
+
+    setSending(roadmapId);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-client-magic-link', {
+        body: {
+          clientId,
+          roadmapId,
+          clientEmail,
+          clientName,
+          baseUrl: window.location.origin,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Roadmap sent!',
+        description: `Magic link sent to ${clientEmail}`,
+      });
+    } catch (error: any) {
+      console.error('Error sending magic link:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'Failed to send magic link',
+      });
+    } finally {
+      setSending(null);
+    }
+  };
 
   useEffect(() => {
     fetchRoadmaps();
@@ -430,6 +474,20 @@ export function RoadmapGenerator({ clientId, clientName }: RoadmapGeneratorProps
                       >
                         <Eye className="h-4 w-4 mr-2" />
                         Preview
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => sendToClient(roadmap.id)}
+                        disabled={sending === roadmap.id || !clientEmail}
+                        className="bg-eiduk-blue text-white hover:bg-eiduk-navy border-none"
+                      >
+                        {sending === roadmap.id ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Send className="h-4 w-4 mr-2" />
+                        )}
+                        Send to Client
                       </Button>
                       <Button
                         onClick={saveRoadmap}
