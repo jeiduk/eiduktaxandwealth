@@ -22,9 +22,11 @@ import {
   Mail,
   Phone,
   Calendar,
-  Map
+  Map,
+  Gift
 } from 'lucide-react';
 import { RoadmapGenerator } from '@/components/roadmap/RoadmapGenerator';
+import { WelcomePacketGenerator } from '@/components/welcome-packet/WelcomePacketGenerator';
 
 interface Client {
   id: string;
@@ -370,6 +372,10 @@ export default function ClientDetail() {
           <TabsList>
             <TabsTrigger value="details">Details</TabsTrigger>
             <TabsTrigger value="documents">Documents ({documents.length})</TabsTrigger>
+            <TabsTrigger value="welcome-packet" className="flex items-center gap-2">
+              <Gift className="h-4 w-4" />
+              Welcome Packet
+            </TabsTrigger>
             <TabsTrigger value="roadmaps" className="flex items-center gap-2">
               <Map className="h-4 w-4" />
               Roadmaps
@@ -615,6 +621,16 @@ export default function ClientDetail() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Welcome Packet Tab */}
+          <TabsContent value="welcome-packet">
+            <WelcomePacketGenerator 
+              clientId={id!} 
+              clientName={`${client.first_name} ${client.last_name}`}
+              clientEmail={client.email || undefined}
+              companyName={client.company_name || undefined}
+            />
           </TabsContent>
 
           {/* Roadmaps Tab */}
