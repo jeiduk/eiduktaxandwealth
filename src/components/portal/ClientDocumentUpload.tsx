@@ -14,6 +14,7 @@ interface UploadedDoc {
 
 interface ClientDocumentUploadProps {
   clientId: string;
+  clientName: string;
   onUploadComplete?: () => void;
 }
 
@@ -25,7 +26,7 @@ const DOCUMENT_CATEGORIES = [
   'Other',
 ];
 
-export default function ClientDocumentUpload({ clientId, onUploadComplete }: ClientDocumentUploadProps) {
+export default function ClientDocumentUpload({ clientId, clientName, onUploadComplete }: ClientDocumentUploadProps) {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -88,6 +89,21 @@ export default function ClientDocumentUpload({ clientId, onUploadComplete }: Cli
         if (docError) throw docError;
 
         setUploadedDocs(prev => [docData, ...prev]);
+
+        // Notify advisor of the upload
+        try {
+          await supabase.functions.invoke('notify-document-upload', {
+            body: {
+              clientId,
+              documentName: file.name,
+              documentCategory: selectedCategory,
+              clientName,
+            },
+          });
+        } catch (notifyError) {
+          console.error('Failed to send notification:', notifyError);
+          // Don't fail the upload if notification fails
+        }
 
         toast({
           title: 'Document uploaded',
