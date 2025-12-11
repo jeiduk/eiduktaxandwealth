@@ -24,6 +24,7 @@ import { RoadmapPreview } from './RoadmapPreview';
 interface Roadmap {
   id: string;
   title: string;
+  service_level: string;
   phase1_title: string;
   phase1_description: string;
   phase1_tasks: string[];
@@ -52,11 +53,12 @@ interface RoadmapGeneratorProps {
   clientId: string;
   clientName: string;
   clientEmail?: string;
+  companyName?: string;
 }
 
 type PhaseKey = 'phase1_tasks' | 'phase2_tasks' | 'phase3_tasks' | 'phase4_tasks' | 'phase5_tasks' | 'phase6_tasks';
 
-export function RoadmapGenerator({ clientId, clientName, clientEmail }: RoadmapGeneratorProps) {
+export function RoadmapGenerator({ clientId, clientName, clientEmail, companyName }: RoadmapGeneratorProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [roadmaps, setRoadmaps] = useState<Roadmap[]>([]);
@@ -125,6 +127,7 @@ export function RoadmapGenerator({ clientId, clientName, clientEmail }: RoadmapG
       // Parse JSON tasks for all 6 phases
       const parsed = (data || []).map(r => ({
         ...r,
+        service_level: r.service_level || 'Tax Advisory',
         phase1_tasks: Array.isArray(r.phase1_tasks) ? r.phase1_tasks : JSON.parse(r.phase1_tasks as string),
         phase2_tasks: Array.isArray(r.phase2_tasks) ? r.phase2_tasks : JSON.parse(r.phase2_tasks as string),
         phase3_tasks: Array.isArray(r.phase3_tasks) ? r.phase3_tasks : JSON.parse(r.phase3_tasks as string),
@@ -318,6 +321,7 @@ export function RoadmapGenerator({ clientId, clientName, clientEmail }: RoadmapG
         <RoadmapPreview 
           roadmap={roadmap} 
           clientName={clientName}
+          companyName={companyName}
           onClose={() => setPreviewId(null)} 
         />
       );

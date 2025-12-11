@@ -134,6 +134,7 @@ export type Database = {
           phase6_description: string
           phase6_tasks: Json
           phase6_title: string
+          service_level: string | null
           status: string
           template_id: string | null
           title: string
@@ -170,6 +171,7 @@ export type Database = {
           phase6_description?: string
           phase6_tasks?: Json
           phase6_title?: string
+          service_level?: string | null
           status?: string
           template_id?: string | null
           title?: string
@@ -206,6 +208,7 @@ export type Database = {
           phase6_description?: string
           phase6_tasks?: Json
           phase6_title?: string
+          service_level?: string | null
           status?: string
           template_id?: string | null
           title?: string
@@ -225,53 +228,6 @@ export type Database = {
             columns: ["template_id"]
             isOneToOne: false
             referencedRelation: "roadmap_templates"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      client_welcome_packets: {
-        Row: {
-          client_id: string
-          created_at: string
-          engagement_date: string | null
-          id: string
-          projected_savings_max: number | null
-          projected_savings_min: number | null
-          service_level: string | null
-          status: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          client_id: string
-          created_at?: string
-          engagement_date?: string | null
-          id?: string
-          projected_savings_max?: number | null
-          projected_savings_min?: number | null
-          service_level?: string | null
-          status?: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          client_id?: string
-          created_at?: string
-          engagement_date?: string | null
-          id?: string
-          projected_savings_max?: number | null
-          projected_savings_min?: number | null
-          service_level?: string | null
-          status?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "client_welcome_packets_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
         ]
