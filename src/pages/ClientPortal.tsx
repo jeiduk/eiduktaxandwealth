@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Check, AlertCircle, Loader2 } from 'lucide-react';
+import ClientDocumentUpload from '@/components/portal/ClientDocumentUpload';
 
 interface Roadmap {
   id: string;
@@ -39,6 +40,7 @@ interface Roadmap {
 }
 
 interface ClientInfo {
+  id: string;
   first_name: string;
   last_name: string;
   email: string;
@@ -99,7 +101,7 @@ export default function ClientPortal() {
       // Fetch client info first
       const { data: clientData } = await supabase
         .from('clients')
-        .select('first_name, last_name, email, company_name')
+        .select('id, first_name, last_name, email, company_name')
         .eq('id', tokenData.client_id)
         .single();
 
@@ -486,7 +488,10 @@ export default function ClientPortal() {
           </p>
         </div>
 
-        {/* Contact Card */}
+        {/* Document Upload Section */}
+        {client && (
+          <ClientDocumentUpload clientId={client.id} />
+        )}
         <div 
           className="rounded-2xl p-9 text-center text-white"
           style={{
