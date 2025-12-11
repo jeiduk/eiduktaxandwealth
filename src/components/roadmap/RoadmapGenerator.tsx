@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -32,6 +31,15 @@ interface Roadmap {
   phase3_title: string;
   phase3_description: string;
   phase3_tasks: string[];
+  phase4_title: string;
+  phase4_description: string;
+  phase4_tasks: string[];
+  phase5_title: string;
+  phase5_description: string;
+  phase5_tasks: string[];
+  phase6_title: string;
+  phase6_description: string;
+  phase6_tasks: string[];
   estimated_savings_min: number;
   estimated_savings_max: number;
   status: string;
@@ -42,6 +50,8 @@ interface RoadmapGeneratorProps {
   clientId: string;
   clientName: string;
 }
+
+type PhaseKey = 'phase1_tasks' | 'phase2_tasks' | 'phase3_tasks' | 'phase4_tasks' | 'phase5_tasks' | 'phase6_tasks';
 
 export function RoadmapGenerator({ clientId, clientName }: RoadmapGeneratorProps) {
   const { user } = useAuth();
@@ -68,12 +78,15 @@ export function RoadmapGenerator({ clientId, clientName }: RoadmapGeneratorProps
 
       if (error) throw error;
       
-      // Parse JSON tasks
+      // Parse JSON tasks for all 6 phases
       const parsed = (data || []).map(r => ({
         ...r,
         phase1_tasks: Array.isArray(r.phase1_tasks) ? r.phase1_tasks : JSON.parse(r.phase1_tasks as string),
         phase2_tasks: Array.isArray(r.phase2_tasks) ? r.phase2_tasks : JSON.parse(r.phase2_tasks as string),
         phase3_tasks: Array.isArray(r.phase3_tasks) ? r.phase3_tasks : JSON.parse(r.phase3_tasks as string),
+        phase4_tasks: Array.isArray(r.phase4_tasks) ? r.phase4_tasks : JSON.parse(r.phase4_tasks as string),
+        phase5_tasks: Array.isArray(r.phase5_tasks) ? r.phase5_tasks : JSON.parse(r.phase5_tasks as string),
+        phase6_tasks: Array.isArray(r.phase6_tasks) ? r.phase6_tasks : JSON.parse(r.phase6_tasks as string),
       }));
       setRoadmaps(parsed);
     } catch (error) {
@@ -101,7 +114,7 @@ export function RoadmapGenerator({ clientId, clientName }: RoadmapGeneratorProps
 
       toast({
         title: 'Roadmap created',
-        description: 'A new roadmap has been created for this client.',
+        description: 'A new 90-day roadmap has been created for this client.',
       });
 
       fetchRoadmaps();
@@ -112,6 +125,9 @@ export function RoadmapGenerator({ clientId, clientName }: RoadmapGeneratorProps
           phase1_tasks: data.phase1_tasks as string[],
           phase2_tasks: data.phase2_tasks as string[],
           phase3_tasks: data.phase3_tasks as string[],
+          phase4_tasks: data.phase4_tasks as string[],
+          phase5_tasks: data.phase5_tasks as string[],
+          phase6_tasks: data.phase6_tasks as string[],
         });
       }
     } catch (error: any) {
@@ -143,6 +159,15 @@ export function RoadmapGenerator({ clientId, clientName }: RoadmapGeneratorProps
           phase3_title: editForm.phase3_title,
           phase3_description: editForm.phase3_description,
           phase3_tasks: editForm.phase3_tasks,
+          phase4_title: editForm.phase4_title,
+          phase4_description: editForm.phase4_description,
+          phase4_tasks: editForm.phase4_tasks,
+          phase5_title: editForm.phase5_title,
+          phase5_description: editForm.phase5_description,
+          phase5_tasks: editForm.phase5_tasks,
+          phase6_title: editForm.phase6_title,
+          phase6_description: editForm.phase6_description,
+          phase6_tasks: editForm.phase6_tasks,
           estimated_savings_min: editForm.estimated_savings_min,
           estimated_savings_max: editForm.estimated_savings_max,
           status: editForm.status,
@@ -204,20 +229,20 @@ export function RoadmapGenerator({ clientId, clientName }: RoadmapGeneratorProps
     }
   };
 
-  const updateTask = (phase: 'phase1_tasks' | 'phase2_tasks' | 'phase3_tasks', index: number, value: string) => {
+  const updateTask = (phase: PhaseKey, index: number, value: string) => {
     if (!editForm) return;
     const tasks = [...(editForm[phase] as string[] || [])];
     tasks[index] = value;
     setEditForm({ ...editForm, [phase]: tasks });
   };
 
-  const addTask = (phase: 'phase1_tasks' | 'phase2_tasks' | 'phase3_tasks') => {
+  const addTask = (phase: PhaseKey) => {
     if (!editForm) return;
     const tasks = [...(editForm[phase] as string[] || []), ''];
     setEditForm({ ...editForm, [phase]: tasks });
   };
 
-  const removeTask = (phase: 'phase1_tasks' | 'phase2_tasks' | 'phase3_tasks', index: number) => {
+  const removeTask = (phase: PhaseKey, index: number) => {
     if (!editForm) return;
     const tasks = (editForm[phase] as string[] || []).filter((_, i) => i !== index);
     setEditForm({ ...editForm, [phase]: tasks });
@@ -254,6 +279,15 @@ export function RoadmapGenerator({ clientId, clientName }: RoadmapGeneratorProps
       );
     }
   }
+
+  const phaseConfigs = [
+    { key: 'phase1', timing: 'Week 1-2' },
+    { key: 'phase2', timing: 'Week 2-4' },
+    { key: 'phase3', timing: 'Week 4-6' },
+    { key: 'phase4', timing: 'Week 6-8' },
+    { key: 'phase5', timing: 'Week 8-10' },
+    { key: 'phase6', timing: 'Week 10-12' },
+  ];
 
   return (
     <div className="space-y-4">
@@ -353,44 +387,30 @@ export function RoadmapGenerator({ clientId, clientName }: RoadmapGeneratorProps
                     </div>
                   </div>
 
-                  {/* Phase 1 */}
-                  <PhaseEditor
-                    phaseNumber={1}
-                    title={editForm.phase1_title || ''}
-                    description={editForm.phase1_description || ''}
-                    tasks={editForm.phase1_tasks as string[] || []}
-                    onTitleChange={(v) => setEditForm({ ...editForm, phase1_title: v })}
-                    onDescriptionChange={(v) => setEditForm({ ...editForm, phase1_description: v })}
-                    onTaskChange={(i, v) => updateTask('phase1_tasks', i, v)}
-                    onAddTask={() => addTask('phase1_tasks')}
-                    onRemoveTask={(i) => removeTask('phase1_tasks', i)}
-                  />
-
-                  {/* Phase 2 */}
-                  <PhaseEditor
-                    phaseNumber={2}
-                    title={editForm.phase2_title || ''}
-                    description={editForm.phase2_description || ''}
-                    tasks={editForm.phase2_tasks as string[] || []}
-                    onTitleChange={(v) => setEditForm({ ...editForm, phase2_title: v })}
-                    onDescriptionChange={(v) => setEditForm({ ...editForm, phase2_description: v })}
-                    onTaskChange={(i, v) => updateTask('phase2_tasks', i, v)}
-                    onAddTask={() => addTask('phase2_tasks')}
-                    onRemoveTask={(i) => removeTask('phase2_tasks', i)}
-                  />
-
-                  {/* Phase 3 */}
-                  <PhaseEditor
-                    phaseNumber={3}
-                    title={editForm.phase3_title || ''}
-                    description={editForm.phase3_description || ''}
-                    tasks={editForm.phase3_tasks as string[] || []}
-                    onTitleChange={(v) => setEditForm({ ...editForm, phase3_title: v })}
-                    onDescriptionChange={(v) => setEditForm({ ...editForm, phase3_description: v })}
-                    onTaskChange={(i, v) => updateTask('phase3_tasks', i, v)}
-                    onAddTask={() => addTask('phase3_tasks')}
-                    onRemoveTask={(i) => removeTask('phase3_tasks', i)}
-                  />
+                  {/* All 6 Phases */}
+                  {phaseConfigs.map((config, index) => {
+                    const phaseNum = index + 1;
+                    const titleKey = `phase${phaseNum}_title` as keyof Roadmap;
+                    const descKey = `phase${phaseNum}_description` as keyof Roadmap;
+                    const tasksKey = `phase${phaseNum}_tasks` as PhaseKey;
+                    
+                    return (
+                      <PhaseEditor
+                        key={config.key}
+                        phaseNumber={phaseNum}
+                        timing={config.timing}
+                        title={(editForm[titleKey] as string) || ''}
+                        description={(editForm[descKey] as string) || ''}
+                        tasks={(editForm[tasksKey] as string[]) || []}
+                        onTitleChange={(v) => setEditForm({ ...editForm, [titleKey]: v })}
+                        onDescriptionChange={(v) => setEditForm({ ...editForm, [descKey]: v })}
+                        onTaskChange={(i, v) => updateTask(tasksKey, i, v)}
+                        onAddTask={() => addTask(tasksKey)}
+                        onRemoveTask={(i) => removeTask(tasksKey, i)}
+                        isCelebration={phaseNum === 6}
+                      />
+                    );
+                  })}
 
                   {/* Actions */}
                   <div className="flex items-center justify-between pt-4 border-t">
@@ -434,6 +454,7 @@ export function RoadmapGenerator({ clientId, clientName }: RoadmapGeneratorProps
 // Phase Editor Component
 interface PhaseEditorProps {
   phaseNumber: number;
+  timing: string;
   title: string;
   description: string;
   tasks: string[];
@@ -442,10 +463,12 @@ interface PhaseEditorProps {
   onTaskChange: (index: number, value: string) => void;
   onAddTask: () => void;
   onRemoveTask: (index: number) => void;
+  isCelebration?: boolean;
 }
 
 function PhaseEditor({
   phaseNumber,
+  timing,
   title,
   description,
   tasks,
@@ -454,16 +477,25 @@ function PhaseEditor({
   onTaskChange,
   onAddTask,
   onRemoveTask,
+  isCelebration,
 }: PhaseEditorProps) {
-  const phaseColors = ['bg-eiduk-navy', 'bg-eiduk-blue', 'bg-eiduk-gold'];
-  
   return (
     <div className="rounded-lg border p-4 space-y-4">
-      <div className="flex items-center gap-3">
-        <span className={`w-8 h-8 rounded-full ${phaseColors[phaseNumber - 1]} text-white flex items-center justify-center font-bold text-sm`}>
-          {phaseNumber}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <span 
+            className="w-8 h-8 rounded-full text-white flex items-center justify-center font-bold text-sm"
+            style={{
+              background: 'linear-gradient(135deg, hsl(var(--eiduk-blue)) 0%, hsl(var(--eiduk-navy)) 100%)',
+            }}
+          >
+            {isCelebration ? '🎉' : phaseNumber}
+          </span>
+          <h4 className="font-display font-semibold">Phase {phaseNumber}</h4>
+        </div>
+        <span className="text-xs bg-eiduk-cream text-eiduk-navy px-2 py-1 rounded-full font-medium">
+          {timing}
         </span>
-        <h4 className="font-display font-semibold">Phase {phaseNumber}</h4>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -503,6 +535,7 @@ function PhaseEditor({
             variant="outline"
             size="sm"
             onClick={onAddTask}
+            className="mt-2"
           >
             <Plus className="h-4 w-4 mr-2" />
             Add Task
