@@ -21,8 +21,10 @@ import {
   Building2,
   Mail,
   Phone,
-  Calendar
+  Calendar,
+  Map
 } from 'lucide-react';
+import { RoadmapGenerator } from '@/components/roadmap/RoadmapGenerator';
 
 interface Client {
   id: string;
@@ -368,6 +370,10 @@ export default function ClientDetail() {
           <TabsList>
             <TabsTrigger value="details">Details</TabsTrigger>
             <TabsTrigger value="documents">Documents ({documents.length})</TabsTrigger>
+            <TabsTrigger value="roadmaps" className="flex items-center gap-2">
+              <Map className="h-4 w-4" />
+              Roadmaps
+            </TabsTrigger>
           </TabsList>
 
           {/* Details Tab */}
@@ -609,6 +615,14 @@ export default function ClientDetail() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Roadmaps Tab */}
+          <TabsContent value="roadmaps">
+            <RoadmapGenerator 
+              clientId={id!} 
+              clientName={`${client.first_name} ${client.last_name}`} 
+            />
           </TabsContent>
         </Tabs>
       </div>

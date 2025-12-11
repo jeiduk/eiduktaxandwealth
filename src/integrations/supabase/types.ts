@@ -58,6 +58,77 @@ export type Database = {
           },
         ]
       }
+      client_roadmaps: {
+        Row: {
+          client_id: string
+          created_at: string
+          estimated_savings_max: number
+          estimated_savings_min: number
+          id: string
+          phase1_description: string
+          phase1_tasks: Json
+          phase1_title: string
+          phase2_description: string
+          phase2_tasks: Json
+          phase2_title: string
+          phase3_description: string
+          phase3_tasks: Json
+          phase3_title: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          estimated_savings_max?: number
+          estimated_savings_min?: number
+          id?: string
+          phase1_description?: string
+          phase1_tasks?: Json
+          phase1_title?: string
+          phase2_description?: string
+          phase2_tasks?: Json
+          phase2_title?: string
+          phase3_description?: string
+          phase3_tasks?: Json
+          phase3_title?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          estimated_savings_max?: number
+          estimated_savings_min?: number
+          id?: string
+          phase1_description?: string
+          phase1_tasks?: Json
+          phase1_title?: string
+          phase2_description?: string
+          phase2_tasks?: Json
+          phase2_title?: string
+          phase3_description?: string
+          phase3_tasks?: Json
+          phase3_title?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_roadmaps_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           annual_income: string | null
