@@ -2,11 +2,9 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Upload, Check, FileText, AlertCircle, Loader2 } from 'lucide-react';
+import { Check, AlertCircle, Loader2, Gift, Map } from 'lucide-react';
 
 interface Roadmap {
   id: string;
@@ -39,10 +37,19 @@ interface Roadmap {
   estimated_savings_max: number;
 }
 
+interface WelcomePacket {
+  id: string;
+  service_level: string;
+  engagement_date: string;
+  projected_savings_min: number;
+  projected_savings_max: number;
+}
+
 interface ClientInfo {
   first_name: string;
   last_name: string;
   email: string;
+  company_name: string | null;
 }
 
 const PHASE_TIMING = [
@@ -62,8 +69,10 @@ export default function ClientPortal() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [roadmap, setRoadmap] = useState<Roadmap | null>(null);
+  const [welcomePacket, setWelcomePacket] = useState<WelcomePacket | null>(null);
   const [client, setClient] = useState<ClientInfo | null>(null);
   const [saving, setSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState('welcome');
 
   useEffect(() => {
     if (token) {
@@ -94,6 +103,17 @@ export default function ClientPortal() {
         setError('This access link has expired. Please contact your advisor for a new link.');
         setLoading(false);
         return;
+      }
+
+      // Fetch client info first
+      const { data: clientData } = await supabase
+        .from('clients')
+        .select('first_name, last_name, email, company_name')
+        .eq('id', tokenData.client_id)
+        .single();
+
+      if (clientData) {
+        setClient(clientData);
       }
 
       // Fetch roadmap data
@@ -133,15 +153,17 @@ export default function ClientPortal() {
 
       setRoadmap(parsedRoadmap);
 
-      // Fetch client info
-      const { data: clientData } = await supabase
-        .from('clients')
-        .select('first_name, last_name, email')
-        .eq('id', tokenData.client_id)
-        .single();
+      // Fetch welcome packet for this client
+      const { data: packetData } = await supabase
+        .from('client_welcome_packets')
+        .select('*')
+        .eq('client_id', tokenData.client_id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-      if (clientData) {
-        setClient(clientData);
+      if (packetData) {
+        setWelcomePacket(packetData);
       }
 
       // Update last accessed
@@ -152,7 +174,7 @@ export default function ClientPortal() {
 
     } catch (err) {
       console.error('Error:', err);
-      setError('An error occurred loading your roadmap');
+      setError('An error occurred loading your portal');
     } finally {
       setLoading(false);
     }
@@ -203,6 +225,23 @@ export default function ClientPortal() {
     }
   };
 
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-eiduk-cream flex items-center justify-center">
@@ -211,7 +250,7 @@ export default function ClientPortal() {
             Eiduk Tax & Wealth
           </p>
           <Loader2 className="h-8 w-8 animate-spin text-eiduk-navy mx-auto" />
-          <p className="text-muted-foreground mt-4">Loading your roadmap...</p>
+          <p className="text-muted-foreground mt-4">Loading your portal...</p>
         </div>
       </div>
     );
@@ -265,11 +304,11 @@ export default function ClientPortal() {
           Eiduk Tax & Wealth
         </div>
         <h1 className="font-display text-3xl md:text-4xl font-bold text-white mb-3">
-          Your 90-Day Roadmap
+          Your Client Portal
         </h1>
         {client && (
           <p className="text-lg text-white/80">
-            Welcome back, {client.first_name}!
+            Welcome, {client.first_name}!
           </p>
         )}
         <div className="font-display text-lg font-semibold text-eiduk-gold mt-4">
@@ -278,148 +317,300 @@ export default function ClientPortal() {
       </div>
 
       <div className="max-w-4xl mx-auto p-6 md:p-10">
-        {/* Progress Card */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-display text-xl font-semibold text-eiduk-navy">
-              Your Progress
-            </h2>
-            <span className="text-2xl font-bold text-eiduk-gold">
-              {progressPercent}%
-            </span>
-          </div>
-          <div className="w-full bg-muted rounded-full h-3 overflow-hidden">
-            <div 
-              className="h-full rounded-full transition-all duration-500"
-              style={{
-                width: `${progressPercent}%`,
-                background: 'linear-gradient(90deg, hsl(var(--eiduk-blue)) 0%, hsl(var(--eiduk-gold)) 100%)',
-              }}
-            />
-          </div>
-          <p className="text-sm text-muted-foreground mt-2">
-            {completedTasks} of {totalTasks} tasks completed
-          </p>
-        </div>
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2 bg-white shadow-sm">
+            <TabsTrigger value="welcome" className="flex items-center gap-2 data-[state=active]:bg-eiduk-navy data-[state=active]:text-white">
+              <Gift className="h-4 w-4" />
+              Welcome Packet
+            </TabsTrigger>
+            <TabsTrigger value="roadmap" className="flex items-center gap-2 data-[state=active]:bg-eiduk-navy data-[state=active]:text-white">
+              <Map className="h-4 w-4" />
+              90-Day Roadmap
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Savings Box */}
-        <div 
-          className="rounded-2xl p-8 text-center mb-8 border-2 border-eiduk-gold"
-          style={{
-            background: 'linear-gradient(135deg, rgba(201, 162, 39, 0.1) 0%, rgba(212, 175, 55, 0.05) 100%)',
-          }}
-        >
-          <h2 className="font-display text-xl text-eiduk-navy mb-2">
-            Estimated Annual Tax Savings
-          </h2>
-          <div className="font-display text-4xl font-bold text-eiduk-gold">
-            ${roadmap.estimated_savings_min.toLocaleString()} – ${roadmap.estimated_savings_max.toLocaleString()}+
-          </div>
-        </div>
-
-        {/* Phases */}
-        <div className="space-y-6">
-          {phases.map((phase, phaseIndex) => (
-            <div key={phaseIndex} className="bg-white rounded-2xl shadow-lg overflow-hidden">
-              <div 
-                className="p-6 flex items-center justify-between"
-                style={{
-                  background: phaseIndex === 5 
-                    ? 'linear-gradient(135deg, hsl(var(--eiduk-gold)) 0%, hsl(45, 80%, 50%) 100%)'
-                    : 'linear-gradient(135deg, hsl(var(--eiduk-navy)) 0%, hsl(var(--eiduk-blue)) 100%)',
-                }}
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center text-white text-xl font-bold">
-                    {phaseIndex === 5 ? '🎉' : phaseIndex + 1}
-                  </div>
-                  <div>
-                    <h3 className={`font-display text-xl font-semibold ${phaseIndex === 5 ? 'text-eiduk-navy' : 'text-white'}`}>
-                      {phase.title}
-                    </h3>
-                    <p className={`text-sm ${phaseIndex === 5 ? 'text-eiduk-navy/70' : 'text-white/70'}`}>
-                      {PHASE_TIMING[phaseIndex]}
-                    </p>
-                  </div>
-                </div>
-                <div className={`text-sm font-medium ${phaseIndex === 5 ? 'text-eiduk-navy' : 'text-white'}`}>
-                  {phase.completed.length}/{phase.tasks.length} done
-                </div>
-              </div>
-              
-              <div className="p-6">
-                <p className="text-muted-foreground mb-4">{phase.description}</p>
-                
-                <div className="space-y-3">
-                  {phase.tasks.map((task, taskIndex) => {
-                    const isCompleted = phase.completed.includes(taskIndex);
-                    return (
-                      <div 
-                        key={taskIndex}
-                        className={`flex items-start gap-3 p-3 rounded-lg border transition-colors cursor-pointer ${
-                          isCompleted 
-                            ? 'bg-success/5 border-success/20' 
-                            : 'bg-muted/50 border-border hover:bg-muted'
-                        }`}
-                        onClick={() => toggleTask(phaseIndex + 1, taskIndex)}
-                      >
-                        <Checkbox 
-                          checked={isCompleted}
-                          disabled={saving}
-                          className="mt-0.5"
-                        />
-                        <span className={`flex-1 ${isCompleted ? 'line-through text-muted-foreground' : ''}`}>
-                          {task}
-                        </span>
-                        {isCompleted && (
-                          <Check className="h-5 w-5 text-success shrink-0" />
-                        )}
+          {/* Welcome Packet Tab */}
+          <TabsContent value="welcome" className="space-y-6">
+            {welcomePacket ? (
+              <>
+                {/* Client Info Box */}
+                <div className="bg-white rounded-2xl shadow-lg p-6 border-l-4 border-eiduk-blue">
+                  <h3 className="font-display text-lg font-semibold text-eiduk-navy mb-4">Your Information</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <span className="text-sm font-semibold text-eiduk-navy">Client Name:</span>
+                      <p className="text-foreground">{client?.first_name} {client?.last_name}</p>
+                    </div>
+                    {client?.company_name && (
+                      <div>
+                        <span className="text-sm font-semibold text-eiduk-navy">Business Name:</span>
+                        <p className="text-foreground">{client.company_name}</p>
                       </div>
-                    );
-                  })}
+                    )}
+                    <div>
+                      <span className="text-sm font-semibold text-eiduk-navy">Engagement Date:</span>
+                      <p className="text-foreground">{formatDate(welcomePacket.engagement_date)}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-semibold text-eiduk-navy">Service Level:</span>
+                      <p className="text-foreground">{welcomePacket.service_level}</p>
+                    </div>
+                  </div>
                 </div>
+
+                {/* Savings Highlight */}
+                <div 
+                  className="bg-white rounded-2xl shadow-lg p-8 text-center border-2 border-eiduk-gold"
+                  style={{ background: 'linear-gradient(135deg, rgba(201, 162, 39, 0.1) 0%, rgba(212, 175, 55, 0.05) 100%)' }}
+                >
+                  <h3 className="font-display text-xl text-eiduk-navy mb-2">
+                    Projected Annual Tax Savings
+                    <span className="ml-2 inline-block bg-gradient-to-r from-eiduk-navy to-eiduk-blue text-white text-xs px-3 py-1 rounded-full">
+                      The Eiduk Pathway™
+                    </span>
+                  </h3>
+                  <p className="font-display text-4xl md:text-5xl font-bold text-eiduk-gold my-4">
+                    {formatCurrency(welcomePacket.projected_savings_min)} – {formatCurrency(welcomePacket.projected_savings_max)}+
+                  </p>
+                  <p className="text-muted-foreground max-w-xl mx-auto">
+                    Based on your business profile and The Eiduk Pathway™ systematic implementation.
+                  </p>
+                </div>
+
+                {/* What's Included */}
+                <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+                  <div 
+                    className="p-4 text-white font-display text-lg font-semibold"
+                    style={{ background: 'linear-gradient(135deg, hsl(var(--eiduk-navy)) 0%, hsl(var(--eiduk-blue)) 100%)' }}
+                  >
+                    What's Included in Your Service
+                  </div>
+                  <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <ServiceCard 
+                      emoji="🎯" 
+                      title="Strategic Tax Planning"
+                      items={['Quarterly planning sessions', 'Year-end optimization review', 'Multi-year projections']}
+                    />
+                    <ServiceCard 
+                      emoji="📊" 
+                      title="S-Corp Foundation Setup"
+                      items={['Compensation analysis', 'Accountable plan', 'Home office deduction']}
+                    />
+                    <ServiceCard 
+                      emoji="📁" 
+                      title="Complete Tax Compliance"
+                      items={['Corporate tax return (1120S)', 'Personal tax return (1040)', 'Quarterly tax guidance']}
+                    />
+                    <ServiceCard 
+                      emoji="💼" 
+                      title="Ongoing Advisory Support"
+                      items={['Unlimited email support', 'Priority phone consultations', 'Document review']}
+                    />
+                  </div>
+                </div>
+
+                {/* Next Steps */}
+                <div 
+                  className="bg-white rounded-2xl shadow-lg p-6 border border-eiduk-blue/20"
+                  style={{ background: 'linear-gradient(135deg, rgba(44, 90, 160, 0.08) 0%, rgba(74, 144, 217, 0.04) 100%)' }}
+                >
+                  <h3 className="font-display text-xl text-eiduk-navy mb-4">🚀 Your Next Steps</h3>
+                  <ul className="space-y-3">
+                    <li className="flex items-start gap-2">
+                      <span className="text-eiduk-gold font-bold">1.</span>
+                      <span><strong className="text-eiduk-navy">Review your 90-Day Roadmap</strong> – Click the "90-Day Roadmap" tab above</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-eiduk-gold font-bold">2.</span>
+                      <span><strong className="text-eiduk-navy">Gather Initial Documents</strong> – Prior year tax returns, current year P&L</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-eiduk-gold font-bold">3.</span>
+                      <span><strong className="text-eiduk-navy">Complete Your Tasks</strong> – Check off items as you complete them</span>
+                    </li>
+                  </ul>
+                </div>
+              </>
+            ) : (
+              <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
+                <Gift className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="font-display text-xl text-eiduk-navy mb-2">Welcome Packet Coming Soon</h3>
+                <p className="text-muted-foreground">
+                  Your advisor is preparing your personalized welcome packet. Check back soon!
+                </p>
+              </div>
+            )}
+
+            {/* Contact Card */}
+            <ContactCard />
+          </TabsContent>
+
+          {/* Roadmap Tab */}
+          <TabsContent value="roadmap" className="space-y-6">
+            {/* Progress Card */}
+            <div className="bg-white rounded-2xl shadow-lg p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-display text-xl font-semibold text-eiduk-navy">
+                  Your Progress
+                </h2>
+                <span className="text-2xl font-bold text-eiduk-gold">
+                  {progressPercent}%
+                </span>
+              </div>
+              <div className="w-full bg-muted rounded-full h-3 overflow-hidden">
+                <div 
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${progressPercent}%`,
+                    background: 'linear-gradient(90deg, hsl(var(--eiduk-blue)) 0%, hsl(var(--eiduk-gold)) 100%)',
+                  }}
+                />
+              </div>
+              <p className="text-sm text-muted-foreground mt-2">
+                {completedTasks} of {totalTasks} tasks completed
+              </p>
+            </div>
+
+            {/* Savings Box */}
+            <div 
+              className="rounded-2xl p-8 text-center border-2 border-eiduk-gold bg-white shadow-lg"
+              style={{
+                background: 'linear-gradient(135deg, rgba(201, 162, 39, 0.1) 0%, rgba(212, 175, 55, 0.05) 100%)',
+              }}
+            >
+              <h2 className="font-display text-xl text-eiduk-navy mb-2">
+                Estimated Annual Tax Savings
+              </h2>
+              <div className="font-display text-4xl font-bold text-eiduk-gold">
+                ${roadmap.estimated_savings_min.toLocaleString()} – ${roadmap.estimated_savings_max.toLocaleString()}+
               </div>
             </div>
-          ))}
-        </div>
 
-        {/* Help Box */}
-        <div 
-          className="rounded-xl p-6 mt-8 border-l-4 border-success"
-          style={{
-            background: 'linear-gradient(135deg, rgba(5, 150, 105, 0.1) 0%, rgba(5, 150, 105, 0.05) 100%)',
-          }}
-        >
-          <h3 className="font-display text-xl text-eiduk-navy mb-3">
-            ✅ We're With You Every Step
-          </h3>
-          <p className="text-[15px] leading-relaxed text-foreground">
-            Don't worry about remembering all of this! Our team will guide you through each phase and remind you when action is needed. 
-            We'll send you exactly what you need, when you need it. Your only job is to respond promptly when we reach out.
-          </p>
-        </div>
+            {/* Phases */}
+            <div className="space-y-6">
+              {phases.map((phase, phaseIndex) => (
+                <div key={phaseIndex} className="bg-white rounded-2xl shadow-lg overflow-hidden">
+                  <div 
+                    className="p-6 flex items-center justify-between"
+                    style={{
+                      background: phaseIndex === 5 
+                        ? 'linear-gradient(135deg, hsl(var(--eiduk-gold)) 0%, hsl(45, 80%, 50%) 100%)'
+                        : 'linear-gradient(135deg, hsl(var(--eiduk-navy)) 0%, hsl(var(--eiduk-blue)) 100%)',
+                    }}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center text-white text-xl font-bold">
+                        {phaseIndex === 5 ? '🎉' : phaseIndex + 1}
+                      </div>
+                      <div>
+                        <h3 className={`font-display text-xl font-semibold ${phaseIndex === 5 ? 'text-eiduk-navy' : 'text-white'}`}>
+                          {phase.title}
+                        </h3>
+                        <p className={`text-sm ${phaseIndex === 5 ? 'text-eiduk-navy/70' : 'text-white/70'}`}>
+                          {PHASE_TIMING[phaseIndex]}
+                        </p>
+                      </div>
+                    </div>
+                    <div className={`text-sm font-medium ${phaseIndex === 5 ? 'text-eiduk-navy' : 'text-white'}`}>
+                      {phase.completed.length}/{phase.tasks.length} done
+                    </div>
+                  </div>
+                  
+                  <div className="p-6">
+                    <p className="text-muted-foreground mb-4">{phase.description}</p>
+                    
+                    <div className="space-y-3">
+                      {phase.tasks.map((task, taskIndex) => {
+                        const isCompleted = phase.completed.includes(taskIndex);
+                        return (
+                          <div 
+                            key={taskIndex}
+                            className={`flex items-start gap-3 p-3 rounded-lg border transition-colors cursor-pointer ${
+                              isCompleted 
+                                ? 'bg-success/5 border-success/20' 
+                                : 'bg-muted/50 border-border hover:bg-muted'
+                            }`}
+                            onClick={() => toggleTask(phaseIndex + 1, taskIndex)}
+                          >
+                            <Checkbox 
+                              checked={isCompleted}
+                              disabled={saving}
+                              className="mt-0.5"
+                            />
+                            <span className={`flex-1 ${isCompleted ? 'line-through text-muted-foreground' : ''}`}>
+                              {task}
+                            </span>
+                            {isCompleted && (
+                              <Check className="h-5 w-5 text-success shrink-0" />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
 
-        {/* Contact Card */}
-        <div 
-          className="rounded-2xl p-9 mt-8 text-center text-white"
-          style={{
-            background: 'linear-gradient(135deg, hsl(var(--eiduk-navy)) 0%, hsl(var(--eiduk-blue)) 100%)',
-          }}
-        >
-          <h3 className="font-display text-[22px] text-white mb-4">
-            Questions? We're Here to Help
-          </h3>
-          <p className="text-base mb-2">
-            <strong>John Eiduk, CPA, CFP®, MSCTA</strong>
-          </p>
-          <p className="text-base mb-2">
-            847-917-8981 | <a href="mailto:john@eiduktaxandwealth.com" className="text-eiduk-gold font-semibold hover:underline">john@eiduktaxandwealth.com</a>
-          </p>
-          <p className="mt-4">
-            <a href="https://eiduktaxandwealth.com" className="text-eiduk-gold font-semibold hover:underline">eiduktaxandwealth.com</a>
-          </p>
-        </div>
+            {/* Help Box */}
+            <div 
+              className="rounded-xl p-6 border-l-4 border-success"
+              style={{
+                background: 'linear-gradient(135deg, rgba(5, 150, 105, 0.1) 0%, rgba(5, 150, 105, 0.05) 100%)',
+              }}
+            >
+              <h3 className="font-display text-xl text-eiduk-navy mb-3">
+                ✅ We're With You Every Step
+              </h3>
+              <p className="text-[15px] leading-relaxed text-foreground">
+                Don't worry about remembering all of this! Our team will guide you through each phase and remind you when action is needed. 
+                We'll send you exactly what you need, when you need it.
+              </p>
+            </div>
+
+            {/* Contact Card */}
+            <ContactCard />
+          </TabsContent>
+        </Tabs>
       </div>
+    </div>
+  );
+}
+
+function ServiceCard({ emoji, title, items }: { emoji: string; title: string; items: string[] }) {
+  return (
+    <div className="border border-border/50 rounded-xl p-5 border-l-4 border-l-eiduk-blue">
+      <h4 className="font-semibold text-eiduk-navy mb-3">{emoji} {title}</h4>
+      <ul className="space-y-1">
+        {items.map((item, i) => (
+          <li key={i} className="text-sm text-muted-foreground">• {item}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function ContactCard() {
+  return (
+    <div 
+      className="rounded-2xl p-9 text-center text-white"
+      style={{
+        background: 'linear-gradient(135deg, hsl(var(--eiduk-navy)) 0%, hsl(var(--eiduk-blue)) 100%)',
+      }}
+    >
+      <h3 className="font-display text-[22px] text-white mb-4">
+        Questions? We're Here to Help
+      </h3>
+      <p className="text-base mb-2">
+        <strong>John Eiduk, CPA, CFP®, MSCTA</strong>
+      </p>
+      <p className="text-base mb-2">
+        847-917-8981 | <a href="mailto:john@eiduktaxandwealth.com" className="text-eiduk-gold font-semibold hover:underline">john@eiduktaxandwealth.com</a>
+      </p>
+      <p className="mt-4">
+        <a href="https://eiduktaxandwealth.com" className="text-eiduk-gold font-semibold hover:underline">eiduktaxandwealth.com</a>
+      </p>
     </div>
   );
 }
