@@ -399,7 +399,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      validate_client_token: {
+        Args: { p_token: string }
+        Returns: {
+          client_id: string
+          is_valid: boolean
+          roadmap_id: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

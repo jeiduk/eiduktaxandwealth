@@ -78,21 +78,20 @@ export default function ClientPortal() {
 
   const validateTokenAndFetchData = async () => {
     try {
-      // Validate token and get roadmap ID
+      // Validate token using secure server-side function
       const { data: tokenData, error: tokenError } = await supabase
-        .from('client_access_tokens')
-        .select('roadmap_id, client_id, expires_at')
-        .eq('token', token)
-        .single();
+        .rpc('validate_client_token', { p_token: token });
 
-      if (tokenError || !tokenData) {
+      if (tokenError || !tokenData || tokenData.length === 0) {
         setError('Invalid or expired access link');
         setLoading(false);
         return;
       }
 
-      // Check if token is expired
-      if (new Date(tokenData.expires_at) < new Date()) {
+      const validatedToken = tokenData[0];
+      
+      // Check if token is valid (not expired)
+      if (!validatedToken.is_valid) {
         setError('This access link has expired. Please contact your advisor for a new link.');
         setLoading(false);
         return;
@@ -102,18 +101,20 @@ export default function ClientPortal() {
       const { data: clientData } = await supabase
         .from('clients')
         .select('id, first_name, last_name, email, company_name')
-        .eq('id', tokenData.client_id)
+        .eq('id', validatedToken.client_id)
         .single();
 
       if (clientData) {
         setClient(clientData);
       }
 
+      const roadmapId = validatedToken.roadmap_id;
+
       // Fetch roadmap data
       const { data: roadmapData, error: roadmapError } = await supabase
         .from('client_roadmaps')
         .select('*')
-        .eq('id', tokenData.roadmap_id)
+        .eq('id', roadmapId)
         .single();
 
       if (roadmapError || !roadmapData) {

@@ -149,8 +149,7 @@ serve(async (req: Request): Promise<Response> => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: "Magic link sent successfully",
-        magicLink: magicLink // Include for testing purposes
+        message: "Magic link sent successfully"
       }),
       {
         status: 200,
