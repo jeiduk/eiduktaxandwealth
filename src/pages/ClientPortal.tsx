@@ -490,7 +490,10 @@ export default function ClientPortal() {
 
         {/* Document Upload Section */}
         {client && (
-          <ClientDocumentUpload clientId={client.id} />
+          <ClientDocumentUpload 
+            clientId={client.id} 
+            clientName={`${client.first_name} ${client.last_name}`} 
+          />
         )}
         <div 
           className="rounded-2xl p-9 text-center text-white"
