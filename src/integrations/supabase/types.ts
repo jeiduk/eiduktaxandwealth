@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      client_access_tokens: {
+        Row: {
+          client_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          last_accessed_at: string | null
+          roadmap_id: string
+          token: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          last_accessed_at?: string | null
+          roadmap_id: string
+          token: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          last_accessed_at?: string | null
+          roadmap_id?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_access_tokens_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_access_tokens_roadmap_id_fkey"
+            columns: ["roadmap_id"]
+            isOneToOne: false
+            referencedRelation: "client_roadmaps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_documents: {
         Row: {
           category: string | null
@@ -65,25 +110,32 @@ export type Database = {
           estimated_savings_max: number
           estimated_savings_min: number
           id: string
+          phase1_completed: Json | null
           phase1_description: string
           phase1_tasks: Json
           phase1_title: string
+          phase2_completed: Json | null
           phase2_description: string
           phase2_tasks: Json
           phase2_title: string
+          phase3_completed: Json | null
           phase3_description: string
           phase3_tasks: Json
           phase3_title: string
+          phase4_completed: Json | null
           phase4_description: string
           phase4_tasks: Json
           phase4_title: string
+          phase5_completed: Json | null
           phase5_description: string
           phase5_tasks: Json
           phase5_title: string
+          phase6_completed: Json | null
           phase6_description: string
           phase6_tasks: Json
           phase6_title: string
           status: string
+          template_id: string | null
           title: string
           updated_at: string
           user_id: string
@@ -94,25 +146,32 @@ export type Database = {
           estimated_savings_max?: number
           estimated_savings_min?: number
           id?: string
+          phase1_completed?: Json | null
           phase1_description?: string
           phase1_tasks?: Json
           phase1_title?: string
+          phase2_completed?: Json | null
           phase2_description?: string
           phase2_tasks?: Json
           phase2_title?: string
+          phase3_completed?: Json | null
           phase3_description?: string
           phase3_tasks?: Json
           phase3_title?: string
+          phase4_completed?: Json | null
           phase4_description?: string
           phase4_tasks?: Json
           phase4_title?: string
+          phase5_completed?: Json | null
           phase5_description?: string
           phase5_tasks?: Json
           phase5_title?: string
+          phase6_completed?: Json | null
           phase6_description?: string
           phase6_tasks?: Json
           phase6_title?: string
           status?: string
+          template_id?: string | null
           title?: string
           updated_at?: string
           user_id: string
@@ -123,25 +182,32 @@ export type Database = {
           estimated_savings_max?: number
           estimated_savings_min?: number
           id?: string
+          phase1_completed?: Json | null
           phase1_description?: string
           phase1_tasks?: Json
           phase1_title?: string
+          phase2_completed?: Json | null
           phase2_description?: string
           phase2_tasks?: Json
           phase2_title?: string
+          phase3_completed?: Json | null
           phase3_description?: string
           phase3_tasks?: Json
           phase3_title?: string
+          phase4_completed?: Json | null
           phase4_description?: string
           phase4_tasks?: Json
           phase4_title?: string
+          phase5_completed?: Json | null
           phase5_description?: string
           phase5_tasks?: Json
           phase5_title?: string
+          phase6_completed?: Json | null
           phase6_description?: string
           phase6_tasks?: Json
           phase6_title?: string
           status?: string
+          template_id?: string | null
           title?: string
           updated_at?: string
           user_id?: string
@@ -152,6 +218,13 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_roadmaps_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "roadmap_templates"
             referencedColumns: ["id"]
           },
         ]
@@ -226,6 +299,93 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      roadmap_templates: {
+        Row: {
+          created_at: string
+          description: string | null
+          estimated_savings_max: number
+          estimated_savings_min: number
+          id: string
+          name: string
+          phase1_description: string
+          phase1_tasks: Json
+          phase1_title: string
+          phase2_description: string
+          phase2_tasks: Json
+          phase2_title: string
+          phase3_description: string
+          phase3_tasks: Json
+          phase3_title: string
+          phase4_description: string
+          phase4_tasks: Json
+          phase4_title: string
+          phase5_description: string
+          phase5_tasks: Json
+          phase5_title: string
+          phase6_description: string
+          phase6_tasks: Json
+          phase6_title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          estimated_savings_max?: number
+          estimated_savings_min?: number
+          id?: string
+          name: string
+          phase1_description?: string
+          phase1_tasks?: Json
+          phase1_title?: string
+          phase2_description?: string
+          phase2_tasks?: Json
+          phase2_title?: string
+          phase3_description?: string
+          phase3_tasks?: Json
+          phase3_title?: string
+          phase4_description?: string
+          phase4_tasks?: Json
+          phase4_title?: string
+          phase5_description?: string
+          phase5_tasks?: Json
+          phase5_title?: string
+          phase6_description?: string
+          phase6_tasks?: Json
+          phase6_title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          estimated_savings_max?: number
+          estimated_savings_min?: number
+          id?: string
+          name?: string
+          phase1_description?: string
+          phase1_tasks?: Json
+          phase1_title?: string
+          phase2_description?: string
+          phase2_tasks?: Json
+          phase2_title?: string
+          phase3_description?: string
+          phase3_tasks?: Json
+          phase3_title?: string
+          phase4_description?: string
+          phase4_tasks?: Json
+          phase4_title?: string
+          phase5_description?: string
+          phase5_tasks?: Json
+          phase5_title?: string
+          phase6_description?: string
+          phase6_tasks?: Json
+          phase6_title?: string
           updated_at?: string
           user_id?: string
         }

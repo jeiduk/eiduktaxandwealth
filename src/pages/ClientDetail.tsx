@@ -621,7 +621,8 @@ export default function ClientDetail() {
           <TabsContent value="roadmaps">
             <RoadmapGenerator 
               clientId={id!} 
-              clientName={`${client.first_name} ${client.last_name}`} 
+              clientName={`${client.first_name} ${client.last_name}`}
+              clientEmail={client.email || undefined}
             />
           </TabsContent>
         </Tabs>
