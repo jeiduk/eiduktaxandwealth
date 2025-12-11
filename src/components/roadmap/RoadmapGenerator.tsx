@@ -398,39 +398,6 @@ export function RoadmapGenerator({ clientId, clientName, clientEmail }: RoadmapG
               {/* Expanded Editor */}
               {expandedId === roadmap.id && editForm && (
                 <CardContent className="border-t p-6 space-y-6">
-                  {/* Title & Savings */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="md:col-span-1 space-y-2">
-                      <Label>Roadmap Title</Label>
-                      <Input
-                        value={editForm.title || ''}
-                        onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="flex items-center gap-2">
-                        <DollarSign className="h-4 w-4" />
-                        Min Savings
-                      </Label>
-                      <Input
-                        type="number"
-                        value={editForm.estimated_savings_min || 0}
-                        onChange={(e) => setEditForm({ ...editForm, estimated_savings_min: parseInt(e.target.value) || 0 })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="flex items-center gap-2">
-                        <DollarSign className="h-4 w-4" />
-                        Max Savings
-                      </Label>
-                      <Input
-                        type="number"
-                        value={editForm.estimated_savings_max || 0}
-                        onChange={(e) => setEditForm({ ...editForm, estimated_savings_max: parseInt(e.target.value) || 0 })}
-                      />
-                    </div>
-                  </div>
-
                   {/* All 6 Phases */}
                   {phaseConfigs.map((config, index) => {
                     const phaseNum = index + 1;
