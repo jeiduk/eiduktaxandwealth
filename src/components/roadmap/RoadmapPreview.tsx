@@ -1,9 +1,10 @@
 import { Button } from '@/components/ui/button';
-import { X, Printer, Mail, Save } from 'lucide-react';
+import { X, Printer, Mail } from 'lucide-react';
 
 interface Roadmap {
   id: string;
   title: string;
+  service_level?: string;
   phase1_title: string;
   phase1_description: string;
   phase1_tasks: string[];
@@ -24,11 +25,13 @@ interface Roadmap {
   phase6_tasks: string[];
   estimated_savings_min: number;
   estimated_savings_max: number;
+  created_at: string;
 }
 
 interface RoadmapPreviewProps {
   roadmap: Roadmap;
   clientName: string;
+  companyName?: string;
   onClose: () => void;
 }
 
@@ -41,15 +44,32 @@ const PHASE_TIMING = [
   'Week 10–12',
 ];
 
-export function RoadmapPreview({ roadmap, clientName, onClose }: RoadmapPreviewProps) {
+export function RoadmapPreview({ roadmap, clientName, companyName, onClose }: RoadmapPreviewProps) {
   const handlePrint = () => {
     window.print();
   };
 
   const handleEmail = () => {
-    const subject = encodeURIComponent('Your 90-Day Roadmap - Eiduk Tax & Wealth');
-    const body = encodeURIComponent(`Hi,\n\nPlease find attached your 90-Day Roadmap showing what we'll accomplish together over the next three months.\n\nThis is a simple guide to help you understand each phase and what you'll need to provide along the way. Don't worry - we'll guide you through every step!\n\nLooking forward to working with you.\n\nBest regards,\nJohn Eiduk, CPA, CFP®, MSCTA\nEiduk Tax & Wealth\n847-917-8981\njohn@eiduktaxandwealth.com`);
+    const subject = encodeURIComponent('Welcome to Eiduk Tax & Wealth - Your 90-Day Roadmap');
+    const body = encodeURIComponent(`Hi,\n\nWelcome! Please find your complete 90-Day Roadmap and onboarding information.\n\nThis packet contains everything you need to get started and maximize your tax savings.\n\nLooking forward to working with you!\n\nBest regards,\nJohn Eiduk, CPA, CFP®, MSCTA\nEiduk Tax & Wealth\n847-917-8981\njohn@eiduktaxandwealth.com`);
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
   };
 
   const phases = [
@@ -111,10 +131,10 @@ export function RoadmapPreview({ roadmap, clientName, onClose }: RoadmapPreviewP
                 Eiduk Tax & Wealth
               </div>
               <h1 className="font-display text-4xl font-bold text-white mb-3">
-                Your 90-Day Roadmap
+                Welcome to Your Tax Advisory Partnership!
               </h1>
-              <p className="text-lg text-white max-w-[600px] mx-auto">
-                A simple guide to your first 90 days working together
+              <p className="text-lg text-white/90 max-w-[600px] mx-auto">
+                Your Strategic Tax Optimization Starts Today
               </p>
               <div className="font-display text-lg font-semibold text-eiduk-gold mt-5">
                 Pay Less. Keep More. Build Wealth.
@@ -124,7 +144,32 @@ export function RoadmapPreview({ roadmap, clientName, onClose }: RoadmapPreviewP
 
           {/* Content Area */}
           <div className="p-10 md:p-12">
-            {/* Intro Box */}
+            {/* Client Info Box */}
+            <div className="bg-eiduk-cream rounded-2xl p-6 mb-8 border-l-4 border-eiduk-blue">
+              <h3 className="font-display text-lg font-semibold text-eiduk-navy mb-4">Client Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <span className="text-sm font-semibold text-eiduk-navy">Client Name:</span>
+                  <p className="text-foreground">{clientName}</p>
+                </div>
+                {companyName && (
+                  <div>
+                    <span className="text-sm font-semibold text-eiduk-navy">Business Name:</span>
+                    <p className="text-foreground">{companyName}</p>
+                  </div>
+                )}
+                <div>
+                  <span className="text-sm font-semibold text-eiduk-navy">Engagement Date:</span>
+                  <p className="text-foreground">{formatDate(roadmap.created_at)}</p>
+                </div>
+                <div>
+                  <span className="text-sm font-semibold text-eiduk-navy">Service Level:</span>
+                  <p className="text-foreground">{roadmap.service_level || 'Tax Advisory'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Savings Box */}
             <div 
               className="rounded-2xl p-8 text-center mb-10 border-2 border-eiduk-gold"
               style={{
@@ -132,16 +177,58 @@ export function RoadmapPreview({ roadmap, clientName, onClose }: RoadmapPreviewP
               }}
             >
               <h2 className="font-display text-2xl text-eiduk-navy mb-3">
-                What We'll Accomplish Together
+                Projected Annual Tax Savings
+                <span className="ml-2 inline-block bg-gradient-to-r from-eiduk-navy to-eiduk-blue text-white text-xs px-3 py-1 rounded-full align-middle">
+                  The Eiduk Pathway™
+                </span>
               </h2>
-              <p className="text-base leading-relaxed text-foreground">
-                Over the next 90 days, we'll implement tax-saving strategies designed specifically for your S-Corporation. By following this roadmap, you'll be on track for:
-              </p>
-              <div className="font-display text-[32px] font-bold text-eiduk-gold my-4">
-                ${roadmap.estimated_savings_min.toLocaleString()} – ${roadmap.estimated_savings_max.toLocaleString()}+
+              <div className="font-display text-[40px] font-bold text-eiduk-gold my-4">
+                {formatCurrency(roadmap.estimated_savings_min)} – {formatCurrency(roadmap.estimated_savings_max)}+
               </div>
-              <p className="text-base text-foreground">in annual tax savings</p>
+              <p className="text-base text-muted-foreground max-w-xl mx-auto">
+                Based on your business profile and The Eiduk Pathway™ systematic implementation.
+              </p>
             </div>
+
+            {/* What's Included */}
+            <div className="mb-10">
+              <h2 
+                className="text-white font-display text-lg font-semibold p-4 rounded-lg mb-6"
+                style={{ background: 'linear-gradient(135deg, hsl(var(--eiduk-navy)) 0%, hsl(var(--eiduk-blue)) 100%)' }}
+              >
+                What's Included in Your Service
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <ServiceCard 
+                  emoji="🎯" 
+                  title="Strategic Tax Planning"
+                  items={['Quarterly strategic planning sessions', 'Year-end tax optimization review', 'Multi-year tax projection modeling']}
+                />
+                <ServiceCard 
+                  emoji="📊" 
+                  title="S-Corp Foundation Setup"
+                  items={['Reasonable compensation analysis', 'Accountable plan implementation', 'Home office deduction']}
+                />
+                <ServiceCard 
+                  emoji="📁" 
+                  title="Complete Tax Compliance"
+                  items={['Corporate tax return (1120S)', 'Personal tax return (1040)', 'Quarterly estimated tax guidance']}
+                />
+                <ServiceCard 
+                  emoji="💼" 
+                  title="Ongoing Advisory Support"
+                  items={['Unlimited email support', 'Priority phone consultations', 'Document review and feedback']}
+                />
+              </div>
+            </div>
+
+            {/* 90-Day Timeline Header */}
+            <h2 
+              className="text-white font-display text-lg font-semibold p-4 rounded-lg mb-6"
+              style={{ background: 'linear-gradient(135deg, hsl(var(--eiduk-navy)) 0%, hsl(var(--eiduk-blue)) 100%)' }}
+            >
+              Your 90-Day Success Roadmap
+            </h2>
 
             {/* Timeline */}
             <div className="relative">
@@ -201,6 +288,19 @@ export function RoadmapPreview({ roadmap, clientName, onClose }: RoadmapPreviewP
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function ServiceCard({ emoji, title, items }: { emoji: string; title: string; items: string[] }) {
+  return (
+    <div className="bg-white border border-border/50 rounded-xl p-5 shadow-sm border-l-4 border-l-eiduk-blue">
+      <h4 className="font-semibold text-eiduk-navy mb-3">{emoji} {title}</h4>
+      <ul className="space-y-1">
+        {items.map((item, i) => (
+          <li key={i} className="text-sm text-muted-foreground">• {item}</li>
+        ))}
+      </ul>
     </div>
   );
 }
