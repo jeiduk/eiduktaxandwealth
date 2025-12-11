@@ -74,6 +74,15 @@ export type Database = {
           phase3_description: string
           phase3_tasks: Json
           phase3_title: string
+          phase4_description: string
+          phase4_tasks: Json
+          phase4_title: string
+          phase5_description: string
+          phase5_tasks: Json
+          phase5_title: string
+          phase6_description: string
+          phase6_tasks: Json
+          phase6_title: string
           status: string
           title: string
           updated_at: string
@@ -94,6 +103,15 @@ export type Database = {
           phase3_description?: string
           phase3_tasks?: Json
           phase3_title?: string
+          phase4_description?: string
+          phase4_tasks?: Json
+          phase4_title?: string
+          phase5_description?: string
+          phase5_tasks?: Json
+          phase5_title?: string
+          phase6_description?: string
+          phase6_tasks?: Json
+          phase6_title?: string
           status?: string
           title?: string
           updated_at?: string
@@ -114,6 +132,15 @@ export type Database = {
           phase3_description?: string
           phase3_tasks?: Json
           phase3_title?: string
+          phase4_description?: string
+          phase4_tasks?: Json
+          phase4_title?: string
+          phase5_description?: string
+          phase5_tasks?: Json
+          phase5_title?: string
+          phase6_description?: string
+          phase6_tasks?: Json
+          phase6_title?: string
           status?: string
           title?: string
           updated_at?: string
