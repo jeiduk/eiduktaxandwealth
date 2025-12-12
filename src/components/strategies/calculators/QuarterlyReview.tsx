@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,11 +10,14 @@ import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { FileText, ChevronDown, ChevronRight } from 'lucide-react';
+import { FileText, ChevronDown, ChevronRight, Upload, Loader2, CheckCircle, ExternalLink, Trash2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface QuarterlyReviewProps {
   clientName: string;
   companyName?: string;
+  clientId?: string;
   savedData: Record<string, unknown>;
   onSave: (data: Record<string, unknown>, savings?: number) => void;
   onClose: () => void;
@@ -67,6 +70,8 @@ interface ReviewData {
   ytdExpenses: string;
   ytdNetIncome: string;
   projectedAnnual: string;
+  plFilePath: string;
+  plFileName: string;
   
   // Reasonable Compensation
   currentW2: string;
@@ -217,8 +222,12 @@ const defaultStrategies = (): Record<string, StrategyData> => {
   return strategies;
 };
 
-export function QuarterlyReview({ clientName, companyName, savedData, onSave, onClose }: QuarterlyReviewProps) {
+export function QuarterlyReview({ clientName, companyName, clientId, savedData, onSave, onClose }: QuarterlyReviewProps) {
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const currentQuarter = `Q${Math.ceil((new Date().getMonth() + 1) / 3)} ${new Date().getFullYear()}`;
+  
+  const [uploading, setUploading] = useState(false);
   
   const [data, setData] = useState<ReviewData>({
     clientName: (savedData.clientName as string) || clientName || '',
@@ -244,6 +253,8 @@ export function QuarterlyReview({ clientName, companyName, savedData, onSave, on
     ytdExpenses: (savedData.ytdExpenses as string) || '',
     ytdNetIncome: (savedData.ytdNetIncome as string) || '',
     projectedAnnual: (savedData.projectedAnnual as string) || '',
+    plFilePath: (savedData.plFilePath as string) || '',
+    plFileName: (savedData.plFileName as string) || '',
     currentW2: (savedData.currentW2 as string) || '',
     recommendedW2: (savedData.recommendedW2 as string) || '',
     ficaSavings: (savedData.ficaSavings as string) || '',
@@ -329,6 +340,89 @@ export function QuarterlyReview({ clientName, companyName, savedData, onSave, on
   const handleSave = () => {
     const totalSavings = calculateTotalSavings();
     onSave(data as unknown as Record<string, unknown>, totalSavings);
+  };
+
+  const handlePLUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !clientId) {
+      if (!clientId) {
+        toast({
+          variant: 'destructive',
+          title: 'Upload unavailable',
+          description: 'Client ID is required to upload documents.',
+        });
+      }
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${clientId}/quarterly-review-pl/${Date.now()}-${file.name}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('client-documents')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      setData(prev => ({
+        ...prev,
+        plFilePath: fileName,
+        plFileName: file.name,
+      }));
+
+      toast({
+        title: 'P&L uploaded',
+        description: `${file.name} has been uploaded successfully.`,
+      });
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Upload failed',
+        description: error.message || 'Failed to upload P&L document',
+      });
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemovePL = async () => {
+    if (!data.plFilePath) return;
+    
+    try {
+      await supabase.storage
+        .from('client-documents')
+        .remove([data.plFilePath]);
+      
+      setData(prev => ({
+        ...prev,
+        plFilePath: '',
+        plFileName: '',
+      }));
+      
+      toast({
+        title: 'P&L removed',
+        description: 'The P&L document has been removed.',
+      });
+    } catch (error: any) {
+      console.error('Remove error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Remove failed',
+        description: error.message || 'Failed to remove P&L document',
+      });
+    }
+  };
+
+  const getPLUrl = (): string | null => {
+    if (!data.plFilePath) return null;
+    const { data: urlData } = supabase.storage
+      .from('client-documents')
+      .getPublicUrl(data.plFilePath);
+    return urlData?.publicUrl || null;
   };
 
   const updateStrategy = (phaseKey: string, strategyKey: string, field: keyof StrategyData, value: string | boolean) => {
@@ -514,7 +608,7 @@ export function QuarterlyReview({ clientName, companyName, savedData, onSave, on
             <h3 className="font-display text-lg font-semibold text-eiduk-navy">Financial Snapshot</h3>
             {openSections.financial ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
           </CollapsibleTrigger>
-          <CollapsibleContent className="mt-3">
+          <CollapsibleContent className="mt-3 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <Label>YTD Revenue</Label>
@@ -532,6 +626,70 @@ export function QuarterlyReview({ clientName, companyName, savedData, onSave, on
                 <Label>Projected Annual</Label>
                 <Input value={data.projectedAnnual} onChange={(e) => setData(prev => ({ ...prev, projectedAnnual: e.target.value }))} placeholder="$0" />
               </div>
+            </div>
+
+            {/* P&L Upload Section */}
+            <div className="border-t pt-4">
+              <Label className="mb-2 block">Recent P&L Statement</Label>
+              {data.plFileName ? (
+                <div className="flex items-center gap-3 p-3 bg-success/5 border border-success/20 rounded-lg">
+                  <CheckCircle className="h-5 w-5 text-success shrink-0" />
+                  <FileText className="h-5 w-5 text-eiduk-blue shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-foreground truncate">{data.plFileName}</p>
+                    <p className="text-xs text-muted-foreground">Uploaded</p>
+                  </div>
+                  <div className="flex gap-2">
+                    {getPLUrl() && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => window.open(getPLUrl()!, '_blank')}
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleRemovePL}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  className="border-2 border-dashed border-eiduk-blue/30 rounded-lg p-6 text-center hover:border-eiduk-blue/50 transition-colors cursor-pointer"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    onChange={handlePLUpload}
+                    className="hidden"
+                    accept=".pdf,.xls,.xlsx,.csv"
+                  />
+                  
+                  {uploading ? (
+                    <div className="flex flex-col items-center gap-2">
+                      <Loader2 className="h-8 w-8 animate-spin text-eiduk-blue" />
+                      <p className="text-sm text-muted-foreground">Uploading...</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="w-12 h-12 rounded-full bg-eiduk-blue/10 flex items-center justify-center">
+                        <Upload className="h-6 w-6 text-eiduk-blue" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-eiduk-navy">Click to upload P&L</p>
+                        <p className="text-xs text-muted-foreground">PDF, Excel, or CSV</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </CollapsibleContent>
         </Collapsible>
