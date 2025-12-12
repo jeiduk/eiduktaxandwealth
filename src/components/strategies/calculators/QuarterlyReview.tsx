@@ -1,4 +1,5 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import type { Json } from '@/integrations/supabase/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,9 +11,10 @@ import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { FileText, ChevronDown, ChevronRight, Upload, Loader2, CheckCircle, ExternalLink, Trash2 } from 'lucide-react';
+import { FileText, ChevronDown, ChevronRight, Upload, Loader2, CheckCircle, ExternalLink, Trash2, History, Download } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 interface QuarterlyReviewProps {
   clientName: string;
@@ -234,12 +236,36 @@ const defaultStrategies = (): Record<string, StrategyData> => {
   return strategies;
 };
 
+// Generate available quarters for dropdown (current year and previous year)
+const getAvailableQuarters = (): string[] => {
+  const currentYear = new Date().getFullYear();
+  const quarters: string[] = [];
+  for (let year = currentYear; year >= currentYear - 2; year--) {
+    for (let q = 4; q >= 1; q--) {
+      quarters.push(`Q${q} ${year}`);
+    }
+  }
+  return quarters;
+};
+
+interface HistoricalMeeting {
+  id: string;
+  quarter: string;
+  total_savings: number;
+  updated_at: string;
+}
+
 export function QuarterlyReview({ clientName, companyName, clientId, savedData, onSave, onClose }: QuarterlyReviewProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const currentQuarter = `Q${Math.ceil((new Date().getMonth() + 1) / 3)} ${new Date().getFullYear()}`;
   
   const [uploading, setUploading] = useState(false);
+  const [savingToHistory, setSavingToHistory] = useState(false);
+  const [historicalMeetings, setHistoricalMeetings] = useState<HistoricalMeeting[]>([]);
+  const [selectedHistoricalQuarter, setSelectedHistoricalQuarter] = useState<string>('');
+  const [loadingHistory, setLoadingHistory] = useState(false);
   
   const [data, setData] = useState<ReviewData>({
     clientName: (savedData.clientName as string) || clientName || '',
@@ -349,6 +375,133 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
       }
     }
     return 'Complete!';
+  };
+
+  // Load historical meetings on mount
+  useEffect(() => {
+    if (clientId) {
+      loadHistoricalMeetings();
+    }
+  }, [clientId]);
+
+  const loadHistoricalMeetings = async () => {
+    if (!clientId) return;
+    
+    try {
+      const { data: meetings, error } = await supabase
+        .from('quarterly_meetings')
+        .select('id, quarter, total_savings, updated_at')
+        .eq('client_id', clientId)
+        .order('quarter', { ascending: false });
+      
+      if (error) throw error;
+      setHistoricalMeetings(meetings || []);
+    } catch (error) {
+      console.error('Error loading historical meetings:', error);
+    }
+  };
+
+  const handleSaveToHistory = async () => {
+    if (!clientId || !user?.id) {
+      toast({
+        variant: 'destructive',
+        title: 'Save unavailable',
+        description: 'Client ID and user authentication are required.',
+      });
+      return;
+    }
+
+    setSavingToHistory(true);
+    try {
+      const totalSavings = calculateTotalSavings();
+      
+      // First check if record exists
+      const { data: existing } = await supabase
+        .from('quarterly_meetings')
+        .select('id')
+        .eq('client_id', clientId)
+        .eq('quarter', data.quarter)
+        .maybeSingle();
+
+      if (existing) {
+        // Update existing record
+        const { error: updateError } = await supabase
+          .from('quarterly_meetings')
+          .update({
+            meeting_data: JSON.parse(JSON.stringify(data)) as Json,
+            total_savings: totalSavings,
+          })
+          .eq('id', existing.id);
+        if (updateError) throw updateError;
+      } else {
+        // Insert new record
+        const { error: insertError } = await supabase
+          .from('quarterly_meetings')
+          .insert([{
+            client_id: clientId,
+            user_id: user.id,
+            quarter: data.quarter,
+            meeting_data: JSON.parse(JSON.stringify(data)) as Json,
+            total_savings: totalSavings,
+          }]);
+        if (insertError) throw insertError;
+      }
+
+      toast({
+        title: 'Meeting saved',
+        description: `${data.quarter} meeting notes saved successfully.`,
+      });
+
+      // Refresh the historical meetings list
+      await loadHistoricalMeetings();
+      
+      // Also save to the parent component
+      handleSave();
+    } catch (error: any) {
+      console.error('Save to history error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Save failed',
+        description: error.message || 'Failed to save meeting notes.',
+      });
+    } finally {
+      setSavingToHistory(false);
+    }
+  };
+
+  const loadHistoricalMeeting = async (quarter: string) => {
+    if (!clientId) return;
+    
+    setLoadingHistory(true);
+    try {
+      const { data: meeting, error } = await supabase
+        .from('quarterly_meetings')
+        .select('meeting_data')
+        .eq('client_id', clientId)
+        .eq('quarter', quarter)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (meeting?.meeting_data) {
+        const meetingData = meeting.meeting_data as unknown as ReviewData;
+        setData(meetingData);
+        setSelectedHistoricalQuarter(quarter);
+        toast({
+          title: 'Meeting loaded',
+          description: `Loaded ${quarter} meeting notes.`,
+        });
+      }
+    } catch (error: any) {
+      console.error('Load historical meeting error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Load failed',
+        description: error.message || 'Failed to load meeting notes.',
+      });
+    } finally {
+      setLoadingHistory(false);
+    }
   };
 
   const handleSave = () => {
@@ -465,10 +618,52 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
   return (
     <Card className="border-2 border-eiduk-gold/30 max-h-[85vh] overflow-y-auto">
       <CardHeader className="bg-gradient-to-r from-eiduk-navy to-eiduk-blue text-white sticky top-0 z-10">
-        <div className="text-sm text-eiduk-gold font-semibold tracking-wider">EIDUK PATHWAY™</div>
-        <CardTitle className="font-display text-2xl">S-Corp Quarterly Review Workpaper</CardTitle>
-        <p className="text-white/80">Comprehensive 47-Strategy Tax Optimization Framework</p>
-        <div className="text-eiduk-gold font-display italic">Pay Less. Keep More. Build Wealth.</div>
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-sm text-eiduk-gold font-semibold tracking-wider">EIDUK PATHWAY™</div>
+            <CardTitle className="font-display text-2xl">S-Corp Quarterly Review Workpaper</CardTitle>
+            <p className="text-white/80">Comprehensive 50-Strategy Tax Optimization Framework</p>
+            <div className="text-eiduk-gold font-display italic">Pay Less. Keep More. Build Wealth.</div>
+          </div>
+          
+          {/* Historical Meetings Dropdown */}
+          {historicalMeetings.length > 0 && (
+            <div className="flex flex-col items-end gap-2">
+              <div className="flex items-center gap-2 text-white/80 text-sm">
+                <History className="h-4 w-4" />
+                <span>Past Meetings</span>
+              </div>
+              <Select 
+                value={selectedHistoricalQuarter} 
+                onValueChange={loadHistoricalMeeting}
+                disabled={loadingHistory}
+              >
+                <SelectTrigger className="w-48 bg-white/20 border-white/30 text-white">
+                  {loadingHistory ? (
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Loading...
+                    </div>
+                  ) : (
+                    <SelectValue placeholder="Load past meeting" />
+                  )}
+                </SelectTrigger>
+                <SelectContent>
+                  {historicalMeetings.map((meeting) => (
+                    <SelectItem key={meeting.id} value={meeting.quarter}>
+                      <div className="flex items-center justify-between gap-4">
+                        <span>{meeting.quarter}</span>
+                        <span className="text-muted-foreground text-xs">
+                          ${meeting.total_savings?.toLocaleString() || 0}
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
       </CardHeader>
       
       <CardContent className="p-6 space-y-4">
@@ -498,10 +693,9 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
                   <Select value={data.quarter} onValueChange={(value) => setData(prev => ({ ...prev, quarter: value }))}>
                     <SelectTrigger><SelectValue placeholder="Select Quarter" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Q1 2025">Q1 2025</SelectItem>
-                      <SelectItem value="Q2 2025">Q2 2025</SelectItem>
-                      <SelectItem value="Q3 2025">Q3 2025</SelectItem>
-                      <SelectItem value="Q4 2025">Q4 2025</SelectItem>
+                      {getAvailableQuarters().map((q) => (
+                        <SelectItem key={q} value={q}>{q}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -872,9 +1066,21 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
         {/* Actions */}
         <div className="flex justify-end gap-3 pt-4 sticky bottom-0 bg-background py-4 border-t">
           <Button variant="outline" onClick={onClose}>Close</Button>
+          <Button 
+            onClick={handleSaveToHistory} 
+            disabled={savingToHistory || !clientId}
+            className="bg-eiduk-gold hover:bg-eiduk-gold/90 text-eiduk-navy"
+          >
+            {savingToHistory ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <History className="h-4 w-4 mr-2" />
+            )}
+            Save {data.quarter} Meeting
+          </Button>
           <Button onClick={handleSave} className="bg-eiduk-navy hover:bg-eiduk-blue">
             <FileText className="h-4 w-4 mr-2" />
-            Save Review
+            Save & Close
           </Button>
         </div>
       </CardContent>
