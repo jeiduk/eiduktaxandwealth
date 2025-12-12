@@ -67,6 +67,7 @@ export function RoadmapGenerator({ clientId, clientName, clientEmail, companyNam
   const [sending, setSending] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
+  const [sendPreviewId, setSendPreviewId] = useState<string | null>(null);
 
   const [editForm, setEditForm] = useState<Partial<Roadmap> | null>(null);
 
@@ -98,6 +99,9 @@ export function RoadmapGenerator({ clientId, clientName, clientEmail, companyNam
         title: 'Roadmap sent!',
         description: `Magic link sent to ${clientEmail}`,
       });
+      
+      // Close preview after successful send
+      setSendPreviewId(null);
     } catch (error: any) {
       console.error('Error sending magic link:', error);
       toast({
@@ -313,7 +317,7 @@ export function RoadmapGenerator({ clientId, clientName, clientEmail, companyNam
     );
   }
 
-  // Show preview modal
+  // Show preview modal (view only)
   if (previewId) {
     const roadmap = roadmaps.find(r => r.id === previewId);
     if (roadmap) {
@@ -323,6 +327,25 @@ export function RoadmapGenerator({ clientId, clientName, clientEmail, companyNam
           clientName={clientName}
           companyName={companyName}
           onClose={() => setPreviewId(null)} 
+        />
+      );
+    }
+  }
+
+  // Show send preview modal (with send button)
+  if (sendPreviewId) {
+    const roadmap = roadmaps.find(r => r.id === sendPreviewId);
+    if (roadmap) {
+      return (
+        <RoadmapPreview 
+          roadmap={roadmap} 
+          clientName={clientName}
+          companyName={companyName}
+          clientEmail={clientEmail}
+          onClose={() => setSendPreviewId(null)}
+          onSend={() => sendToClient(sendPreviewId)}
+          sending={sending === sendPreviewId}
+          showSendButton={true}
         />
       );
     }
@@ -449,16 +472,12 @@ export function RoadmapGenerator({ clientId, clientName, clientEmail, companyNam
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => sendToClient(roadmap.id)}
-                        disabled={sending === roadmap.id || !clientEmail}
+                        onClick={() => setSendPreviewId(roadmap.id)}
+                        disabled={!clientEmail}
                         className="bg-eiduk-blue text-white hover:bg-eiduk-navy border-none"
                       >
-                        {sending === roadmap.id ? (
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        ) : (
-                          <Send className="h-4 w-4 mr-2" />
-                        )}
-                        Send to Client
+                        <Send className="h-4 w-4 mr-2" />
+                        Preview & Send
                       </Button>
                       <Button
                         onClick={saveRoadmap}

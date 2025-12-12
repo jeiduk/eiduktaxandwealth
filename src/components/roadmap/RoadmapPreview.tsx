@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { X, Printer, Mail } from 'lucide-react';
+import { X, Printer, Mail, Send, Loader2 } from 'lucide-react';
 
 interface Roadmap {
   id: string;
@@ -32,7 +32,11 @@ interface RoadmapPreviewProps {
   roadmap: Roadmap;
   clientName: string;
   companyName?: string;
+  clientEmail?: string;
   onClose: () => void;
+  onSend?: () => void;
+  sending?: boolean;
+  showSendButton?: boolean;
 }
 
 const PHASE_TIMING = [
@@ -44,7 +48,7 @@ const PHASE_TIMING = [
   'Week 10–12',
 ];
 
-export function RoadmapPreview({ roadmap, clientName, companyName, onClose }: RoadmapPreviewProps) {
+export function RoadmapPreview({ roadmap, clientName, companyName, clientEmail, onClose, onSend, sending, showSendButton }: RoadmapPreviewProps) {
   const handlePrint = () => {
     window.print();
   };
@@ -85,6 +89,21 @@ export function RoadmapPreview({ roadmap, clientName, companyName, onClose }: Ro
     <div className="fixed inset-0 bg-eiduk-cream z-50 overflow-auto print:static print:bg-white">
       {/* Controls - Hidden on print */}
       <div className="print:hidden fixed top-4 right-4 flex items-center gap-2 z-50">
+        {showSendButton && onSend && (
+          <Button 
+            size="sm" 
+            onClick={onSend}
+            disabled={sending || !clientEmail}
+            className="bg-gradient-to-r from-eiduk-gold to-yellow-500 text-eiduk-navy border-none hover:opacity-90 font-semibold"
+          >
+            {sending ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4 mr-2" />
+            )}
+            {sending ? 'Sending...' : `Send to ${clientEmail}`}
+          </Button>
+        )}
         <Button 
           variant="outline" 
           size="sm" 
@@ -107,6 +126,14 @@ export function RoadmapPreview({ roadmap, clientName, companyName, onClose }: Ro
           <X className="h-5 w-5" />
         </Button>
       </div>
+      
+      {/* Send Preview Banner */}
+      {showSendButton && (
+        <div className="print:hidden fixed top-4 left-4 z-50 bg-eiduk-navy/95 text-white px-4 py-2 rounded-lg shadow-lg max-w-md">
+          <p className="text-sm font-medium">Preview Mode</p>
+          <p className="text-xs text-white/80">This is exactly what {clientName} will see when they open the magic link.</p>
+        </div>
+      )}
 
       {/* Roadmap Content - Matches HTML template exactly */}
       <div className="max-w-[900px] mx-auto p-5 print:p-0 print:max-w-full">
