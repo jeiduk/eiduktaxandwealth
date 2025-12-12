@@ -367,6 +367,47 @@ export type Database = {
         }
         Relationships: []
       }
+      quarterly_meetings: {
+        Row: {
+          client_id: string
+          created_at: string
+          id: string
+          meeting_data: Json
+          quarter: string
+          total_savings: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          id?: string
+          meeting_data?: Json
+          quarter: string
+          total_savings?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          id?: string
+          meeting_data?: Json
+          quarter?: string
+          total_savings?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quarterly_meetings_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       roadmap_templates: {
         Row: {
           created_at: string
