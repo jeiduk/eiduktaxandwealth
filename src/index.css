@@ -173,3 +173,46 @@
 .animate-slide-in {
   animation: slide-in-right 0.3s ease-out forwards;
 }
+
+/* Print Styles */
+@media print {
+  body {
+    background: white !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print\\:hidden {
+    display: none !important;
+  }
+
+  .print\\:break-before-page {
+    page-break-before: always;
+  }
+
+  /* Ensure gradients and backgrounds print correctly */
+  .bg-gradient-to-r,
+  .gradient-header {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Card styling for print */
+  .print\\:border-0 {
+    border: none !important;
+  }
+
+  .print\\:shadow-none {
+    box-shadow: none !important;
+  }
+
+  /* Ensure proper page breaks */
+  h2, h3, h4 {
+    page-break-after: avoid;
+  }
+
+  table, figure {
+    page-break-inside: avoid;
+  }
+}
