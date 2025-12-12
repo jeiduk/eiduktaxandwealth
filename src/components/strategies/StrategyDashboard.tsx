@@ -95,10 +95,11 @@ export function StrategyDashboard({ clientId, clientName, companyName }: Strateg
 
   const fetchData = async () => {
     try {
-      // Fetch all strategies
+      // Fetch only strategies with calculators/tools
       const { data: strategiesData, error: strategiesError } = await supabase
         .from('strategies')
         .select('*')
+        .eq('has_calculator', true)
         .order('strategy_number');
 
       if (strategiesError) throw strategiesError;
