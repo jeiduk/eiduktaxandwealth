@@ -57,6 +57,7 @@ interface ReviewData {
     p5: PhaseStatus;
     p6: PhaseStatus;
     p7: PhaseStatus;
+    p8: PhaseStatus;
   };
   
   // Client Snapshot
@@ -99,33 +100,34 @@ interface ReviewData {
   nextQuarterPriorities: string;
 }
 
-// Define all 47 strategies organized by phase
+// Define all strategies organized by 8 phases (The Eiduk System™)
 const PHASES = [
   {
     id: 'p1',
-    name: 'Phase 1: Foundation',
+    name: 'Phase 1: Foundational',
     color: 'bg-blue-600',
     targetSavings: '$26k-$52k',
     strategies: [
-      { key: 's1', name: '#1: Reasonable Compensation', irc: 'IRC §3121', docs: ['Salary comparison study', 'Job description documented', 'Payroll records current'] },
-      { key: 's2', name: '#2: S-Corp Health Insurance', irc: 'IRC §162(l)', docs: ['Premiums paid by S-Corp', 'W-2 Box 1 includes premium', '>2% owner verification'] },
-      { key: 's3', name: '#3: Accountable Plan', irc: 'IRC §62(c)', docs: ['Written plan on file', 'Business connection proven', '60-day substantiation'] },
-      { key: 's4', name: '#4: Augusta Rule (14-Day Rental)', irc: 'IRC §280A(g)', docs: ['Board resolution on file', 'Fair rental rate documented', 'Meeting minutes/purpose'] },
-      { key: 's5', name: '#5: Asset Reimbursement', irc: 'IRC §162', docs: ['Asset use agreement', 'FMV rental rate documented', 'Business use percentage'] },
+      { key: 's1', name: '#1: S-Corp Election', irc: 'IRC §1361', docs: ['Form 2553 filed', 'State election filed', 'Shareholder consent'] },
+      { key: 's2', name: '#2: Reasonable Compensation', irc: 'IRC §3121', docs: ['Salary comparison study', 'Job description documented', 'Payroll records current'] },
+      { key: 's3', name: '#3: S-Corp Health Insurance', irc: 'IRC §162(l)', docs: ['Premiums paid by S-Corp', 'W-2 Box 1 includes premium', '>2% owner verification'] },
+      { key: 's4', name: '#4: Accountable Plan', irc: 'IRC §62(c)', docs: ['Written plan on file', 'Business connection proven', '60-day substantiation'] },
+      { key: 's5', name: '#5: Augusta Rule (14-Day Rental)', irc: 'IRC §280A(g)', docs: ['Board resolution on file', 'Fair rental rate documented', 'Meeting minutes/purpose'] },
+      { key: 's6', name: '#6: Asset Reimbursement', irc: 'IRC §162', docs: ['Asset use agreement', 'FMV rental rate documented', 'Business use percentage'] },
     ],
   },
   {
     id: 'p2',
-    name: 'Phase 2: Core Deductions',
+    name: 'Phase 2: Core',
     color: 'bg-green-600',
     targetSavings: '$12k-$30k',
     strategies: [
-      { key: 's6', name: '#6: Home Office Deduction', irc: 'IRC §280A', docs: ['Square footage calculation', 'Exclusive use documented', 'Direct/indirect expenses'] },
-      { key: 's7', name: '#7: Business Mileage', irc: 'IRC §162, §274', docs: ['Mileage log maintained', '2025 rate: $0.70/mile', 'Business purpose documented'] },
-      { key: 's8', name: '#8: Business Meals', irc: 'IRC §274(n)', docs: ['50% deduction applied', 'Business purpose noted', 'Receipt retention system'] },
-      { key: 's9', name: '#9: Technology & Software', irc: 'IRC §179', docs: ['Business use documented', 'Subscription tracking', 'Asset list maintained'] },
-      { key: 's10', name: '#10: Professional Development', irc: 'IRC §162', docs: ['Business connection clear', 'Receipt documentation', 'Maintains/improves skills'] },
-      { key: 's11', name: '#11: Family Employment', irc: 'IRC §162, §3121', docs: ['Reasonable wages paid', 'Time records maintained', 'W-2/W-4 on file'] },
+      { key: 's7', name: '#7: Home Office Deduction', irc: 'IRC §280A', docs: ['Square footage calculation', 'Exclusive use documented', 'Direct/indirect expenses'] },
+      { key: 's8', name: '#8: Business Mileage', irc: 'IRC §162, §274', docs: ['Mileage log maintained', '2025 rate: $0.70/mile', 'Business purpose documented'] },
+      { key: 's9', name: '#9: Business Meals', irc: 'IRC §274(n)', docs: ['50% deduction applied', 'Business purpose noted', 'Receipt retention system'] },
+      { key: 's10', name: '#10: Technology & Software', irc: 'IRC §179', docs: ['Business use documented', 'Subscription tracking', 'Asset list maintained'] },
+      { key: 's11', name: '#11: Professional Development', irc: 'IRC §162', docs: ['Business connection clear', 'Receipt documentation', 'Maintains/improves skills'] },
+      { key: 's12', name: '#12: Family Employment', irc: 'IRC §162, §3121', docs: ['Reasonable wages paid', 'Time records maintained', 'W-2/W-4 on file'] },
     ],
   },
   {
@@ -134,15 +136,15 @@ const PHASES = [
     color: 'bg-purple-600',
     targetSavings: '$35k-$100k+',
     strategies: [
-      { key: 's12', name: '#12: Solo 401(k) / SEP IRA', irc: 'IRC §401(k), §408', docs: ['Plan document on file', '2025 limit: $23,500 + $7,500', 'Contribution deadline noted'] },
-      { key: 's13', name: '#13: Profit Sharing', irc: 'IRC §401(a)', docs: ['Profit sharing formula set', 'Contribution calculation', 'Discrimination testing'] },
-      { key: 's14', name: '#14: Cash Balance Plan', irc: 'IRC §401(a)', docs: ['Actuarial study completed', 'Annual funding requirement', '2025 limit: up to $280,000+'] },
-      { key: 's15', name: '#15: Mega Backdoor Roth', irc: 'IRC §402(g), §415', docs: ['Plan allows after-tax contrib', 'In-plan Roth conversion setup', '2025 limit: $70k total cap'] },
-      { key: 's16', name: '#16: HSA Triple Tax', irc: 'IRC §223', docs: ['HDHP coverage verified', 'Investment strategy set', '2025 limit: $4,300/$8,550'] },
-      { key: 's17', name: '#17: Backdoor Roth IRA', irc: 'IRC §408A(d)(3)', docs: ['Non-deductible IRA contrib', 'Form 8606 filed', 'Pro-rata rule considered'] },
-      { key: 's18', name: '#18: Roth Conversions', irc: 'IRC §408A', docs: ['Tax bracket analysis', 'Conversion strategy timeline', 'Tax payment planning'] },
-      { key: 's19', name: '#19: Self-Directed Accounts', irc: 'IRC §408, §401', docs: ['Custodian established', 'Prohibited transaction review', 'UBIT considerations'] },
-      { key: 's20', name: '#20: QSEHRA/HRA', irc: 'IRC §9831', docs: ['Plan document current', 'Eligibility verified', 'Notice requirements met'] },
+      { key: 's13', name: '#13: Solo 401(k) / SEP IRA', irc: 'IRC §401(k), §408', docs: ['Plan document on file', '2025 limit: $23,500 + $7,500', 'Contribution deadline noted'] },
+      { key: 's14', name: '#14: Profit Sharing', irc: 'IRC §401(a)', docs: ['Profit sharing formula set', 'Contribution calculation', 'Discrimination testing'] },
+      { key: 's15', name: '#15: Cash Balance Plan', irc: 'IRC §401(a)', docs: ['Actuarial study completed', 'Annual funding requirement', '2025 limit: up to $280,000+'] },
+      { key: 's16', name: '#16: Mega Backdoor Roth', irc: 'IRC §402(g), §415', docs: ['Plan allows after-tax contrib', 'In-plan Roth conversion setup', '2025 limit: $70k total cap'] },
+      { key: 's17', name: '#17: HSA Triple Tax', irc: 'IRC §223', docs: ['HDHP coverage verified', 'Investment strategy set', '2025 limit: $4,300/$8,550'] },
+      { key: 's18', name: '#18: Backdoor Roth IRA', irc: 'IRC §408A(d)(3)', docs: ['Non-deductible IRA contrib', 'Form 8606 filed', 'Pro-rata rule considered'] },
+      { key: 's19', name: '#19: Roth Conversions', irc: 'IRC §408A', docs: ['Tax bracket analysis', 'Conversion strategy timeline', 'Tax payment planning'] },
+      { key: 's20', name: '#20: Self-Directed Accounts', irc: 'IRC §408, §401', docs: ['Custodian established', 'Prohibited transaction review', 'UBIT considerations'] },
+      { key: 's21', name: '#21: QSEHRA/HRA', irc: 'IRC §9831', docs: ['Plan document current', 'Eligibility verified', 'Notice requirements met'] },
     ],
   },
   {
@@ -151,26 +153,26 @@ const PHASES = [
     color: 'bg-orange-600',
     targetSavings: '$8k-$30k',
     strategies: [
-      { key: 's21', name: '#21: R&D Tax Credit', irc: 'IRC §41', docs: ['4-part test documentation', 'Qualified research expenses', 'Form 6765 preparation'] },
-      { key: 's22', name: '#22: WOTC', irc: 'IRC §51', docs: ['Form 8850 filed (28 days)', 'Target group certification', 'Wage/hour documentation'] },
-      { key: 's23', name: '#23: PTET Election', irc: 'State-Specific', docs: ['State election filed', 'Estimated payments made', 'SALT cap workaround calc'] },
-      { key: 's24', name: '#24: State Tax Planning', irc: 'Various', docs: ['Nexus analysis complete', 'Apportionment review', 'Credit/incentive evaluation'] },
-      { key: 's25', name: '#25: Energy Credits', irc: 'IRC §30D, §45L', docs: ['Clean vehicle qualification', 'Energy efficiency docs', 'Credit calculation'] },
+      { key: 's22', name: '#22: R&D Tax Credit', irc: 'IRC §41', docs: ['4-part test documentation', 'Qualified research expenses', 'Form 6765 preparation'] },
+      { key: 's23', name: '#23: WOTC', irc: 'IRC §51', docs: ['Form 8850 filed (28 days)', 'Target group certification', 'Wage/hour documentation'] },
+      { key: 's24', name: '#24: PTET Election', irc: 'State-Specific', docs: ['State election filed', 'Estimated payments made', 'SALT cap workaround calc'] },
+      { key: 's25', name: '#25: State Tax Planning', irc: 'Various', docs: ['Nexus analysis complete', 'Apportionment review', 'Credit/incentive evaluation'] },
+      { key: 's26', name: '#26: Energy Credits', irc: 'IRC §30D, §45L', docs: ['Clean vehicle qualification', 'Energy efficiency docs', 'Credit calculation'] },
     ],
   },
   {
     id: 'p5',
-    name: 'Phase 5: Real Estate & PAL',
+    name: 'Phase 5: Real Estate',
     color: 'bg-cyan-600',
     targetSavings: '$30k-$150k+',
     strategies: [
-      { key: 's26', name: '#26: RE Professional Status', irc: 'IRC §469(c)(7)', docs: ['750+ hours documented', 'Material participation log', '>50% of services in RE'] },
-      { key: 's27', name: '#27: Cost Segregation Study', irc: 'IRC §168', docs: ['Engineering study complete', 'Component breakdown', 'Catch-up depreciation calc'] },
-      { key: 's28', name: '#28: STR Loophole', irc: 'IRC §469', docs: ['Average stay ≤7 days', 'Material participation met', 'Non-passive treatment docs'] },
-      { key: 's29', name: '#29: Self-Rental Loophole', irc: 'IRC §469(c)(2)', docs: ['Lease agreement on file', 'FMV rental rate', 'Recharacterization election'] },
-      { key: 's30', name: '#30: 1031 Exchange', irc: 'IRC §1031', docs: ['QI engaged before sale', '45-day ID requirement', '180-day closing deadline'] },
-      { key: 's31', name: '#31: PAL Grouping Election', irc: 'IRC §469', docs: ['Grouping statement filed', 'Economic unit analysis', 'Material participation log'] },
-      { key: 's32', name: '#32: Syndication Loophole', irc: 'IRC §469', docs: ['9(g) election filed', 'RE Pro status verified', 'K-1 loss allocation'] },
+      { key: 's27', name: '#27: RE Professional Status', irc: 'IRC §469(c)(7)', docs: ['750+ hours documented', 'Material participation log', '>50% of services in RE'] },
+      { key: 's28', name: '#28: Cost Segregation Study', irc: 'IRC §168', docs: ['Engineering study complete', 'Component breakdown', 'Catch-up depreciation calc'] },
+      { key: 's29', name: '#29: STR Loophole', irc: 'IRC §469', docs: ['Average stay ≤7 days', 'Material participation met', 'Non-passive treatment docs'] },
+      { key: 's30', name: '#30: Self-Rental Loophole', irc: 'IRC §469(c)(2)', docs: ['Lease agreement on file', 'FMV rental rate', 'Recharacterization election'] },
+      { key: 's31', name: '#31: 1031 Exchange', irc: 'IRC §1031', docs: ['QI engaged before sale', '45-day ID requirement', '180-day closing deadline'] },
+      { key: 's32', name: '#32: PAL Grouping Election', irc: 'IRC §469', docs: ['Grouping statement filed', 'Economic unit analysis', 'Material participation log'] },
+      { key: 's33', name: '#33: Syndication Strategy', irc: 'IRC §469', docs: ['9(g) election filed', 'RE Pro status verified', 'K-1 loss allocation'] },
     ],
   },
   {
@@ -179,11 +181,11 @@ const PHASES = [
     color: 'bg-red-600',
     targetSavings: '$20k-$75k',
     strategies: [
-      { key: 's33', name: '#33: Heavy Vehicle Strategy', irc: 'IRC §179(b)(5)', docs: ['GVWR >6,000 lbs documented', 'Business use >50%', '2025 SUV limit: $31,300'] },
-      { key: 's34', name: '#34: Oil & Gas Investments', irc: 'IRC §263(c), §611', docs: ['IDC deduction calculated', 'Depletion allowance', 'K-1 partnership analysis'] },
-      { key: 's35', name: '#35: DST Investments', irc: 'IRC §1031', docs: ['DST due diligence', 'Passive income treatment', '1031 replacement property'] },
-      { key: 's36', name: '#36: Opportunity Zone', irc: 'IRC §1400Z-2', docs: ['180-day investment window', 'QOZ fund certification', 'Gain deferral election'] },
-      { key: 's37', name: '#37: Equipment Acquisition', irc: 'IRC §179, §168(k)', docs: ['Business purpose documented', 'Placed in service date', 'Financing vs. purchase analysis'] },
+      { key: 's34', name: '#34: Heavy Vehicle Strategy', irc: 'IRC §179(b)(5)', docs: ['GVWR >6,000 lbs documented', 'Business use >50%', '2025 SUV limit: $31,300'] },
+      { key: 's35', name: '#35: Oil & Gas Investments', irc: 'IRC §263(c), §611', docs: ['IDC deduction calculated', 'Depletion allowance', 'K-1 partnership analysis'] },
+      { key: 's36', name: '#36: DST Investments', irc: 'IRC §1031', docs: ['DST due diligence', 'Passive income treatment', '1031 replacement property'] },
+      { key: 's37', name: '#37: Opportunity Zone', irc: 'IRC §1400Z-2', docs: ['180-day investment window', 'QOZ fund certification', 'Gain deferral election'] },
+      { key: 's38', name: '#38: Equipment Acquisition', irc: 'IRC §179, §168(k)', docs: ['Business purpose documented', 'Placed in service date', 'Financing vs. purchase analysis'] },
     ],
   },
   {
@@ -192,16 +194,26 @@ const PHASES = [
     color: 'bg-amber-600',
     targetSavings: '$50k-$500k+',
     strategies: [
-      { key: 's38', name: '#38: Charitable Lead Trust', irc: 'IRC §664', docs: ['CLT document drafted', 'Annual payment schedule', 'Remainder beneficiaries'] },
-      { key: 's39', name: '#39: Charitable Remainder Trust', irc: 'IRC §664', docs: ['CRT established', 'Unitrust vs annuity trust', 'Income beneficiary terms'] },
-      { key: 's40', name: '#40: Donor Advised Fund', irc: 'IRC §170', docs: ['DAF account open', 'Contribution documentation', 'Grant recommendations'] },
-      { key: 's41', name: '#41: Appreciated Stock Donation', irc: 'IRC §170(e)', docs: ['FMV appraisal if >$5k', 'Form 8283 prepared', 'Holding period >1 year'] },
-      { key: 's42', name: '#42: QSBS Exclusion', irc: 'IRC §1202', docs: ['C-Corp issued stock', '5-year holding period', 'Qualified trade/business'] },
-      { key: 's43', name: '#43: Installment Sale', irc: 'IRC §453', docs: ['Sale agreement terms', 'Interest rate >AFR', 'Gain deferral schedule'] },
-      { key: 's44', name: '#44: Dynasty Trust', irc: 'State-Specific', docs: ['Trust document drafted', 'GST exemption applied', 'Trustee selection'] },
-      { key: 's45', name: '#45: GRAT/GRUT', irc: 'IRC §2702', docs: ['Annuity payment schedule', 'IRS 7520 rate used', 'Remainder value calculated'] },
-      { key: 's46', name: '#46: Life Insurance Strategy', irc: 'IRC §101', docs: ['Policy in force', 'ILIT if applicable', 'Premium payment schedule'] },
-      { key: 's47', name: '#47: Succession Planning', irc: 'Various', docs: ['Buy-sell agreement', 'Valuation method set', 'Funding mechanism'] },
+      { key: 's39', name: '#39: QSBS Exclusion', irc: 'IRC §1202', docs: ['C-Corp issued stock', '5-year holding period', 'Qualified trade/business'] },
+      { key: 's40', name: '#40: Installment Sale', irc: 'IRC §453', docs: ['Sale agreement terms', 'Interest rate >AFR', 'Gain deferral schedule'] },
+      { key: 's41', name: '#41: Dynasty Trust', irc: 'State-Specific', docs: ['Trust document drafted', 'GST exemption applied', 'Trustee selection'] },
+      { key: 's42', name: '#42: GRAT/GRUT', irc: 'IRC §2702', docs: ['Annuity payment schedule', 'IRS 7520 rate used', 'Remainder value calculated'] },
+      { key: 's43', name: '#43: Life Insurance Strategy', irc: 'IRC §101', docs: ['Policy in force', 'ILIT if applicable', 'Premium payment schedule'] },
+      { key: 's44', name: '#44: Succession Planning', irc: 'Various', docs: ['Buy-sell agreement', 'Valuation method set', 'Funding mechanism'] },
+    ],
+  },
+  {
+    id: 'p8',
+    name: 'Phase 8: Charitable & Philanthropic',
+    color: 'bg-pink-600',
+    targetSavings: '$10k-$100k+',
+    strategies: [
+      { key: 's45', name: '#45: Charitable Lead Trust', irc: 'IRC §664', docs: ['CLT document drafted', 'Annual payment schedule', 'Remainder beneficiaries'] },
+      { key: 's46', name: '#46: Charitable Remainder Trust', irc: 'IRC §664', docs: ['CRT established', 'Unitrust vs annuity trust', 'Income beneficiary terms'] },
+      { key: 's47', name: '#47: Donor Advised Fund', irc: 'IRC §170', docs: ['DAF account open', 'Contribution documentation', 'Grant recommendations'] },
+      { key: 's48', name: '#48: Appreciated Stock Donation', irc: 'IRC §170(e)', docs: ['FMV appraisal if >$5k', 'Form 8283 prepared', 'Holding period >1 year'] },
+      { key: 's49', name: '#49: Private Foundation', irc: 'IRC §501(c)(3)', docs: ['Foundation established', 'Board governance', '5% distribution requirement'] },
+      { key: 's50', name: '#50: Qualified Charitable Distribution', irc: 'IRC §408(d)(8)', docs: ['Age 70½+ verified', 'Direct transfer to charity', 'Up to $105,000 limit'] },
     ],
   },
 ];
@@ -244,6 +256,7 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
       p5: { status: 'not-started' },
       p6: { status: 'not-started' },
       p7: { status: 'not-started' },
+      p8: { status: 'not-started' },
     },
     primaryContact: (savedData.primaryContact as string) || '',
     filingStatus: (savedData.filingStatus as string) || '',
@@ -309,7 +322,7 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
       'complete': 100,
       'maintaining': 100,
     };
-    const totalPhases = 7;
+    const totalPhases = 8;
     let totalProgress = 0;
     Object.values(data.phaseStatus).forEach(phase => {
       totalProgress += phaseValues[phase.status] || 0;
@@ -318,15 +331,16 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
   };
 
   const getCurrentPhase = (): string => {
-    const phaseOrder = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7'];
+    const phaseOrder = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'];
     const phaseNames: Record<string, string> = {
-      p1: 'P1: Foundation',
-      p2: 'P2: Core Deductions',
+      p1: 'P1: Foundational',
+      p2: 'P2: Core',
       p3: 'P3: Retirement',
       p4: 'P4: Credits',
       p5: 'P5: Real Estate',
       p6: 'P6: Acquisitions',
       p7: 'P7: Exit & Wealth',
+      p8: 'P8: Charitable',
     };
     for (const phase of phaseOrder) {
       if (data.phaseStatus[phase as keyof typeof data.phaseStatus].status !== 'complete' && 
@@ -512,18 +526,19 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-3">
             <div className="bg-gradient-to-r from-eiduk-navy to-eiduk-blue text-white p-6 rounded-lg">
-              <p className="text-sm opacity-90 mb-4">Systematic tax optimization through 7 strategic phases • 47 strategies • Building wealth while reducing taxes</p>
+              <p className="text-sm opacity-90 mb-4">Systematic tax optimization through 8 strategic phases • 50 strategies • Building wealth while reducing taxes</p>
               
               {/* Phase Timeline */}
               <div className="flex flex-wrap justify-between items-start gap-2 mb-6">
                 {[
-                  { key: 'p1', label: 'Foundation', count: 5 },
+                  { key: 'p1', label: 'Foundational', count: 6 },
                   { key: 'p2', label: 'Core', count: 6 },
                   { key: 'p3', label: 'Retirement', count: 9 },
                   { key: 'p4', label: 'Credits', count: 5 },
                   { key: 'p5', label: 'Real Estate', count: 7 },
                   { key: 'p6', label: 'Acquisitions', count: 5 },
-                  { key: 'p7', label: 'Exit & Wealth', count: 10 },
+                  { key: 'p7', label: 'Exit & Wealth', count: 6 },
+                  { key: 'p8', label: 'Charitable', count: 6 },
                 ].map((phase, index) => (
                   <div key={phase.key} className="flex-1 min-w-[100px] text-center">
                     <div className={`w-12 h-12 mx-auto rounded-full ${getPhaseStatusColor(data.phaseStatus[phase.key as keyof typeof data.phaseStatus].status)} flex items-center justify-center font-bold text-lg mb-2`}>
@@ -563,7 +578,7 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
                 </div>
                 <div className="text-center">
                   <div className="text-xs uppercase opacity-80 mb-1">Strategies Active</div>
-                  <div className="text-lg font-bold">{countActiveStrategies()} / 47</div>
+                  <div className="text-lg font-bold">{countActiveStrategies()} / 50</div>
                 </div>
                 <div className="text-center">
                   <div className="text-xs uppercase opacity-80 mb-1">Est. Annual Savings</div>
@@ -589,7 +604,7 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
             </div>
             <div className="bg-white p-3 rounded-lg shadow">
               <div className="text-xs text-muted-foreground uppercase">Strategies Active</div>
-              <div className="text-2xl font-bold text-eiduk-blue">{countActiveStrategies()}/47</div>
+              <div className="text-2xl font-bold text-eiduk-blue">{countActiveStrategies()}/50</div>
             </div>
             <div className="bg-white p-3 rounded-lg shadow">
               <div className="text-xs text-muted-foreground uppercase">YTD Tax Savings</div>
