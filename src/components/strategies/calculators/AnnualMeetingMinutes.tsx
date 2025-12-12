@@ -33,16 +33,37 @@ interface WaiverSignature {
   date: string;
 }
 
+interface CompensationEntry {
+  name: string;
+  position: string;
+  annualWages: string;
+}
+
+interface DistributionEntry {
+  date: string;
+  amount: string;
+  recipient: string;
+  notes: string;
+}
+
+interface FinancialHighlight {
+  metric: string;
+  amount: string;
+  notes: string;
+}
+
 interface MeetingData {
   companyName: string;
   ein: string;
   stateOfFormation: string;
   businessAddress: string;
+  stateCodeReference: string;
   entityType: 'scorp' | 'llc';
   meetingDate: string;
   meetingTime: string;
   meetingLocation: string;
   meetingType: 'annual' | 'special';
+  documentType: 'formal' | 'written-consent';
   fiscalYearEnd: string;
   
   // Quorum
@@ -73,10 +94,46 @@ interface MeetingData {
     approveTaxElections: boolean;
     approveRetirement: boolean;
     approveDistributions: boolean;
+    approveAccountablePlan: boolean;
   };
   
-  compensationDetails: string;
-  distributionsApproved: string;
+  // Detailed Resolution Data for Audit Defense
+  compensationEntries: CompensationEntry[];
+  compensationMethodology: string;
+  compensationVote: { inFavor: string; opposed: string; abstained: string };
+  
+  distributionEntries: DistributionEntry[];
+  aaaBalance: string;
+  sCorpStatusMaintained: boolean;
+  
+  financialHighlights: FinancialHighlight[];
+  financialStatementsApproved: boolean;
+  
+  accountablePlanEffectiveDate: string;
+  accountablePlanVote: { inFavor: string; opposed: string; abstained: string };
+  
+  bankingInstitutions: string;
+  authorizedSigners: string;
+  noBankingChanges: boolean;
+  
+  // Corporate Formalities Checklist
+  corporateFormalities: {
+    bylawsOnFile: boolean;
+    articlesOnFile: boolean;
+    einOnFile: boolean;
+    form2553OnFile: boolean;
+    priorMinutesOnFile: boolean;
+    registeredAgentCurrent: boolean;
+  };
+  
+  // Documentation Attached
+  documentationAttached: {
+    compensationStudy: boolean;
+    financialStatements: boolean;
+    priorMinutes: boolean;
+    accountablePlanPolicy: boolean;
+  };
+  
   additionalBusiness: string;
   nextMeetingDate: string;
   nextMeetingTime: string;
@@ -109,6 +166,22 @@ const defaultWaiverSignatures: WaiverSignature[] = [
   { name: '', date: '' },
 ];
 
+const defaultCompensationEntries: CompensationEntry[] = [
+  { name: '', position: 'President, manages all operations', annualWages: '' },
+  { name: '', position: '', annualWages: '' },
+];
+
+const defaultDistributionEntries: DistributionEntry[] = [
+  { date: '', amount: '', recipient: 'Pro-rata to all', notes: '' },
+  { date: '', amount: '', recipient: 'Pro-rata to all', notes: '' },
+];
+
+const defaultFinancialHighlights: FinancialHighlight[] = [
+  { metric: 'Annual Revenue', amount: '', notes: '' },
+  { metric: 'Total Expenses', amount: '', notes: '' },
+  { metric: 'Net Income', amount: '', notes: '' },
+];
+
 export function AnnualMeetingMinutes({ clientName, companyName, savedData, onSave, onClose }: AnnualMeetingMinutesProps) {
   const printRef = useRef<HTMLDivElement>(null);
   
@@ -117,11 +190,13 @@ export function AnnualMeetingMinutes({ clientName, companyName, savedData, onSav
     ein: (savedData.ein as string) || '',
     stateOfFormation: (savedData.stateOfFormation as string) || '',
     businessAddress: (savedData.businessAddress as string) || '',
+    stateCodeReference: (savedData.stateCodeReference as string) || '',
     entityType: (savedData.entityType as 'scorp' | 'llc') || 'scorp',
     meetingDate: (savedData.meetingDate as string) || '',
     meetingTime: (savedData.meetingTime as string) || '',
     meetingLocation: (savedData.meetingLocation as string) || '',
     meetingType: (savedData.meetingType as 'annual' | 'special') || 'annual',
+    documentType: (savedData.documentType as 'formal' | 'written-consent') || 'formal',
     fiscalYearEnd: (savedData.fiscalYearEnd as string) || 'December 31',
     
     directors: (savedData.directors as Director[]) || defaultDirectors,
@@ -148,10 +223,44 @@ export function AnnualMeetingMinutes({ clientName, companyName, savedData, onSav
       approveTaxElections: true,
       approveRetirement: false,
       approveDistributions: false,
+      approveAccountablePlan: true,
     },
     
-    compensationDetails: (savedData.compensationDetails as string) || '',
-    distributionsApproved: (savedData.distributionsApproved as string) || '',
+    // Detailed Resolution Data
+    compensationEntries: (savedData.compensationEntries as CompensationEntry[]) || defaultCompensationEntries,
+    compensationMethodology: (savedData.compensationMethodology as string) || '',
+    compensationVote: (savedData.compensationVote as { inFavor: string; opposed: string; abstained: string }) || { inFavor: '2', opposed: '0', abstained: '0' },
+    
+    distributionEntries: (savedData.distributionEntries as DistributionEntry[]) || defaultDistributionEntries,
+    aaaBalance: (savedData.aaaBalance as string) || '',
+    sCorpStatusMaintained: (savedData.sCorpStatusMaintained as boolean) ?? true,
+    
+    financialHighlights: (savedData.financialHighlights as FinancialHighlight[]) || defaultFinancialHighlights,
+    financialStatementsApproved: (savedData.financialStatementsApproved as boolean) ?? true,
+    
+    accountablePlanEffectiveDate: (savedData.accountablePlanEffectiveDate as string) || '',
+    accountablePlanVote: (savedData.accountablePlanVote as { inFavor: string; opposed: string; abstained: string }) || { inFavor: '2', opposed: '0', abstained: '0' },
+    
+    bankingInstitutions: (savedData.bankingInstitutions as string) || '',
+    authorizedSigners: (savedData.authorizedSigners as string) || '',
+    noBankingChanges: (savedData.noBankingChanges as boolean) ?? true,
+    
+    corporateFormalities: (savedData.corporateFormalities as MeetingData['corporateFormalities']) || {
+      bylawsOnFile: true,
+      articlesOnFile: true,
+      einOnFile: true,
+      form2553OnFile: true,
+      priorMinutesOnFile: true,
+      registeredAgentCurrent: true,
+    },
+    
+    documentationAttached: (savedData.documentationAttached as MeetingData['documentationAttached']) || {
+      compensationStudy: false,
+      financialStatements: false,
+      priorMinutes: false,
+      accountablePlanPolicy: false,
+    },
+    
     additionalBusiness: (savedData.additionalBusiness as string) || '',
     nextMeetingDate: (savedData.nextMeetingDate as string) || '',
     nextMeetingTime: (savedData.nextMeetingTime as string) || '',
@@ -199,6 +308,27 @@ export function AnnualMeetingMinutes({ clientName, companyName, savedData, onSav
     setData(prev => ({
       ...prev,
       waiverSignatures: prev.waiverSignatures.map((s, i) => i === index ? { ...s, [field]: value } : s),
+    }));
+  };
+
+  const updateCompensationEntry = (index: number, field: keyof CompensationEntry, value: string) => {
+    setData(prev => ({
+      ...prev,
+      compensationEntries: prev.compensationEntries.map((c, i) => i === index ? { ...c, [field]: value } : c),
+    }));
+  };
+
+  const updateDistributionEntry = (index: number, field: keyof DistributionEntry, value: string) => {
+    setData(prev => ({
+      ...prev,
+      distributionEntries: prev.distributionEntries.map((d, i) => i === index ? { ...d, [field]: value } : d),
+    }));
+  };
+
+  const updateFinancialHighlight = (index: number, field: keyof FinancialHighlight, value: string) => {
+    setData(prev => ({
+      ...prev,
+      financialHighlights: prev.financialHighlights.map((f, i) => i === index ? { ...f, [field]: value } : f),
     }));
   };
 
@@ -562,12 +692,13 @@ export function AnnualMeetingMinutes({ clientName, companyName, savedData, onSav
                   { key: 'electOfficers', label: 'Election of Officers/Managers' },
                   { key: 'approveMinutes', label: 'Approval of Prior Year Minutes' },
                   { key: 'reviewFinancials', label: 'Review & Approval of Financial Statements' },
-                  { key: 'approveCompensation', label: 'Approval of Officer/Member Compensation' },
+                  { key: 'approveCompensation', label: 'Approval of Officer/Member Compensation (IRC §3121)' },
                   { key: 'authorizeContracts', label: 'Authorization of Contracts' },
                   { key: 'authorizeBanking', label: 'Banking Resolutions' },
                   { key: 'approveTaxElections', label: 'Tax Elections & Filings' },
                   { key: 'approveRetirement', label: 'Retirement Plan Contributions' },
                   { key: 'approveDistributions', label: 'Distributions/Dividends' },
+                  { key: 'approveAccountablePlan', label: 'Accountable Plan Reaffirmation (IRC §62(c))' },
                 ].map(item => (
                   <div 
                     key={item.key}
@@ -587,29 +718,429 @@ export function AnnualMeetingMinutes({ clientName, companyName, savedData, onSav
               </div>
             </div>
 
-            {/* Compensation Details */}
+            <Separator />
+
+            {/* V. Reasonable Compensation - IRC §3121 */}
             {data.resolutions.approveCompensation && (
               <div>
-                <Label>Compensation Details</Label>
-                <Textarea
-                  value={data.compensationDetails}
-                  onChange={(e) => setData(prev => ({ ...prev, compensationDetails: e.target.value }))}
-                  placeholder="Document approved compensation amounts for each officer/member..."
-                />
+                <h3 className="font-display text-lg font-semibold text-white bg-gradient-to-r from-eiduk-navy to-eiduk-blue p-3 rounded-lg mb-4">
+                  V. Reasonable Compensation — IRC §3121
+                </h3>
+                
+                <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-eiduk-blue space-y-4">
+                  <div className="text-sm space-y-2">
+                    <p><strong>WHEREAS</strong>, the corporation is organized as an S-Corporation and subject to Internal Revenue Code requirements for reasonable compensation;</p>
+                    <p><strong>WHEREAS</strong>, shareholder-employees who perform services for the company must receive reasonable compensation;</p>
+                    <p><strong>WHEREAS</strong>, the Board has reviewed industry standards, duties performed, qualifications, and time devoted to company business;</p>
+                    <p><strong>NOW, THEREFORE, BE IT RESOLVED</strong>, that the following W-2 wages are approved as reasonable compensation:</p>
+                  </div>
+                  
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse text-sm">
+                      <thead>
+                        <tr className="bg-eiduk-navy text-white">
+                          <th className="border p-2 text-left">Shareholder-Employee</th>
+                          <th className="border p-2 text-left">Position/Duties</th>
+                          <th className="border p-2 text-left w-40">Annual W-2 Wages</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.compensationEntries.map((entry, index) => (
+                          <tr key={index} className={index % 2 === 1 ? 'bg-gray-50' : 'bg-white'}>
+                            <td className="border p-2">
+                              <Input
+                                value={entry.name}
+                                onChange={(e) => updateCompensationEntry(index, 'name', e.target.value)}
+                                placeholder="Name"
+                                className="border-0 bg-transparent h-8"
+                              />
+                            </td>
+                            <td className="border p-2">
+                              <Input
+                                value={entry.position}
+                                onChange={(e) => updateCompensationEntry(index, 'position', e.target.value)}
+                                placeholder="Position & duties"
+                                className="border-0 bg-transparent h-8"
+                              />
+                            </td>
+                            <td className="border p-2">
+                              <Input
+                                value={entry.annualWages}
+                                onChange={(e) => updateCompensationEntry(index, 'annualWages', e.target.value)}
+                                placeholder="$"
+                                className="border-0 bg-transparent h-8"
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  
+                  <p className="text-sm"><strong>RESOLVED FURTHER</strong>, that this compensation has been determined based on reasonable compensation studies and industry benchmarks, and all required payroll taxes shall be withheld and paid as required by law.</p>
+                  
+                  <div>
+                    <Label>Compensation Methodology/Basis</Label>
+                    <Textarea
+                      value={data.compensationMethodology}
+                      onChange={(e) => setData(prev => ({ ...prev, compensationMethodology: e.target.value }))}
+                      placeholder="e.g., RCReports analysis, BLS data, industry comparables, hours worked, experience level"
+                      className="mt-1"
+                    />
+                  </div>
+                  
+                  <div className="bg-white p-3 rounded border">
+                    <Label className="font-semibold">Vote:</Label>
+                    <div className="grid grid-cols-3 gap-4 mt-2">
+                      <div>
+                        <Label className="text-xs">In Favor</Label>
+                        <Input
+                          value={data.compensationVote.inFavor}
+                          onChange={(e) => setData(prev => ({ ...prev, compensationVote: { ...prev.compensationVote, inFavor: e.target.value } }))}
+                          className="h-8"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Opposed</Label>
+                        <Input
+                          value={data.compensationVote.opposed}
+                          onChange={(e) => setData(prev => ({ ...prev, compensationVote: { ...prev.compensationVote, opposed: e.target.value } }))}
+                          className="h-8"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Abstained</Label>
+                        <Input
+                          value={data.compensationVote.abstained}
+                          onChange={(e) => setData(prev => ({ ...prev, compensationVote: { ...prev.compensationVote, abstained: e.target.value } }))}
+                          className="h-8"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-sm font-semibold text-success mt-2">Resolution PASSED</p>
+                  </div>
+                </div>
               </div>
             )}
 
-            {/* Distributions */}
+            <Separator />
+
+            {/* VI. Distribution of Profits */}
             {data.resolutions.approveDistributions && (
               <div>
-                <Label>Distributions Approved</Label>
-                <Textarea
-                  value={data.distributionsApproved}
-                  onChange={(e) => setData(prev => ({ ...prev, distributionsApproved: e.target.value }))}
-                  placeholder="Document approved distribution amounts..."
-                />
+                <h3 className="font-display text-lg font-semibold text-white bg-gradient-to-r from-eiduk-navy to-eiduk-blue p-3 rounded-lg mb-4">
+                  VI. Distribution of Profits
+                </h3>
+                
+                <div className="bg-green-50 p-4 rounded-lg border-l-4 border-green-500 space-y-4">
+                  <p className="text-sm"><strong>RESOLVED:</strong> The {shareholderLabel} are authorized to withdraw profits distributions as cash is available.</p>
+                  
+                  <div>
+                    <Label className="font-semibold">Distributions Approved for Current Year:</Label>
+                    <div className="overflow-x-auto mt-2">
+                      <table className="w-full border-collapse text-sm">
+                        <thead>
+                          <tr className="bg-green-600 text-white">
+                            <th className="border p-2 text-left">Date</th>
+                            <th className="border p-2 text-left">Amount</th>
+                            <th className="border p-2 text-left">Recipient(s)</th>
+                            <th className="border p-2 text-left">Notes</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {data.distributionEntries.map((entry, index) => (
+                            <tr key={index} className={index % 2 === 1 ? 'bg-gray-50' : 'bg-white'}>
+                              <td className="border p-2">
+                                <Input
+                                  type="date"
+                                  value={entry.date}
+                                  onChange={(e) => updateDistributionEntry(index, 'date', e.target.value)}
+                                  className="border-0 bg-transparent h-8"
+                                />
+                              </td>
+                              <td className="border p-2">
+                                <Input
+                                  value={entry.amount}
+                                  onChange={(e) => updateDistributionEntry(index, 'amount', e.target.value)}
+                                  placeholder="$"
+                                  className="border-0 bg-transparent h-8"
+                                />
+                              </td>
+                              <td className="border p-2">
+                                <Input
+                                  value={entry.recipient}
+                                  onChange={(e) => updateDistributionEntry(index, 'recipient', e.target.value)}
+                                  placeholder="Pro-rata to all"
+                                  className="border-0 bg-transparent h-8"
+                                />
+                              </td>
+                              <td className="border p-2">
+                                <Input
+                                  value={entry.notes}
+                                  onChange={(e) => updateDistributionEntry(index, 'notes', e.target.value)}
+                                  placeholder="Notes"
+                                  className="border-0 bg-transparent h-8"
+                                />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <Label>AAA (Accumulated Adjustments Account) Balance Notes</Label>
+                    <Textarea
+                      value={data.aaaBalance}
+                      onChange={(e) => setData(prev => ({ ...prev, aaaBalance: e.target.value }))}
+                      placeholder="Beginning balance, adjustments, ending balance"
+                      className="mt-1"
+                    />
+                  </div>
+                  
+                  <div className="flex items-center gap-3 bg-white p-3 rounded border">
+                    <Checkbox
+                      checked={data.sCorpStatusMaintained}
+                      onCheckedChange={(checked) => setData(prev => ({ ...prev, sCorpStatusMaintained: !!checked }))}
+                    />
+                    <span className="text-sm">S-Corporation status maintained (no second class of stock, all shareholders remain eligible, distributions pro-rata)</span>
+                  </div>
+                </div>
               </div>
             )}
+
+            <Separator />
+
+            {/* VII. Financial Review */}
+            {data.resolutions.reviewFinancials && (
+              <div>
+                <h3 className="font-display text-lg font-semibold text-white bg-gradient-to-r from-eiduk-navy to-eiduk-blue p-3 rounded-lg mb-4">
+                  VII. Financial Review
+                </h3>
+                
+                <div className="bg-purple-50 p-4 rounded-lg border-l-4 border-purple-500 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      checked={data.financialStatementsApproved}
+                      onCheckedChange={(checked) => setData(prev => ({ ...prev, financialStatementsApproved: !!checked }))}
+                    />
+                    <span className="text-sm">Annual financial statements presented, reviewed, and approved</span>
+                  </div>
+                  
+                  <div>
+                    <Label className="font-semibold">Key Financial Highlights:</Label>
+                    <div className="overflow-x-auto mt-2">
+                      <table className="w-full border-collapse text-sm">
+                        <thead>
+                          <tr className="bg-purple-600 text-white">
+                            <th className="border p-2 text-left">Metric</th>
+                            <th className="border p-2 text-left w-40">Amount</th>
+                            <th className="border p-2 text-left">Notes</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {data.financialHighlights.map((highlight, index) => (
+                            <tr key={index} className={index % 2 === 1 ? 'bg-gray-50' : 'bg-white'}>
+                              <td className="border p-2">
+                                <Input
+                                  value={highlight.metric}
+                                  onChange={(e) => updateFinancialHighlight(index, 'metric', e.target.value)}
+                                  className="border-0 bg-transparent h-8"
+                                />
+                              </td>
+                              <td className="border p-2">
+                                <Input
+                                  value={highlight.amount}
+                                  onChange={(e) => updateFinancialHighlight(index, 'amount', e.target.value)}
+                                  placeholder="$"
+                                  className="border-0 bg-transparent h-8"
+                                />
+                              </td>
+                              <td className="border p-2">
+                                <Input
+                                  value={highlight.notes}
+                                  onChange={(e) => updateFinancialHighlight(index, 'notes', e.target.value)}
+                                  placeholder="Notes"
+                                  className="border-0 bg-transparent h-8"
+                                />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <Separator />
+
+            {/* VIII. Accountable Plan Reaffirmation - IRC §62(c) */}
+            {data.resolutions.approveAccountablePlan && (
+              <div>
+                <h3 className="font-display text-lg font-semibold text-white bg-gradient-to-r from-eiduk-navy to-eiduk-blue p-3 rounded-lg mb-4">
+                  VIII. Accountable Plan Reaffirmation — IRC §62(c)
+                </h3>
+                
+                <div className="bg-orange-50 p-4 rounded-lg border-l-4 border-orange-500 space-y-4">
+                  <div className="text-sm space-y-2">
+                    <p><strong>WHEREAS</strong>, Treasury Regulation §1.62-2 permits employers to establish accountable plans for reimbursement of ordinary and necessary business expenses;</p>
+                    <p><strong>WHEREAS</strong>, reimbursements made under a properly administered accountable plan are excluded from employees' gross income and not subject to employment taxes;</p>
+                    <p><strong>NOW, THEREFORE, BE IT RESOLVED</strong>, that the company hereby reaffirms its accountable plan policy with the following requirements:</p>
+                  </div>
+                  
+                  <ul className="text-sm list-disc list-inside space-y-1 bg-white p-3 rounded border">
+                    <li>Expenses must have a business connection</li>
+                    <li>Expenses must be substantiated within 60 days</li>
+                    <li>Excess amounts must be returned within 120 days</li>
+                    <li>Mileage reimbursed at IRS standard rate</li>
+                  </ul>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label>Accountable Plan Effective Date</Label>
+                      <Input
+                        type="date"
+                        value={data.accountablePlanEffectiveDate}
+                        onChange={(e) => setData(prev => ({ ...prev, accountablePlanEffectiveDate: e.target.value }))}
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="bg-white p-3 rounded border">
+                    <Label className="font-semibold">Vote:</Label>
+                    <div className="grid grid-cols-3 gap-4 mt-2">
+                      <div>
+                        <Label className="text-xs">In Favor</Label>
+                        <Input
+                          value={data.accountablePlanVote.inFavor}
+                          onChange={(e) => setData(prev => ({ ...prev, accountablePlanVote: { ...prev.accountablePlanVote, inFavor: e.target.value } }))}
+                          className="h-8"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Opposed</Label>
+                        <Input
+                          value={data.accountablePlanVote.opposed}
+                          onChange={(e) => setData(prev => ({ ...prev, accountablePlanVote: { ...prev.accountablePlanVote, opposed: e.target.value } }))}
+                          className="h-8"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Abstained</Label>
+                        <Input
+                          value={data.accountablePlanVote.abstained}
+                          onChange={(e) => setData(prev => ({ ...prev, accountablePlanVote: { ...prev.accountablePlanVote, abstained: e.target.value } }))}
+                          className="h-8"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-sm font-semibold text-success mt-2">Resolution PASSED</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <Separator />
+
+            {/* IX. Banking & Authorized Signers */}
+            {data.resolutions.authorizeBanking && (
+              <div>
+                <h3 className="font-display text-lg font-semibold text-white bg-gradient-to-r from-eiduk-navy to-eiduk-blue p-3 rounded-lg mb-4">
+                  IX. Banking & Authorized Signers
+                </h3>
+                
+                <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-gray-500 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      checked={data.noBankingChanges}
+                      onCheckedChange={(checked) => setData(prev => ({ ...prev, noBankingChanges: !!checked }))}
+                    />
+                    <span className="text-sm">No changes to banking relationships or authorized signers</span>
+                  </div>
+                  
+                  {!data.noBankingChanges && (
+                    <div className="space-y-4">
+                      <div>
+                        <Label>Bank/Credit Union Name(s)</Label>
+                        <Textarea
+                          value={data.bankingInstitutions}
+                          onChange={(e) => setData(prev => ({ ...prev, bankingInstitutions: e.target.value }))}
+                          placeholder="List all banking institutions"
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label>Authorized Signers</Label>
+                        <Textarea
+                          value={data.authorizedSigners}
+                          onChange={(e) => setData(prev => ({ ...prev, authorizedSigners: e.target.value }))}
+                          placeholder="List all persons authorized to sign checks, make wire transfers, and conduct banking business"
+                          className="mt-1"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <Separator />
+
+            {/* X. Corporate Formalities Checklist */}
+            <div>
+              <h3 className="font-display text-lg font-semibold text-white bg-gradient-to-r from-eiduk-navy to-eiduk-blue p-3 rounded-lg mb-4">
+                X. Corporate Formalities Checklist
+              </h3>
+              
+              <div className="bg-yellow-50 p-4 rounded-lg border-l-4 border-yellow-500 space-y-3">
+                {[
+                  { key: 'bylawsOnFile', label: 'Corporate bylaws on file and current' },
+                  { key: 'articlesOnFile', label: 'Articles of incorporation on file' },
+                  { key: 'einOnFile', label: 'EIN letter on file' },
+                  { key: 'form2553OnFile', label: 'Form 2553 (S-Corp election) on file' },
+                  { key: 'priorMinutesOnFile', label: 'Prior year minutes on file' },
+                  { key: 'registeredAgentCurrent', label: 'Registered agent current' },
+                ].map(item => (
+                  <div key={item.key} className="flex items-center gap-3">
+                    <Checkbox
+                      checked={data.corporateFormalities[item.key as keyof typeof data.corporateFormalities]}
+                      onCheckedChange={(checked) => setData(prev => ({
+                        ...prev,
+                        corporateFormalities: { ...prev.corporateFormalities, [item.key]: !!checked }
+                      }))}
+                    />
+                    <span className="text-sm">{item.label}</span>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="mt-4 bg-gray-50 p-4 rounded-lg border">
+                <Label className="font-semibold">Documentation Attached:</Label>
+                <div className="grid grid-cols-2 gap-3 mt-2">
+                  {[
+                    { key: 'compensationStudy', label: 'Reasonable Compensation Study' },
+                    { key: 'financialStatements', label: 'Financial Statements' },
+                    { key: 'priorMinutes', label: 'Prior Year Minutes' },
+                    { key: 'accountablePlanPolicy', label: 'Accountable Plan Policy' },
+                  ].map(item => (
+                    <div key={item.key} className="flex items-center gap-3">
+                      <Checkbox
+                        checked={data.documentationAttached[item.key as keyof typeof data.documentationAttached]}
+                        onCheckedChange={(checked) => setData(prev => ({
+                          ...prev,
+                          documentationAttached: { ...prev.documentationAttached, [item.key]: !!checked }
+                        }))}
+                      />
+                      <span className="text-sm">{item.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
 
             {/* Additional Business */}
             <div>
@@ -626,7 +1157,7 @@ export function AnnualMeetingMinutes({ clientName, companyName, savedData, onSav
             {/* Next Meeting */}
             <div>
               <h3 className="font-display text-lg font-semibold text-white bg-gradient-to-r from-eiduk-navy to-eiduk-blue p-3 rounded-lg mb-4">
-                V. Next Meeting
+                XI. Next Meeting
               </h3>
               <div className="bg-yellow-50 p-4 rounded-lg border-l-4 border-yellow-400">
                 <p className="text-sm text-muted-foreground mb-4">
@@ -666,7 +1197,7 @@ export function AnnualMeetingMinutes({ clientName, companyName, savedData, onSav
             {/* VI. Adjournment */}
             <div>
               <h3 className="font-display text-lg font-semibold text-white bg-gradient-to-r from-eiduk-navy to-eiduk-blue p-3 rounded-lg mb-4">
-                VI. Adjournment
+                XII. Adjournment
               </h3>
               <p className="text-muted-foreground">
                 There being no further business, the meeting was duly adjourned.
