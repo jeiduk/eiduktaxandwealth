@@ -52,6 +52,7 @@ interface StrategyDashboardProps {
 }
 
 const PHASE_COLORS: Record<number, string> = {
+  0: 'bg-amber-600',
   1: 'bg-slate-500',
   2: 'bg-phase-foundation',
   3: 'bg-phase-deductions',
@@ -63,6 +64,7 @@ const PHASE_COLORS: Record<number, string> = {
 };
 
 const PHASE_NAMES: Record<number, string> = {
+  0: 'Compliance',
   1: 'Foundational',
   2: 'Core',
   3: 'Retirement & Benefits',
