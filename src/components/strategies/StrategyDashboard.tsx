@@ -20,6 +20,9 @@ import {
 import { FICACalculator } from './calculators/FICACalculator';
 import { HomeOfficeCalculator } from './calculators/HomeOfficeCalculator';
 import { MileageLog } from './calculators/MileageLog';
+import { ProfitSharing401kCalculator } from './calculators/ProfitSharing401kCalculator';
+import { CashBalanceCalculator } from './calculators/CashBalanceCalculator';
+import { RothConversionCalculator } from './calculators/RothConversionCalculator';
 
 interface Strategy {
   id: string;
@@ -243,6 +246,35 @@ export function StrategyDashboard({ clientId, clientName, companyName }: Strateg
       case 'mileage_log':
         return (
           <MileageLog
+            clientName={clientName}
+            savedData={savedData}
+            onSave={(data, savings) => saveCalculatorData(selectedStrategy.id, data, savings)}
+            onClose={() => setSelectedStrategy(null)}
+          />
+        );
+      case '401k_calculator':
+        return (
+          <ProfitSharing401kCalculator
+            clientName={clientName}
+            companyName={companyName}
+            savedData={savedData}
+            onSave={(data, savings) => saveCalculatorData(selectedStrategy.id, data, savings)}
+            onClose={() => setSelectedStrategy(null)}
+          />
+        );
+      case 'cash_balance':
+        return (
+          <CashBalanceCalculator
+            clientName={clientName}
+            companyName={companyName}
+            savedData={savedData}
+            onSave={(data, savings) => saveCalculatorData(selectedStrategy.id, data, savings)}
+            onClose={() => setSelectedStrategy(null)}
+          />
+        );
+      case 'roth_conversion':
+        return (
+          <RothConversionCalculator
             clientName={clientName}
             savedData={savedData}
             onSave={(data, savings) => saveCalculatorData(selectedStrategy.id, data, savings)}
