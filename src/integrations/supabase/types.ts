@@ -232,6 +232,66 @@ export type Database = {
           },
         ]
       }
+      client_strategies: {
+        Row: {
+          calculator_data: Json | null
+          client_id: string
+          created_at: string
+          documentation_complete: boolean | null
+          estimated_savings: number | null
+          id: string
+          notes: string | null
+          quarterly_status: Json | null
+          status: string
+          strategy_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          calculator_data?: Json | null
+          client_id: string
+          created_at?: string
+          documentation_complete?: boolean | null
+          estimated_savings?: number | null
+          id?: string
+          notes?: string | null
+          quarterly_status?: Json | null
+          status?: string
+          strategy_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          calculator_data?: Json | null
+          client_id?: string
+          created_at?: string
+          documentation_complete?: boolean | null
+          estimated_savings?: number | null
+          id?: string
+          notes?: string | null
+          quarterly_status?: Json | null
+          status?: string
+          strategy_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_strategies_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_strategies_strategy_id_fkey"
+            columns: ["strategy_id"]
+            isOneToOne: false
+            referencedRelation: "strategies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           annual_income: string | null
@@ -391,6 +451,42 @@ export type Database = {
           phase6_title?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      strategies: {
+        Row: {
+          calculator_type: string | null
+          category: string
+          created_at: string
+          description: string | null
+          has_calculator: boolean | null
+          id: string
+          name: string
+          phase: number
+          strategy_number: number
+        }
+        Insert: {
+          calculator_type?: string | null
+          category: string
+          created_at?: string
+          description?: string | null
+          has_calculator?: boolean | null
+          id?: string
+          name: string
+          phase: number
+          strategy_number: number
+        }
+        Update: {
+          calculator_type?: string | null
+          category?: string
+          created_at?: string
+          description?: string | null
+          has_calculator?: boolean | null
+          id?: string
+          name?: string
+          phase?: number
+          strategy_number?: number
         }
         Relationships: []
       }

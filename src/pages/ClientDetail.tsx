@@ -22,9 +22,11 @@ import {
   Mail,
   Phone,
   Calendar,
-  Map
+  Map,
+  Calculator
 } from 'lucide-react';
 import { RoadmapGenerator } from '@/components/roadmap/RoadmapGenerator';
+import { StrategyDashboard } from '@/components/strategies/StrategyDashboard';
 
 interface Client {
   id: string;
@@ -369,6 +371,10 @@ export default function ClientDetail() {
         <Tabs defaultValue="details" className="space-y-6">
           <TabsList>
             <TabsTrigger value="details">Details</TabsTrigger>
+            <TabsTrigger value="strategies" className="flex items-center gap-2">
+              <Calculator className="h-4 w-4" />
+              Strategies
+            </TabsTrigger>
             <TabsTrigger value="documents">Documents ({documents.length})</TabsTrigger>
             <TabsTrigger value="roadmaps" className="flex items-center gap-2">
               <Map className="h-4 w-4" />
@@ -527,6 +533,15 @@ export default function ClientDetail() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Strategies Tab */}
+          <TabsContent value="strategies">
+            <StrategyDashboard 
+              clientId={id!}
+              clientName={`${client.first_name} ${client.last_name}`}
+              companyName={client.company_name || undefined}
+            />
           </TabsContent>
 
           {/* Documents Tab */}
