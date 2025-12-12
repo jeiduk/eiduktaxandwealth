@@ -63,11 +63,14 @@ const PHASE_COLORS: Record<number, string> = {
 };
 
 const PHASE_NAMES: Record<number, string> = {
-  2: 'Compliance',
-  3: 'Core Strategies',
-  4: 'Advanced Strategies',
+  1: 'Foundational',
+  2: 'Core',
+  3: 'Retirement & Benefits',
+  4: 'Credits & Multistate',
   5: 'Real Estate',
-  6: 'Tax Planning',
+  6: 'Acquisitions & Leverage',
+  7: 'Exit & Wealth Transfer',
+  8: 'Charitable & Philanthropic',
 };
 
 const STATUS_CONFIG = {
