@@ -7,7 +7,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { FileText, AlertTriangle, TrendingUp, DollarSign } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { FileText, ChevronDown, ChevronRight } from 'lucide-react';
 
 interface QuarterlyReviewProps {
   clientName: string;
@@ -17,147 +20,310 @@ interface QuarterlyReviewProps {
   onClose: () => void;
 }
 
-interface StrategyReview {
-  implemented: boolean;
+interface StrategyData {
+  q1: boolean;
+  q2: boolean;
+  q3: boolean;
+  q4: boolean;
+  doc1: boolean;
+  doc2: boolean;
+  doc3: boolean;
   savings: string;
   notes: string;
 }
 
+interface PhaseStatus {
+  status: 'not-started' | 'in-progress' | 'complete' | 'maintaining';
+}
+
 interface ReviewData {
+  // Meeting Info
   clientName: string;
-  companyName: string;
+  entityName: string;
+  ein: string;
   quarter: string;
   meetingDate: string;
-  attendees: string;
+  reviewDate: string;
+  
+  // Phase Status
+  phaseStatus: {
+    p1: PhaseStatus;
+    p2: PhaseStatus;
+    p3: PhaseStatus;
+    p4: PhaseStatus;
+    p5: PhaseStatus;
+    p6: PhaseStatus;
+    p7: PhaseStatus;
+  };
+  
+  // Client Snapshot
+  primaryContact: string;
+  filingStatus: string;
+  dependents: string;
+  primaryBusiness: string;
+  
+  // Financial Snapshot
   ytdRevenue: string;
   ytdExpenses: string;
   ytdNetIncome: string;
-  projectedAnnualIncome: string;
-  currentCompensation: string;
-  recommendedCompensation: string;
-  strategies: {
-    // Phase 1: Foundation
-    sCorpElection: StrategyReview;
-    reasonableCompensation: StrategyReview;
-    accountablePlan: StrategyReview;
-    // Phase 2: Core
-    healthInsurance: StrategyReview;
-    mileageReimbursement: StrategyReview;
-    homeOffice: StrategyReview;
-    // Phase 3: Retirement
-    solo401k: StrategyReview;
-    sepIra: StrategyReview;
-    cashBalancePlan: StrategyReview;
-    // Phase 4: Credits
-    familyEmployment: StrategyReview;
-    boardAdvisors: StrategyReview;
-    augustaRule: StrategyReview;
-    // Phase 5: Real Estate
-    costSegregation: StrategyReview;
-    realEstateProfessional: StrategyReview;
+  projectedAnnual: string;
+  
+  // Reasonable Compensation
+  currentW2: string;
+  recommendedW2: string;
+  ficaSavings: string;
+  distributionsYtd: string;
+  
+  // Estimated Taxes
+  estTaxes: {
+    fedQ1Req: string; fedQ1Paid: string; fedQ1Date: string;
+    fedQ2Req: string; fedQ2Paid: string; fedQ2Date: string;
+    fedQ3Req: string; fedQ3Paid: string; fedQ3Date: string;
+    fedQ4Req: string; fedQ4Paid: string; fedQ4Date: string;
+    stateQ1Req: string; stateQ1Paid: string; stateQ1Date: string;
+    stateQ2Req: string; stateQ2Paid: string; stateQ2Date: string;
+    stateQ3Req: string; stateQ3Paid: string; stateQ3Date: string;
+    stateQ4Req: string; stateQ4Paid: string; stateQ4Date: string;
   };
+  
+  // All Strategies by Phase
+  strategies: Record<string, StrategyData>;
+  
+  // Action Items
   actionItems: string;
   nextQuarterPriorities: string;
-  estimatedTotalSavings: string;
 }
 
-const STRATEGY_PHASES = [
+// Define all 47 strategies organized by phase
+const PHASES = [
   {
+    id: 'p1',
     name: 'Phase 1: Foundation',
     color: 'bg-blue-600',
+    targetSavings: '$26k-$52k',
     strategies: [
-      { key: 'sCorpElection', name: 'S-Corp Election', description: 'Federal & state S-Corp tax election' },
-      { key: 'reasonableCompensation', name: 'Reasonable Compensation', description: 'W-2 salary optimization' },
-      { key: 'accountablePlan', name: 'Accountable Plan', description: 'Tax-free expense reimbursements' },
+      { key: 's1', name: '#1: Reasonable Compensation', irc: 'IRC §3121', docs: ['Salary comparison study', 'Job description documented', 'Payroll records current'] },
+      { key: 's2', name: '#2: S-Corp Health Insurance', irc: 'IRC §162(l)', docs: ['Premiums paid by S-Corp', 'W-2 Box 1 includes premium', '>2% owner verification'] },
+      { key: 's3', name: '#3: Accountable Plan', irc: 'IRC §62(c)', docs: ['Written plan on file', 'Business connection proven', '60-day substantiation'] },
+      { key: 's4', name: '#4: Augusta Rule (14-Day Rental)', irc: 'IRC §280A(g)', docs: ['Board resolution on file', 'Fair rental rate documented', 'Meeting minutes/purpose'] },
+      { key: 's5', name: '#5: Asset Reimbursement', irc: 'IRC §162', docs: ['Asset use agreement', 'FMV rental rate documented', 'Business use percentage'] },
     ],
   },
   {
-    name: 'Phase 2: Core Strategies',
+    id: 'p2',
+    name: 'Phase 2: Core Deductions',
     color: 'bg-green-600',
+    targetSavings: '$12k-$30k',
     strategies: [
-      { key: 'healthInsurance', name: 'Health Insurance Premium', description: 'S-Corp health insurance deduction' },
-      { key: 'mileageReimbursement', name: 'Mileage Reimbursement', description: 'Business mileage tracking' },
-      { key: 'homeOffice', name: 'Home Office Deduction', description: 'Simplified or actual method' },
+      { key: 's6', name: '#6: Home Office Deduction', irc: 'IRC §280A', docs: ['Square footage calculation', 'Exclusive use documented', 'Direct/indirect expenses'] },
+      { key: 's7', name: '#7: Business Mileage', irc: 'IRC §162, §274', docs: ['Mileage log maintained', '2025 rate: $0.70/mile', 'Business purpose documented'] },
+      { key: 's8', name: '#8: Business Meals', irc: 'IRC §274(n)', docs: ['50% deduction applied', 'Business purpose noted', 'Receipt retention system'] },
+      { key: 's9', name: '#9: Technology & Software', irc: 'IRC §179', docs: ['Business use documented', 'Subscription tracking', 'Asset list maintained'] },
+      { key: 's10', name: '#10: Professional Development', irc: 'IRC §162', docs: ['Business connection clear', 'Receipt documentation', 'Maintains/improves skills'] },
+      { key: 's11', name: '#11: Family Employment', irc: 'IRC §162, §3121', docs: ['Reasonable wages paid', 'Time records maintained', 'W-2/W-4 on file'] },
     ],
   },
   {
-    name: 'Phase 3: Retirement',
+    id: 'p3',
+    name: 'Phase 3: Retirement & Benefits',
     color: 'bg-purple-600',
+    targetSavings: '$35k-$100k+',
     strategies: [
-      { key: 'solo401k', name: 'Solo 401(k)', description: 'Employee + employer contributions' },
-      { key: 'sepIra', name: 'SEP IRA', description: 'Up to 25% employer contribution' },
-      { key: 'cashBalancePlan', name: 'Cash Balance Plan', description: 'Defined benefit pension plan' },
+      { key: 's12', name: '#12: Solo 401(k) / SEP IRA', irc: 'IRC §401(k), §408', docs: ['Plan document on file', '2025 limit: $23,500 + $7,500', 'Contribution deadline noted'] },
+      { key: 's13', name: '#13: Profit Sharing', irc: 'IRC §401(a)', docs: ['Profit sharing formula set', 'Contribution calculation', 'Discrimination testing'] },
+      { key: 's14', name: '#14: Cash Balance Plan', irc: 'IRC §401(a)', docs: ['Actuarial study completed', 'Annual funding requirement', '2025 limit: up to $280,000+'] },
+      { key: 's15', name: '#15: Mega Backdoor Roth', irc: 'IRC §402(g), §415', docs: ['Plan allows after-tax contrib', 'In-plan Roth conversion setup', '2025 limit: $70k total cap'] },
+      { key: 's16', name: '#16: HSA Triple Tax', irc: 'IRC §223', docs: ['HDHP coverage verified', 'Investment strategy set', '2025 limit: $4,300/$8,550'] },
+      { key: 's17', name: '#17: Backdoor Roth IRA', irc: 'IRC §408A(d)(3)', docs: ['Non-deductible IRA contrib', 'Form 8606 filed', 'Pro-rata rule considered'] },
+      { key: 's18', name: '#18: Roth Conversions', irc: 'IRC §408A', docs: ['Tax bracket analysis', 'Conversion strategy timeline', 'Tax payment planning'] },
+      { key: 's19', name: '#19: Self-Directed Accounts', irc: 'IRC §408, §401', docs: ['Custodian established', 'Prohibited transaction review', 'UBIT considerations'] },
+      { key: 's20', name: '#20: QSEHRA/HRA', irc: 'IRC §9831', docs: ['Plan document current', 'Eligibility verified', 'Notice requirements met'] },
     ],
   },
   {
-    name: 'Phase 4: Credits & Advanced',
+    id: 'p4',
+    name: 'Phase 4: Credits & Multistate',
     color: 'bg-orange-600',
+    targetSavings: '$8k-$30k',
     strategies: [
-      { key: 'familyEmployment', name: 'Family Employment', description: 'Hiring children/spouse' },
-      { key: 'boardAdvisors', name: 'Board of Advisors', description: 'Deductible advisory fees' },
-      { key: 'augustaRule', name: 'Augusta Rule', description: 'IRC §280A rental strategy' },
+      { key: 's21', name: '#21: R&D Tax Credit', irc: 'IRC §41', docs: ['4-part test documentation', 'Qualified research expenses', 'Form 6765 preparation'] },
+      { key: 's22', name: '#22: WOTC', irc: 'IRC §51', docs: ['Form 8850 filed (28 days)', 'Target group certification', 'Wage/hour documentation'] },
+      { key: 's23', name: '#23: PTET Election', irc: 'State-Specific', docs: ['State election filed', 'Estimated payments made', 'SALT cap workaround calc'] },
+      { key: 's24', name: '#24: State Tax Planning', irc: 'Various', docs: ['Nexus analysis complete', 'Apportionment review', 'Credit/incentive evaluation'] },
+      { key: 's25', name: '#25: Energy Credits', irc: 'IRC §30D, §45L', docs: ['Clean vehicle qualification', 'Energy efficiency docs', 'Credit calculation'] },
     ],
   },
   {
-    name: 'Phase 5: Real Estate',
+    id: 'p5',
+    name: 'Phase 5: Real Estate & PAL',
     color: 'bg-cyan-600',
+    targetSavings: '$30k-$150k+',
     strategies: [
-      { key: 'costSegregation', name: 'Cost Segregation', description: 'Accelerated depreciation' },
-      { key: 'realEstateProfessional', name: 'Real Estate Professional', description: 'REPS status qualification' },
+      { key: 's26', name: '#26: RE Professional Status', irc: 'IRC §469(c)(7)', docs: ['750+ hours documented', 'Material participation log', '>50% of services in RE'] },
+      { key: 's27', name: '#27: Cost Segregation Study', irc: 'IRC §168', docs: ['Engineering study complete', 'Component breakdown', 'Catch-up depreciation calc'] },
+      { key: 's28', name: '#28: STR Loophole', irc: 'IRC §469', docs: ['Average stay ≤7 days', 'Material participation met', 'Non-passive treatment docs'] },
+      { key: 's29', name: '#29: Self-Rental Loophole', irc: 'IRC §469(c)(2)', docs: ['Lease agreement on file', 'FMV rental rate', 'Recharacterization election'] },
+      { key: 's30', name: '#30: 1031 Exchange', irc: 'IRC §1031', docs: ['QI engaged before sale', '45-day ID requirement', '180-day closing deadline'] },
+      { key: 's31', name: '#31: PAL Grouping Election', irc: 'IRC §469', docs: ['Grouping statement filed', 'Economic unit analysis', 'Material participation log'] },
+      { key: 's32', name: '#32: Syndication Loophole', irc: 'IRC §469', docs: ['9(g) election filed', 'RE Pro status verified', 'K-1 loss allocation'] },
+    ],
+  },
+  {
+    id: 'p6',
+    name: 'Phase 6: Acquisitions & Leverage',
+    color: 'bg-red-600',
+    targetSavings: '$20k-$75k',
+    strategies: [
+      { key: 's33', name: '#33: Heavy Vehicle Strategy', irc: 'IRC §179(b)(5)', docs: ['GVWR >6,000 lbs documented', 'Business use >50%', '2025 SUV limit: $31,300'] },
+      { key: 's34', name: '#34: Oil & Gas Investments', irc: 'IRC §263(c), §611', docs: ['IDC deduction calculated', 'Depletion allowance', 'K-1 partnership analysis'] },
+      { key: 's35', name: '#35: DST Investments', irc: 'IRC §1031', docs: ['DST due diligence', 'Passive income treatment', '1031 replacement property'] },
+      { key: 's36', name: '#36: Opportunity Zone', irc: 'IRC §1400Z-2', docs: ['180-day investment window', 'QOZ fund certification', 'Gain deferral election'] },
+      { key: 's37', name: '#37: Equipment Acquisition', irc: 'IRC §179, §168(k)', docs: ['Business purpose documented', 'Placed in service date', 'Financing vs. purchase analysis'] },
+    ],
+  },
+  {
+    id: 'p7',
+    name: 'Phase 7: Exit & Wealth Transfer',
+    color: 'bg-amber-600',
+    targetSavings: '$50k-$500k+',
+    strategies: [
+      { key: 's38', name: '#38: Charitable Lead Trust', irc: 'IRC §664', docs: ['CLT document drafted', 'Annual payment schedule', 'Remainder beneficiaries'] },
+      { key: 's39', name: '#39: Charitable Remainder Trust', irc: 'IRC §664', docs: ['CRT established', 'Unitrust vs annuity trust', 'Income beneficiary terms'] },
+      { key: 's40', name: '#40: Donor Advised Fund', irc: 'IRC §170', docs: ['DAF account open', 'Contribution documentation', 'Grant recommendations'] },
+      { key: 's41', name: '#41: Appreciated Stock Donation', irc: 'IRC §170(e)', docs: ['FMV appraisal if >$5k', 'Form 8283 prepared', 'Holding period >1 year'] },
+      { key: 's42', name: '#42: QSBS Exclusion', irc: 'IRC §1202', docs: ['C-Corp issued stock', '5-year holding period', 'Qualified trade/business'] },
+      { key: 's43', name: '#43: Installment Sale', irc: 'IRC §453', docs: ['Sale agreement terms', 'Interest rate >AFR', 'Gain deferral schedule'] },
+      { key: 's44', name: '#44: Dynasty Trust', irc: 'State-Specific', docs: ['Trust document drafted', 'GST exemption applied', 'Trustee selection'] },
+      { key: 's45', name: '#45: GRAT/GRUT', irc: 'IRC §2702', docs: ['Annuity payment schedule', 'IRS 7520 rate used', 'Remainder value calculated'] },
+      { key: 's46', name: '#46: Life Insurance Strategy', irc: 'IRC §101', docs: ['Policy in force', 'ILIT if applicable', 'Premium payment schedule'] },
+      { key: 's47', name: '#47: Succession Planning', irc: 'Various', docs: ['Buy-sell agreement', 'Valuation method set', 'Funding mechanism'] },
     ],
   },
 ];
 
-const defaultStrategies = (): ReviewData['strategies'] => ({
-  sCorpElection: { implemented: false, savings: '', notes: '' },
-  reasonableCompensation: { implemented: false, savings: '', notes: '' },
-  accountablePlan: { implemented: false, savings: '', notes: '' },
-  healthInsurance: { implemented: false, savings: '', notes: '' },
-  mileageReimbursement: { implemented: false, savings: '', notes: '' },
-  homeOffice: { implemented: false, savings: '', notes: '' },
-  solo401k: { implemented: false, savings: '', notes: '' },
-  sepIra: { implemented: false, savings: '', notes: '' },
-  cashBalancePlan: { implemented: false, savings: '', notes: '' },
-  familyEmployment: { implemented: false, savings: '', notes: '' },
-  boardAdvisors: { implemented: false, savings: '', notes: '' },
-  augustaRule: { implemented: false, savings: '', notes: '' },
-  costSegregation: { implemented: false, savings: '', notes: '' },
-  realEstateProfessional: { implemented: false, savings: '', notes: '' },
+const defaultStrategyData = (): StrategyData => ({
+  q1: false, q2: false, q3: false, q4: false,
+  doc1: false, doc2: false, doc3: false,
+  savings: '', notes: '',
 });
+
+const defaultStrategies = (): Record<string, StrategyData> => {
+  const strategies: Record<string, StrategyData> = {};
+  PHASES.forEach(phase => {
+    phase.strategies.forEach(strategy => {
+      strategies[`${phase.id}-${strategy.key}`] = defaultStrategyData();
+    });
+  });
+  return strategies;
+};
 
 export function QuarterlyReview({ clientName, companyName, savedData, onSave, onClose }: QuarterlyReviewProps) {
   const currentQuarter = `Q${Math.ceil((new Date().getMonth() + 1) / 3)} ${new Date().getFullYear()}`;
   
   const [data, setData] = useState<ReviewData>({
     clientName: (savedData.clientName as string) || clientName || '',
-    companyName: (savedData.companyName as string) || companyName || '',
+    entityName: (savedData.entityName as string) || companyName || '',
+    ein: (savedData.ein as string) || '',
     quarter: (savedData.quarter as string) || currentQuarter,
     meetingDate: (savedData.meetingDate as string) || '',
-    attendees: (savedData.attendees as string) || '',
+    reviewDate: (savedData.reviewDate as string) || '',
+    phaseStatus: (savedData.phaseStatus as ReviewData['phaseStatus']) || {
+      p1: { status: 'not-started' },
+      p2: { status: 'not-started' },
+      p3: { status: 'not-started' },
+      p4: { status: 'not-started' },
+      p5: { status: 'not-started' },
+      p6: { status: 'not-started' },
+      p7: { status: 'not-started' },
+    },
+    primaryContact: (savedData.primaryContact as string) || '',
+    filingStatus: (savedData.filingStatus as string) || '',
+    dependents: (savedData.dependents as string) || '',
+    primaryBusiness: (savedData.primaryBusiness as string) || '',
     ytdRevenue: (savedData.ytdRevenue as string) || '',
     ytdExpenses: (savedData.ytdExpenses as string) || '',
     ytdNetIncome: (savedData.ytdNetIncome as string) || '',
-    projectedAnnualIncome: (savedData.projectedAnnualIncome as string) || '',
-    currentCompensation: (savedData.currentCompensation as string) || '',
-    recommendedCompensation: (savedData.recommendedCompensation as string) || '',
-    strategies: (savedData.strategies as ReviewData['strategies']) || defaultStrategies(),
+    projectedAnnual: (savedData.projectedAnnual as string) || '',
+    currentW2: (savedData.currentW2 as string) || '',
+    recommendedW2: (savedData.recommendedW2 as string) || '',
+    ficaSavings: (savedData.ficaSavings as string) || '',
+    distributionsYtd: (savedData.distributionsYtd as string) || '',
+    estTaxes: (savedData.estTaxes as ReviewData['estTaxes']) || {
+      fedQ1Req: '', fedQ1Paid: '', fedQ1Date: '',
+      fedQ2Req: '', fedQ2Paid: '', fedQ2Date: '',
+      fedQ3Req: '', fedQ3Paid: '', fedQ3Date: '',
+      fedQ4Req: '', fedQ4Paid: '', fedQ4Date: '',
+      stateQ1Req: '', stateQ1Paid: '', stateQ1Date: '',
+      stateQ2Req: '', stateQ2Paid: '', stateQ2Date: '',
+      stateQ3Req: '', stateQ3Paid: '', stateQ3Date: '',
+      stateQ4Req: '', stateQ4Paid: '', stateQ4Date: '',
+    },
+    strategies: (savedData.strategies as Record<string, StrategyData>) || defaultStrategies(),
     actionItems: (savedData.actionItems as string) || '',
     nextQuarterPriorities: (savedData.nextQuarterPriorities as string) || '',
-    estimatedTotalSavings: (savedData.estimatedTotalSavings as string) || '',
   });
 
-  const calculateTotalSavings = () => {
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    meeting: true,
+    pathway: true,
+    financial: false,
+    compensation: false,
+    estTax: false,
+    ...PHASES.reduce((acc, phase) => ({ ...acc, [phase.id]: false }), {}),
+    actionItems: false,
+  });
+
+  const toggleSection = (section: string) => {
+    setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
+
+  const calculateTotalSavings = (): number => {
     let total = 0;
     Object.values(data.strategies).forEach(strategy => {
-      if (strategy.implemented && strategy.savings) {
+      if (strategy.savings) {
         total += parseFloat(strategy.savings.replace(/[^0-9.]/g, '')) || 0;
       }
     });
     return total;
   };
 
-  const countImplemented = () => {
-    return Object.values(data.strategies).filter(s => s.implemented).length;
+  const countActiveStrategies = (): number => {
+    return Object.values(data.strategies).filter(s => s.q1 || s.q2 || s.q3 || s.q4).length;
+  };
+
+  const calculatePathwayProgress = (): number => {
+    const phaseValues: Record<string, number> = {
+      'not-started': 0,
+      'in-progress': 50,
+      'complete': 100,
+      'maintaining': 100,
+    };
+    const totalPhases = 7;
+    let totalProgress = 0;
+    Object.values(data.phaseStatus).forEach(phase => {
+      totalProgress += phaseValues[phase.status] || 0;
+    });
+    return Math.round(totalProgress / totalPhases);
+  };
+
+  const getCurrentPhase = (): string => {
+    const phaseOrder = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7'];
+    const phaseNames: Record<string, string> = {
+      p1: 'P1: Foundation',
+      p2: 'P2: Core Deductions',
+      p3: 'P3: Retirement',
+      p4: 'P4: Credits',
+      p5: 'P5: Real Estate',
+      p6: 'P6: Acquisitions',
+      p7: 'P7: Exit & Wealth',
+    };
+    for (const phase of phaseOrder) {
+      if (data.phaseStatus[phase as keyof typeof data.phaseStatus].status !== 'complete' && 
+          data.phaseStatus[phase as keyof typeof data.phaseStatus].status !== 'maintaining') {
+        return phaseNames[phase];
+      }
+    }
+    return 'Complete!';
   };
 
   const handleSave = () => {
@@ -165,224 +331,351 @@ export function QuarterlyReview({ clientName, companyName, savedData, onSave, on
     onSave(data as unknown as Record<string, unknown>, totalSavings);
   };
 
-  const updateStrategy = (key: string, field: keyof StrategyReview, value: string | boolean) => {
+  const updateStrategy = (phaseKey: string, strategyKey: string, field: keyof StrategyData, value: string | boolean) => {
+    const key = `${phaseKey}-${strategyKey}`;
     setData(prev => ({
       ...prev,
       strategies: {
         ...prev.strategies,
         [key]: {
-          ...prev.strategies[key as keyof typeof prev.strategies],
+          ...prev.strategies[key],
           [field]: value,
         },
       },
     }));
   };
 
+  const getPhaseStatusColor = (status: string): string => {
+    switch (status) {
+      case 'complete': return 'bg-eiduk-gold text-eiduk-navy';
+      case 'maintaining': return 'bg-success text-white';
+      case 'in-progress': return 'bg-eiduk-blue text-white';
+      default: return 'bg-white/20 border-2 border-white/40 text-white';
+    }
+  };
+
   return (
-    <Card className="border-2 border-eiduk-gold/30">
-      <CardHeader className="bg-gradient-to-r from-eiduk-navy to-eiduk-blue text-white">
+    <Card className="border-2 border-eiduk-gold/30 max-h-[85vh] overflow-y-auto">
+      <CardHeader className="bg-gradient-to-r from-eiduk-navy to-eiduk-blue text-white sticky top-0 z-10">
         <div className="text-sm text-eiduk-gold font-semibold tracking-wider">EIDUK PATHWAY™</div>
         <CardTitle className="font-display text-2xl">S-Corp Quarterly Review Workpaper</CardTitle>
-        <p className="text-white/80">Comprehensive Strategy Review & Implementation Tracking</p>
+        <p className="text-white/80">Comprehensive 47-Strategy Tax Optimization Framework</p>
         <div className="text-eiduk-gold font-display italic">Pay Less. Keep More. Build Wealth.</div>
       </CardHeader>
-      <CardContent className="p-6 space-y-6">
-        {/* Meeting Info */}
-        <div className="bg-muted/30 p-4 rounded-lg border-l-4 border-eiduk-blue">
-          <h3 className="font-display text-lg font-semibold text-eiduk-navy mb-4">Meeting Information</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <Label>Client Name</Label>
-              <Input
-                value={data.clientName}
-                onChange={(e) => setData(prev => ({ ...prev, clientName: e.target.value }))}
-              />
+      
+      <CardContent className="p-6 space-y-4">
+        {/* Meeting Information */}
+        <Collapsible open={openSections.meeting} onOpenChange={() => toggleSection('meeting')}>
+          <CollapsibleTrigger className="flex items-center justify-between w-full bg-muted/50 p-3 rounded-lg hover:bg-muted transition-colors">
+            <h3 className="font-display text-lg font-semibold text-eiduk-navy">Meeting Information</h3>
+            {openSections.meeting ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-3">
+            <div className="bg-muted/30 p-4 rounded-lg border-l-4 border-eiduk-blue">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                  <Label>Client Name</Label>
+                  <Input value={data.clientName} onChange={(e) => setData(prev => ({ ...prev, clientName: e.target.value }))} />
+                </div>
+                <div>
+                  <Label>Entity Name</Label>
+                  <Input value={data.entityName} onChange={(e) => setData(prev => ({ ...prev, entityName: e.target.value }))} />
+                </div>
+                <div>
+                  <Label>EIN</Label>
+                  <Input value={data.ein} onChange={(e) => setData(prev => ({ ...prev, ein: e.target.value }))} placeholder="XX-XXXXXXX" />
+                </div>
+                <div>
+                  <Label>Quarter</Label>
+                  <Select value={data.quarter} onValueChange={(value) => setData(prev => ({ ...prev, quarter: value }))}>
+                    <SelectTrigger><SelectValue placeholder="Select Quarter" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Q1 2025">Q1 2025</SelectItem>
+                      <SelectItem value="Q2 2025">Q2 2025</SelectItem>
+                      <SelectItem value="Q3 2025">Q3 2025</SelectItem>
+                      <SelectItem value="Q4 2025">Q4 2025</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Meeting Date</Label>
+                  <Input type="date" value={data.meetingDate} onChange={(e) => setData(prev => ({ ...prev, meetingDate: e.target.value }))} />
+                </div>
+                <div>
+                  <Label>Review Date</Label>
+                  <Input type="date" value={data.reviewDate} onChange={(e) => setData(prev => ({ ...prev, reviewDate: e.target.value }))} />
+                </div>
+              </div>
             </div>
-            <div>
-              <Label>Company Name</Label>
-              <Input
-                value={data.companyName}
-                onChange={(e) => setData(prev => ({ ...prev, companyName: e.target.value }))}
-              />
-            </div>
-            <div>
-              <Label>Quarter</Label>
-              <Input
-                value={data.quarter}
-                onChange={(e) => setData(prev => ({ ...prev, quarter: e.target.value }))}
-                placeholder="e.g., Q1 2025"
-              />
-            </div>
-            <div>
-              <Label>Meeting Date</Label>
-              <Input
-                type="date"
-                value={data.meetingDate}
-                onChange={(e) => setData(prev => ({ ...prev, meetingDate: e.target.value }))}
-              />
-            </div>
-          </div>
-        </div>
+          </CollapsibleContent>
+        </Collapsible>
 
-        {/* Score Card */}
+        {/* Eiduk Pathway Dashboard */}
+        <Collapsible open={openSections.pathway} onOpenChange={() => toggleSection('pathway')}>
+          <CollapsibleTrigger className="flex items-center justify-between w-full bg-gradient-to-r from-eiduk-navy to-eiduk-blue text-white p-3 rounded-lg">
+            <h3 className="font-display text-lg font-semibold">The Eiduk Pathway™ Client Journey</h3>
+            {openSections.pathway ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-3">
+            <div className="bg-gradient-to-r from-eiduk-navy to-eiduk-blue text-white p-6 rounded-lg">
+              <p className="text-sm opacity-90 mb-4">Systematic tax optimization through 7 strategic phases • 47 strategies • Building wealth while reducing taxes</p>
+              
+              {/* Phase Timeline */}
+              <div className="flex flex-wrap justify-between items-start gap-2 mb-6">
+                {[
+                  { key: 'p1', label: 'Foundation', count: 5 },
+                  { key: 'p2', label: 'Core', count: 6 },
+                  { key: 'p3', label: 'Retirement', count: 9 },
+                  { key: 'p4', label: 'Credits', count: 5 },
+                  { key: 'p5', label: 'Real Estate', count: 7 },
+                  { key: 'p6', label: 'Acquisitions', count: 5 },
+                  { key: 'p7', label: 'Exit & Wealth', count: 10 },
+                ].map((phase, index) => (
+                  <div key={phase.key} className="flex-1 min-w-[100px] text-center">
+                    <div className={`w-12 h-12 mx-auto rounded-full ${getPhaseStatusColor(data.phaseStatus[phase.key as keyof typeof data.phaseStatus].status)} flex items-center justify-center font-bold text-lg mb-2`}>
+                      P{index + 1}
+                    </div>
+                    <div className="text-xs font-semibold uppercase tracking-wide">{phase.label}</div>
+                    <div className="text-xs opacity-80">{phase.count} Strategies</div>
+                    <Select
+                      value={data.phaseStatus[phase.key as keyof typeof data.phaseStatus].status}
+                      onValueChange={(value) => setData(prev => ({
+                        ...prev,
+                        phaseStatus: {
+                          ...prev.phaseStatus,
+                          [phase.key]: { status: value as PhaseStatus['status'] },
+                        },
+                      }))}
+                    >
+                      <SelectTrigger className="mt-2 h-7 text-xs bg-white/20 border-white/30 text-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="not-started">Not Started</SelectItem>
+                        <SelectItem value="in-progress">In Progress</SelectItem>
+                        <SelectItem value="complete">Complete</SelectItem>
+                        <SelectItem value="maintaining">Maintaining</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ))}
+              </div>
+
+              {/* Summary Stats */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-black/20 p-4 rounded-lg">
+                <div className="text-center">
+                  <div className="text-xs uppercase opacity-80 mb-1">Current Phase</div>
+                  <div className="text-lg font-bold">{getCurrentPhase()}</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs uppercase opacity-80 mb-1">Strategies Active</div>
+                  <div className="text-lg font-bold">{countActiveStrategies()} / 47</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs uppercase opacity-80 mb-1">Est. Annual Savings</div>
+                  <div className="text-lg font-bold">${calculateTotalSavings().toLocaleString()}</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs uppercase opacity-80 mb-1">Pathway Progress</div>
+                  <div className="text-lg font-bold">{calculatePathwayProgress()}%</div>
+                </div>
+              </div>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+
+        {/* Compliance Scorecard */}
         <div className="bg-gradient-to-r from-amber-50 to-yellow-50 border-2 border-amber-400 p-6 rounded-lg text-center">
-          <h3 className="font-display text-xl font-semibold text-eiduk-navy mb-4">Strategy Implementation Score</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white p-4 rounded-lg shadow">
-              <div className="text-sm text-muted-foreground uppercase tracking-wide">Strategies Implemented</div>
-              <div className="text-3xl font-bold text-eiduk-navy mt-2">
-                {countImplemented()} / {Object.keys(data.strategies).length}
-              </div>
+          <h3 className="font-display text-xl font-semibold text-eiduk-navy mb-4">Quarterly Compliance Scorecard</h3>
+          <Progress value={calculatePathwayProgress()} className="h-5 mb-4" />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-white p-3 rounded-lg shadow">
+              <div className="text-xs text-muted-foreground uppercase">Compliance Score</div>
+              <div className="text-2xl font-bold text-eiduk-navy">{calculatePathwayProgress()}%</div>
             </div>
-            <div className="bg-white p-4 rounded-lg shadow">
-              <div className="text-sm text-muted-foreground uppercase tracking-wide">Implementation Rate</div>
-              <div className="text-3xl font-bold text-eiduk-blue mt-2">
-                {Math.round((countImplemented() / Object.keys(data.strategies).length) * 100)}%
-              </div>
+            <div className="bg-white p-3 rounded-lg shadow">
+              <div className="text-xs text-muted-foreground uppercase">Strategies Active</div>
+              <div className="text-2xl font-bold text-eiduk-blue">{countActiveStrategies()}/47</div>
             </div>
-            <div className="bg-white p-4 rounded-lg shadow">
-              <div className="text-sm text-muted-foreground uppercase tracking-wide">Est. Annual Savings</div>
-              <div className="text-3xl font-bold text-success mt-2">
-                ${calculateTotalSavings().toLocaleString()}
-              </div>
+            <div className="bg-white p-3 rounded-lg shadow">
+              <div className="text-xs text-muted-foreground uppercase">YTD Tax Savings</div>
+              <div className="text-2xl font-bold text-success">${calculateTotalSavings().toLocaleString()}</div>
+            </div>
+            <div className="bg-white p-3 rounded-lg shadow">
+              <div className="text-xs text-muted-foreground uppercase">Quarter</div>
+              <div className="text-2xl font-bold text-eiduk-navy">{data.quarter.split(' ')[0]}</div>
             </div>
           </div>
         </div>
 
         {/* Financial Snapshot */}
-        <div>
-          <h3 className="font-display text-lg font-semibold bg-gradient-to-r from-eiduk-navy to-eiduk-blue text-white p-3 rounded-lg mb-4">
-            Financial Snapshot
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Label>YTD Revenue</Label>
-              <Input
-                value={data.ytdRevenue}
-                onChange={(e) => setData(prev => ({ ...prev, ytdRevenue: e.target.value }))}
-                placeholder="$0"
-              />
+        <Collapsible open={openSections.financial} onOpenChange={() => toggleSection('financial')}>
+          <CollapsibleTrigger className="flex items-center justify-between w-full bg-muted/50 p-3 rounded-lg hover:bg-muted transition-colors">
+            <h3 className="font-display text-lg font-semibold text-eiduk-navy">Financial Snapshot</h3>
+            {openSections.financial ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div>
+                <Label>YTD Revenue</Label>
+                <Input value={data.ytdRevenue} onChange={(e) => setData(prev => ({ ...prev, ytdRevenue: e.target.value }))} placeholder="$0" />
+              </div>
+              <div>
+                <Label>YTD Expenses</Label>
+                <Input value={data.ytdExpenses} onChange={(e) => setData(prev => ({ ...prev, ytdExpenses: e.target.value }))} placeholder="$0" />
+              </div>
+              <div>
+                <Label>YTD Net Income</Label>
+                <Input value={data.ytdNetIncome} onChange={(e) => setData(prev => ({ ...prev, ytdNetIncome: e.target.value }))} placeholder="$0" />
+              </div>
+              <div>
+                <Label>Projected Annual</Label>
+                <Input value={data.projectedAnnual} onChange={(e) => setData(prev => ({ ...prev, projectedAnnual: e.target.value }))} placeholder="$0" />
+              </div>
             </div>
-            <div>
-              <Label>YTD Expenses</Label>
-              <Input
-                value={data.ytdExpenses}
-                onChange={(e) => setData(prev => ({ ...prev, ytdExpenses: e.target.value }))}
-                placeholder="$0"
-              />
+          </CollapsibleContent>
+        </Collapsible>
+
+        {/* Reasonable Compensation */}
+        <Collapsible open={openSections.compensation} onOpenChange={() => toggleSection('compensation')}>
+          <CollapsibleTrigger className="flex items-center justify-between w-full bg-muted/50 p-3 rounded-lg hover:bg-muted transition-colors">
+            <h3 className="font-display text-lg font-semibold text-eiduk-navy">Reasonable Compensation Review</h3>
+            {openSections.compensation ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div>
+                <Label>Current W-2 Compensation</Label>
+                <Input value={data.currentW2} onChange={(e) => setData(prev => ({ ...prev, currentW2: e.target.value }))} placeholder="$0" />
+              </div>
+              <div>
+                <Label>Recommended W-2</Label>
+                <Input value={data.recommendedW2} onChange={(e) => setData(prev => ({ ...prev, recommendedW2: e.target.value }))} placeholder="$0" />
+              </div>
+              <div>
+                <Label>Est. FICA Savings</Label>
+                <Input value={data.ficaSavings} onChange={(e) => setData(prev => ({ ...prev, ficaSavings: e.target.value }))} placeholder="$0" />
+              </div>
+              <div>
+                <Label>Distributions YTD</Label>
+                <Input value={data.distributionsYtd} onChange={(e) => setData(prev => ({ ...prev, distributionsYtd: e.target.value }))} placeholder="$0" />
+              </div>
             </div>
-            <div>
-              <Label>YTD Net Income</Label>
-              <Input
-                value={data.ytdNetIncome}
-                onChange={(e) => setData(prev => ({ ...prev, ytdNetIncome: e.target.value }))}
-                placeholder="$0"
-              />
-            </div>
-            <div>
-              <Label>Projected Annual Income</Label>
-              <Input
-                value={data.projectedAnnualIncome}
-                onChange={(e) => setData(prev => ({ ...prev, projectedAnnualIncome: e.target.value }))}
-                placeholder="$0"
-              />
-            </div>
-            <div>
-              <Label>Current W-2 Compensation</Label>
-              <Input
-                value={data.currentCompensation}
-                onChange={(e) => setData(prev => ({ ...prev, currentCompensation: e.target.value }))}
-                placeholder="$0"
-              />
-            </div>
-            <div>
-              <Label>Recommended Compensation</Label>
-              <Input
-                value={data.recommendedCompensation}
-                onChange={(e) => setData(prev => ({ ...prev, recommendedCompensation: e.target.value }))}
-                placeholder="$0"
-              />
-            </div>
-          </div>
-        </div>
+          </CollapsibleContent>
+        </Collapsible>
 
         <Separator />
 
-        {/* Strategy Review by Phase */}
-        {STRATEGY_PHASES.map((phase, phaseIndex) => (
-          <div key={phaseIndex}>
-            <div className={`${phase.color} text-white p-3 rounded-lg mb-4`}>
-              <h3 className="font-display font-semibold">{phase.name}</h3>
-            </div>
-            <div className="space-y-3">
-              {phase.strategies.map(strategy => {
-                const strategyData = data.strategies[strategy.key as keyof typeof data.strategies];
-                return (
-                  <div 
-                    key={strategy.key}
-                    className={`p-4 rounded-lg border ${
-                      strategyData?.implemented 
-                        ? 'bg-success/5 border-success' 
-                        : 'bg-card border-border'
-                    }`}
-                  >
-                    <div className="flex items-start gap-4">
-                      <Checkbox
-                        checked={strategyData?.implemented}
-                        onCheckedChange={(checked) => updateStrategy(strategy.key, 'implemented', !!checked)}
-                        className="mt-1"
-                      />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-eiduk-navy">{strategy.name}</span>
-                          {strategyData?.implemented && (
-                            <Badge variant="outline" className="bg-success/10 text-success border-success/20">
-                              Implemented
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-sm text-muted-foreground">{strategy.description}</p>
-                        
-                        {strategyData?.implemented && (
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
-                            <div>
-                              <Label className="text-xs">Est. Annual Savings</Label>
-                              <Input
-                                placeholder="$0"
-                                value={strategyData.savings}
-                                onChange={(e) => updateStrategy(strategy.key, 'savings', e.target.value)}
-                                className="h-8"
-                              />
+        {/* Strategy Phases */}
+        {PHASES.map((phase) => (
+          <Collapsible key={phase.id} open={openSections[phase.id]} onOpenChange={() => toggleSection(phase.id)}>
+            <CollapsibleTrigger className={`flex items-center justify-between w-full ${phase.color} text-white p-3 rounded-lg`}>
+              <div className="flex items-center gap-3">
+                <h3 className="font-display font-semibold">{phase.name}</h3>
+                <Badge variant="secondary" className="bg-white/20 text-white border-0">
+                  {phase.strategies.length} Strategies • {phase.targetSavings}
+                </Badge>
+              </div>
+              {openSections[phase.id] ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-3">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm border-collapse">
+                  <thead>
+                    <tr className="bg-muted/50">
+                      <th className="p-2 text-left w-[20%]">Strategy & IRC</th>
+                      <th className="p-2 text-center w-[5%]">Q1</th>
+                      <th className="p-2 text-center w-[5%]">Q2</th>
+                      <th className="p-2 text-center w-[5%]">Q3</th>
+                      <th className="p-2 text-center w-[5%]">Q4</th>
+                      <th className="p-2 text-left w-[20%]">Documentation</th>
+                      <th className="p-2 text-left w-[10%]">Savings</th>
+                      <th className="p-2 text-left w-[30%]">Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {phase.strategies.map((strategy) => {
+                      const strategyKey = `${phase.id}-${strategy.key}`;
+                      const strategyData = data.strategies[strategyKey] || defaultStrategyData();
+                      return (
+                        <tr key={strategy.key} className="border-b hover:bg-muted/30">
+                          <td className="p-2">
+                            <div className="font-semibold text-eiduk-navy">{strategy.name}</div>
+                            <div className="text-xs text-muted-foreground">{strategy.irc}</div>
+                          </td>
+                          <td className="p-2 text-center">
+                            <Checkbox
+                              checked={strategyData.q1}
+                              onCheckedChange={(checked) => updateStrategy(phase.id, strategy.key, 'q1', !!checked)}
+                            />
+                          </td>
+                          <td className="p-2 text-center">
+                            <Checkbox
+                              checked={strategyData.q2}
+                              onCheckedChange={(checked) => updateStrategy(phase.id, strategy.key, 'q2', !!checked)}
+                            />
+                          </td>
+                          <td className="p-2 text-center">
+                            <Checkbox
+                              checked={strategyData.q3}
+                              onCheckedChange={(checked) => updateStrategy(phase.id, strategy.key, 'q3', !!checked)}
+                            />
+                          </td>
+                          <td className="p-2 text-center">
+                            <Checkbox
+                              checked={strategyData.q4}
+                              onCheckedChange={(checked) => updateStrategy(phase.id, strategy.key, 'q4', !!checked)}
+                            />
+                          </td>
+                          <td className="p-2">
+                            <div className="space-y-1">
+                              {strategy.docs.map((doc, idx) => (
+                                <label key={idx} className="flex items-center gap-1 text-xs cursor-pointer">
+                                  <Checkbox
+                                    checked={strategyData[`doc${idx + 1}` as keyof StrategyData] as boolean}
+                                    onCheckedChange={(checked) => updateStrategy(phase.id, strategy.key, `doc${idx + 1}` as keyof StrategyData, !!checked)}
+                                    className="h-3 w-3"
+                                  />
+                                  <span className="text-muted-foreground">{doc}</span>
+                                </label>
+                              ))}
                             </div>
-                            <div>
-                              <Label className="text-xs">Notes</Label>
-                              <Input
-                                placeholder="Implementation notes..."
-                                value={strategyData.notes}
-                                onChange={(e) => updateStrategy(strategy.key, 'notes', e.target.value)}
-                                className="h-8"
-                              />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            {phaseIndex < STRATEGY_PHASES.length - 1 && <Separator className="my-6" />}
-          </div>
+                          </td>
+                          <td className="p-2">
+                            <Input
+                              value={strategyData.savings}
+                              onChange={(e) => updateStrategy(phase.id, strategy.key, 'savings', e.target.value)}
+                              placeholder="$0"
+                              className="h-8 text-xs"
+                            />
+                          </td>
+                          <td className="p-2">
+                            <Textarea
+                              value={strategyData.notes}
+                              onChange={(e) => updateStrategy(phase.id, strategy.key, 'notes', e.target.value)}
+                              placeholder="Notes..."
+                              className="min-h-[60px] text-xs"
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
         ))}
 
         <Separator />
 
         {/* Action Items */}
-        <div>
-          <h3 className="font-display text-lg font-semibold bg-gradient-to-r from-eiduk-navy to-eiduk-blue text-white p-3 rounded-lg mb-4">
-            Action Items & Next Steps
-          </h3>
-          <div className="space-y-4">
+        <Collapsible open={openSections.actionItems} onOpenChange={() => toggleSection('actionItems')}>
+          <CollapsibleTrigger className="flex items-center justify-between w-full bg-gradient-to-r from-eiduk-navy to-eiduk-blue text-white p-3 rounded-lg">
+            <h3 className="font-display text-lg font-semibold">Action Items & Next Steps</h3>
+            {openSections.actionItems ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-3 space-y-4">
             <div>
               <Label>Action Items from This Meeting</Label>
               <Textarea
@@ -400,11 +693,11 @@ export function QuarterlyReview({ clientName, companyName, savedData, onSave, on
                 placeholder="Strategies to implement or review next quarter..."
               />
             </div>
-          </div>
-        </div>
+          </CollapsibleContent>
+        </Collapsible>
 
         {/* Actions */}
-        <div className="flex justify-end gap-3 pt-4">
+        <div className="flex justify-end gap-3 pt-4 sticky bottom-0 bg-background py-4 border-t">
           <Button variant="outline" onClick={onClose}>Close</Button>
           <Button onClick={handleSave} className="bg-eiduk-navy hover:bg-eiduk-blue">
             <FileText className="h-4 w-4 mr-2" />
