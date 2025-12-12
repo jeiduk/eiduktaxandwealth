@@ -314,6 +314,7 @@ export function StrategyDashboard({ clientId, clientName, companyName }: Strateg
       case 'annual_meeting':
         return (
           <AnnualMeetingMinutes
+            clientId={clientId}
             clientName={clientName}
             companyName={companyName}
             savedData={savedData}

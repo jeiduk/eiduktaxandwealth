@@ -6,9 +6,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
-import { FileText, AlertTriangle, Printer, Save, X } from 'lucide-react';
+import { FileText, AlertTriangle, Printer, Save, X, Upload, Loader2, CheckCircle, Trash2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 interface AnnualMeetingMinutesProps {
+  clientId: string;
   clientName: string;
   companyName?: string;
   savedData: Record<string, unknown>;
@@ -134,6 +138,14 @@ interface MeetingData {
     accountablePlanPolicy: boolean;
   };
   
+  // Uploaded Document File Paths
+  uploadedDocuments: {
+    compensationStudy: { name: string; path: string } | null;
+    financialStatements: { name: string; path: string } | null;
+    priorMinutes: { name: string; path: string } | null;
+    accountablePlanPolicy: { name: string; path: string } | null;
+  };
+  
   additionalBusiness: string;
   nextMeetingDate: string;
   nextMeetingTime: string;
@@ -182,8 +194,10 @@ const defaultFinancialHighlights: FinancialHighlight[] = [
   { metric: 'Net Income', amount: '', notes: '' },
 ];
 
-export function AnnualMeetingMinutes({ clientName, companyName, savedData, onSave, onClose }: AnnualMeetingMinutesProps) {
+export function AnnualMeetingMinutes({ clientId, clientName, companyName, savedData, onSave, onClose }: AnnualMeetingMinutesProps) {
   const printRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+  const { user } = useAuth();
   
   const [data, setData] = useState<MeetingData>({
     companyName: (savedData.companyName as string) || companyName || '',
@@ -261,6 +275,13 @@ export function AnnualMeetingMinutes({ clientName, companyName, savedData, onSav
       accountablePlanPolicy: false,
     },
     
+    uploadedDocuments: (savedData.uploadedDocuments as MeetingData['uploadedDocuments']) || {
+      compensationStudy: null,
+      financialStatements: null,
+      priorMinutes: null,
+      accountablePlanPolicy: null,
+    },
+    
     additionalBusiness: (savedData.additionalBusiness as string) || '',
     nextMeetingDate: (savedData.nextMeetingDate as string) || '',
     nextMeetingTime: (savedData.nextMeetingTime as string) || '',
@@ -271,6 +292,8 @@ export function AnnualMeetingMinutes({ clientName, companyName, savedData, onSav
     
     waiverSignatures: (savedData.waiverSignatures as WaiverSignature[]) || defaultWaiverSignatures,
   });
+  
+  const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
 
   const handleSave = () => {
     onSave(data as unknown as Record<string, unknown>);
@@ -330,6 +353,121 @@ export function AnnualMeetingMinutes({ clientName, companyName, savedData, onSav
       ...prev,
       financialHighlights: prev.financialHighlights.map((f, i) => i === index ? { ...f, [field]: value } : f),
     }));
+  };
+
+  const handleDocumentUpload = async (
+    docType: keyof MeetingData['uploadedDocuments'],
+    file: File
+  ) => {
+    if (!user) {
+      toast({
+        variant: 'destructive',
+        title: 'Authentication required',
+        description: 'Please log in to upload documents.',
+      });
+      return;
+    }
+
+    setUploadingDoc(docType);
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${clientId}/annual-minutes/${docType}-${Date.now()}.${fileExt}`;
+
+      // Upload to storage
+      const { error: uploadError } = await supabase.storage
+        .from('client-documents')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      // Create document record
+      const { error: docError } = await supabase
+        .from('client_documents')
+        .insert({
+          client_id: clientId,
+          user_id: user.id,
+          name: file.name,
+          file_path: fileName,
+          file_type: fileExt || null,
+          file_size: file.size,
+          category: 'Annual Meeting Minutes',
+        });
+
+      if (docError) throw docError;
+
+      // Update local state
+      setData(prev => ({
+        ...prev,
+        uploadedDocuments: {
+          ...prev.uploadedDocuments,
+          [docType]: { name: file.name, path: fileName },
+        },
+        documentationAttached: {
+          ...prev.documentationAttached,
+          [docType]: true,
+        },
+      }));
+
+      toast({
+        title: 'Document uploaded',
+        description: `${file.name} has been uploaded successfully.`,
+      });
+    } catch (error: unknown) {
+      console.error('Upload error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Upload failed',
+        description: error instanceof Error ? error.message : 'Failed to upload document',
+      });
+    } finally {
+      setUploadingDoc(null);
+    }
+  };
+
+  const handleRemoveDocument = async (docType: keyof MeetingData['uploadedDocuments']) => {
+    const doc = data.uploadedDocuments[docType];
+    if (!doc) return;
+
+    try {
+      // Delete from storage
+      const { error: storageError } = await supabase.storage
+        .from('client-documents')
+        .remove([doc.path]);
+
+      if (storageError) throw storageError;
+
+      // Delete from database
+      await supabase
+        .from('client_documents')
+        .delete()
+        .eq('file_path', doc.path);
+
+      // Update local state
+      setData(prev => ({
+        ...prev,
+        uploadedDocuments: {
+          ...prev.uploadedDocuments,
+          [docType]: null,
+        },
+        documentationAttached: {
+          ...prev.documentationAttached,
+          [docType]: false,
+        },
+      }));
+
+      toast({
+        title: 'Document removed',
+        description: 'The document has been removed.',
+      });
+    } catch (error: unknown) {
+      console.error('Remove error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Remove failed',
+        description: error instanceof Error ? error.message : 'Failed to remove document',
+      });
+    }
   };
 
   const isScorp = data.entityType === 'scorp';
@@ -1118,7 +1256,75 @@ export function AnnualMeetingMinutes({ clientName, companyName, savedData, onSav
                 ))}
               </div>
               
-              <div className="mt-4 bg-gray-50 p-4 rounded-lg border">
+              <div className="mt-4 bg-gray-50 p-4 rounded-lg border print:hidden">
+                <Label className="font-semibold">Documentation Attached (Upload Files):</Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                  {[
+                    { key: 'compensationStudy', label: 'Reasonable Compensation Study' },
+                    { key: 'financialStatements', label: 'Financial Statements' },
+                    { key: 'priorMinutes', label: 'Prior Year Minutes' },
+                    { key: 'accountablePlanPolicy', label: 'Accountable Plan Policy' },
+                  ].map(item => {
+                    const docKey = item.key as keyof MeetingData['uploadedDocuments'];
+                    const uploadedDoc = data.uploadedDocuments[docKey];
+                    const isUploading = uploadingDoc === item.key;
+                    
+                    return (
+                      <div key={item.key} className="bg-white p-3 rounded-lg border">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium">{item.label}</span>
+                          {uploadedDoc && (
+                            <CheckCircle className="h-4 w-4 text-success" />
+                          )}
+                        </div>
+                        
+                        {uploadedDoc ? (
+                          <div className="flex items-center gap-2 bg-success/10 p-2 rounded border border-success/20">
+                            <FileText className="h-4 w-4 text-eiduk-blue flex-shrink-0" />
+                            <span className="text-sm truncate flex-1">{uploadedDoc.name}</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRemoveDocument(docKey)}
+                              className="h-6 w-6 p-0 text-destructive hover:bg-destructive/10"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <label className="flex items-center justify-center gap-2 p-3 border-2 border-dashed border-muted-foreground/30 rounded-lg cursor-pointer hover:border-eiduk-blue/50 hover:bg-muted/30 transition-colors">
+                            <input
+                              type="file"
+                              className="hidden"
+                              accept=".pdf,.doc,.docx,.xls,.xlsx"
+                              disabled={isUploading}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleDocumentUpload(docKey, file);
+                                e.target.value = '';
+                              }}
+                            />
+                            {isUploading ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin text-eiduk-blue" />
+                                <span className="text-sm text-muted-foreground">Uploading...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Upload className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-sm text-muted-foreground">Upload file</span>
+                              </>
+                            )}
+                          </label>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              
+              {/* Print-only documentation list */}
+              <div className="hidden print:block mt-4 bg-gray-50 p-4 rounded-lg border">
                 <Label className="font-semibold">Documentation Attached:</Label>
                 <div className="grid grid-cols-2 gap-3 mt-2">
                   {[
@@ -1126,18 +1332,24 @@ export function AnnualMeetingMinutes({ clientName, companyName, savedData, onSav
                     { key: 'financialStatements', label: 'Financial Statements' },
                     { key: 'priorMinutes', label: 'Prior Year Minutes' },
                     { key: 'accountablePlanPolicy', label: 'Accountable Plan Policy' },
-                  ].map(item => (
-                    <div key={item.key} className="flex items-center gap-3">
-                      <Checkbox
-                        checked={data.documentationAttached[item.key as keyof typeof data.documentationAttached]}
-                        onCheckedChange={(checked) => setData(prev => ({
-                          ...prev,
-                          documentationAttached: { ...prev.documentationAttached, [item.key]: !!checked }
-                        }))}
-                      />
-                      <span className="text-sm">{item.label}</span>
-                    </div>
-                  ))}
+                  ].map(item => {
+                    const docKey = item.key as keyof MeetingData['documentationAttached'];
+                    return (
+                      <div key={item.key} className="flex items-center gap-2">
+                        {data.documentationAttached[docKey] ? (
+                          <CheckCircle className="h-4 w-4 text-success" />
+                        ) : (
+                          <div className="h-4 w-4 border rounded" />
+                        )}
+                        <span className="text-sm">{item.label}</span>
+                        {data.uploadedDocuments[item.key as keyof MeetingData['uploadedDocuments']]?.name && (
+                          <span className="text-xs text-muted-foreground">
+                            ({data.uploadedDocuments[item.key as keyof MeetingData['uploadedDocuments']]?.name})
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
