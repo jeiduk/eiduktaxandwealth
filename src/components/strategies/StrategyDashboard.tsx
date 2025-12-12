@@ -23,6 +23,10 @@ import { MileageLog } from './calculators/MileageLog';
 import { ProfitSharing401kCalculator } from './calculators/ProfitSharing401kCalculator';
 import { CashBalanceCalculator } from './calculators/CashBalanceCalculator';
 import { RothConversionCalculator } from './calculators/RothConversionCalculator';
+import { ComplianceCalendar } from './calculators/ComplianceCalendar';
+import { QuarterlyReview } from './calculators/QuarterlyReview';
+import { AnnualMeetingMinutes } from './calculators/AnnualMeetingMinutes';
+import { BoardAdvisoryAgreement } from './calculators/BoardAdvisoryAgreement';
 
 interface Strategy {
   id: string;
@@ -282,6 +286,46 @@ export function StrategyDashboard({ clientId, clientName, companyName }: Strateg
         return (
           <RothConversionCalculator
             clientName={clientName}
+            savedData={savedData}
+            onSave={(data, savings) => saveCalculatorData(selectedStrategy.id, data, savings)}
+            onClose={() => setSelectedStrategy(null)}
+          />
+        );
+      case 'compliance_calendar':
+        return (
+          <ComplianceCalendar
+            clientName={clientName}
+            companyName={companyName}
+            savedData={savedData}
+            onSave={(data, savings) => saveCalculatorData(selectedStrategy.id, data, savings)}
+            onClose={() => setSelectedStrategy(null)}
+          />
+        );
+      case 'quarterly_review':
+        return (
+          <QuarterlyReview
+            clientName={clientName}
+            companyName={companyName}
+            savedData={savedData}
+            onSave={(data, savings) => saveCalculatorData(selectedStrategy.id, data, savings)}
+            onClose={() => setSelectedStrategy(null)}
+          />
+        );
+      case 'annual_meeting':
+        return (
+          <AnnualMeetingMinutes
+            clientName={clientName}
+            companyName={companyName}
+            savedData={savedData}
+            onSave={(data, savings) => saveCalculatorData(selectedStrategy.id, data, savings)}
+            onClose={() => setSelectedStrategy(null)}
+          />
+        );
+      case 'board_advisory':
+        return (
+          <BoardAdvisoryAgreement
+            clientName={clientName}
+            companyName={companyName}
             savedData={savedData}
             onSave={(data, savings) => saveCalculatorData(selectedStrategy.id, data, savings)}
             onClose={() => setSelectedStrategy(null)}
