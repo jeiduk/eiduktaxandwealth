@@ -136,7 +136,7 @@ export function RoadmapPreview({ roadmap, clientName, companyName, clientEmail, 
       )}
 
       {/* Roadmap Content - Matches HTML template exactly */}
-      <div className="max-w-[900px] mx-auto p-5 print:p-0 print:max-w-full">
+      <div className="max-w-[900px] mx-auto p-5 pt-20 print:p-0 print:pt-0 print:max-w-full">
         <div className="bg-white rounded-2xl shadow-[0_4px_20px_rgba(30,58,95,0.08)] overflow-hidden print:shadow-none print:rounded-none">
           
           {/* Header - Matching template */}
