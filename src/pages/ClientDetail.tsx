@@ -371,15 +371,15 @@ export default function ClientDetail() {
         <Tabs defaultValue="details" className="space-y-6">
           <TabsList>
             <TabsTrigger value="details">Details</TabsTrigger>
+            <TabsTrigger value="roadmaps" className="flex items-center gap-2">
+              <Map className="h-4 w-4" />
+              Roadmaps
+            </TabsTrigger>
             <TabsTrigger value="strategies" className="flex items-center gap-2">
               <Calculator className="h-4 w-4" />
               Strategies
             </TabsTrigger>
             <TabsTrigger value="documents">Documents ({documents.length})</TabsTrigger>
-            <TabsTrigger value="roadmaps" className="flex items-center gap-2">
-              <Map className="h-4 w-4" />
-              Roadmaps
-            </TabsTrigger>
           </TabsList>
 
           {/* Details Tab */}
