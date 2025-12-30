@@ -15,6 +15,7 @@ interface UploadedDoc {
 interface ClientDocumentUploadProps {
   clientId: string;
   clientName: string;
+  accessToken: string;
   onUploadComplete?: () => void;
 }
 
@@ -26,7 +27,7 @@ const DOCUMENT_CATEGORIES = [
   'Other',
 ];
 
-export default function ClientDocumentUpload({ clientId, clientName, onUploadComplete }: ClientDocumentUploadProps) {
+export default function ClientDocumentUpload({ clientId, clientName, accessToken, onUploadComplete }: ClientDocumentUploadProps) {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -98,6 +99,7 @@ export default function ClientDocumentUpload({ clientId, clientName, onUploadCom
               documentName: file.name,
               documentCategory: selectedCategory,
               clientName,
+              accessToken,
             },
           });
         } catch (notifyError) {

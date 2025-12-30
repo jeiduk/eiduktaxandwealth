@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
@@ -8,13 +9,14 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-interface SendMagicLinkRequest {
-  clientId: string;
-  roadmapId: string;
-  clientEmail: string;
-  clientName: string;
-  baseUrl: string;
-}
+// Input validation schema
+const SendMagicLinkSchema = z.object({
+  clientId: z.string().uuid("Invalid client ID format"),
+  roadmapId: z.string().uuid("Invalid roadmap ID format"),
+  clientEmail: z.string().email("Invalid email format").max(255, "Email too long"),
+  clientName: z.string().min(1, "Client name required").max(200, "Client name too long"),
+  baseUrl: z.string().url("Invalid base URL").max(500, "URL too long"),
+});
 
 serve(async (req: Request): Promise<Response> => {
   // Handle CORS preflight
@@ -28,7 +30,26 @@ serve(async (req: Request): Promise<Response> => {
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { clientId, roadmapId, clientEmail, clientName, baseUrl }: SendMagicLinkRequest = await req.json();
+    // Parse and validate input
+    let validatedInput;
+    try {
+      const rawBody = await req.json();
+      validatedInput = SendMagicLinkSchema.parse(rawBody);
+    } catch (parseError) {
+      console.error("Input validation failed:", parseError);
+      if (parseError instanceof z.ZodError) {
+        return new Response(
+          JSON.stringify({ error: "Invalid input", details: parseError.errors }),
+          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+      return new Response(
+        JSON.stringify({ error: "Invalid request body" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const { clientId, roadmapId, clientEmail, clientName, baseUrl } = validatedInput;
 
     console.log("Sending magic link to:", clientEmail, "for roadmap:", roadmapId);
 

@@ -490,10 +490,11 @@ export default function ClientPortal() {
         </div>
 
         {/* Document Upload Section */}
-        {client && (
+        {client && token && (
           <ClientDocumentUpload 
             clientId={client.id} 
-            clientName={`${client.first_name} ${client.last_name}`} 
+            clientName={`${client.first_name} ${client.last_name}`}
+            accessToken={token}
           />
         )}
         <div 
