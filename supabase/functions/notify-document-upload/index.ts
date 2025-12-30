@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
@@ -8,12 +9,14 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-interface NotifyUploadRequest {
-  clientId: string;
-  documentName: string;
-  documentCategory: string;
-  clientName: string;
-}
+// Input validation schema
+const NotifyUploadSchema = z.object({
+  clientId: z.string().uuid("Invalid client ID format"),
+  documentName: z.string().min(1, "Document name required").max(255, "Document name too long"),
+  documentCategory: z.string().min(1, "Category required").max(100, "Category too long"),
+  clientName: z.string().min(1, "Client name required").max(200, "Client name too long"),
+  accessToken: z.string().min(1, "Access token required").max(100, "Token too long"),
+});
 
 serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
@@ -25,9 +28,53 @@ serve(async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { clientId, documentName, documentCategory, clientName }: NotifyUploadRequest = await req.json();
+    // Parse and validate input
+    let validatedInput;
+    try {
+      const rawBody = await req.json();
+      validatedInput = NotifyUploadSchema.parse(rawBody);
+    } catch (parseError) {
+      console.error("Input validation failed:", parseError);
+      if (parseError instanceof z.ZodError) {
+        return new Response(
+          JSON.stringify({ error: "Invalid input", details: parseError.errors }),
+          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+      return new Response(
+        JSON.stringify({ error: "Invalid request body" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const { clientId, documentName, documentCategory, clientName, accessToken } = validatedInput;
 
     console.log("Notifying advisor of document upload:", documentName, "from client:", clientName);
+
+    // Validate the access token before proceeding
+    const { data: tokenData, error: tokenError } = await supabase
+      .from("client_access_tokens")
+      .select("client_id, expires_at")
+      .eq("token", accessToken)
+      .eq("client_id", clientId)
+      .single();
+
+    if (tokenError || !tokenData) {
+      console.error("Invalid or missing access token");
+      return new Response(
+        JSON.stringify({ error: "Unauthorized: Invalid access token" }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // Check if token is expired
+    if (new Date(tokenData.expires_at) < new Date()) {
+      console.error("Access token has expired");
+      return new Response(
+        JSON.stringify({ error: "Unauthorized: Token expired" }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
 
     // Get the advisor's email from the client record
     const { data: clientData, error: clientError } = await supabase
