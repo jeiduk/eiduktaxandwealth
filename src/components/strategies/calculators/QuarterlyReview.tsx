@@ -693,7 +693,7 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
 
   return (
     <Card className="border-2 border-accent/30 max-h-[85vh] overflow-y-auto">
-      <CardHeader className="gradient-header text-primary-foreground sticky top-0 z-10">
+      <CardHeader className="gradient-header text-primary-foreground">
         <div className="flex items-center justify-between">
           <div>
             <div className="text-sm text-accent font-semibold tracking-wider">EIDUK SYSTEM™</div>
