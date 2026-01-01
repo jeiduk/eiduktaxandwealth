@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,10 +10,11 @@ import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { FileText, ChevronDown, ChevronRight, Upload, Loader2, CheckCircle, ExternalLink, Trash2, History, Plus, X } from 'lucide-react';
+import { FileText, ChevronDown, ChevronRight, Loader2, History, Plus, X, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { STRATEGIES, PHASES, getStrategiesForPhase, getPhasesArray, TOTAL_STRATEGIES } from '@/data/strategyReference';
 
 interface QuarterlyReviewProps {
   clientName: string;
@@ -75,124 +76,6 @@ interface MeetingData {
   next_quarter_priorities: string;
 }
 
-// Define all 50 strategies organized by 8 phases (The Eiduk System™)
-const PHASES = [
-  {
-    id: 1,
-    name: 'Phase 1: Foundational',
-    color: 'bg-phase-foundation',
-    targetSavings: '$26k-$52k',
-    strategies: [
-      { number: 1, name: '#1: S-Corp Election', irc: 'IRC §1361', docs: ['Form 2553 filed', 'State election filed', 'Shareholder consent'] },
-      { number: 2, name: '#2: Reasonable Compensation', irc: 'IRC §3121', docs: ['Salary comparison study', 'Job description documented', 'Payroll records current'] },
-      { number: 3, name: '#3: S-Corp Health Insurance', irc: 'IRC §162(l)', docs: ['Premiums paid by S-Corp', 'W-2 Box 1 includes premium', '>2% owner verification'] },
-      { number: 4, name: '#4: Accountable Plan', irc: 'IRC §62(c)', docs: ['Written plan on file', 'Business connection proven', '60-day substantiation'] },
-      { number: 5, name: '#5: Augusta Rule (14-Day Rental)', irc: 'IRC §280A(g)', docs: ['Board resolution on file', 'Fair rental rate documented', 'Meeting minutes/purpose'] },
-      { number: 6, name: '#6: Asset Reimbursement', irc: 'IRC §162', docs: ['Asset use agreement', 'FMV rental rate documented', 'Business use percentage'] },
-    ],
-  },
-  {
-    id: 2,
-    name: 'Phase 2: Core',
-    color: 'bg-phase-deductions',
-    targetSavings: '$12k-$30k',
-    strategies: [
-      { number: 7, name: '#7: Home Office Deduction', irc: 'IRC §280A', docs: ['Square footage calculation', 'Exclusive use documented', 'Direct/indirect expenses'] },
-      { number: 8, name: '#8: Business Mileage', irc: 'IRC §162, §274', docs: ['Mileage log maintained', '2025 rate: $0.70/mile', 'Business purpose documented'] },
-      { number: 9, name: '#9: Business Meals', irc: 'IRC §274(n)', docs: ['50% deduction applied', 'Business purpose noted', 'Receipt retention system'] },
-      { number: 10, name: '#10: Technology & Software', irc: 'IRC §179', docs: ['Business use documented', 'Subscription tracking', 'Asset list maintained'] },
-      { number: 11, name: '#11: Professional Development', irc: 'IRC §162', docs: ['Business connection clear', 'Receipt documentation', 'Maintains/improves skills'] },
-      { number: 12, name: '#12: Family Employment', irc: 'IRC §162, §3121', docs: ['Reasonable wages paid', 'Time records maintained', 'W-2/W-4 on file'] },
-    ],
-  },
-  {
-    id: 3,
-    name: 'Phase 3: Retirement & Benefits',
-    color: 'bg-phase-retirement',
-    targetSavings: '$35k-$100k+',
-    strategies: [
-      { number: 13, name: '#13: Solo 401(k) / SEP IRA', irc: 'IRC §401(k), §408', docs: ['Plan document on file', '2025 limit: $23,500 + $7,500', 'Contribution deadline noted'] },
-      { number: 14, name: '#14: Profit Sharing', irc: 'IRC §401(a)', docs: ['Profit sharing formula set', 'Contribution calculation', 'Discrimination testing'] },
-      { number: 15, name: '#15: Cash Balance Plan', irc: 'IRC §401(a)', docs: ['Actuarial study completed', 'Annual funding requirement', '2025 limit: up to $280,000+'] },
-      { number: 16, name: '#16: Mega Backdoor Roth', irc: 'IRC §402(g), §415', docs: ['Plan allows after-tax contrib', 'In-plan Roth conversion setup', '2025 limit: $70k total cap'] },
-      { number: 17, name: '#17: HSA Triple Tax', irc: 'IRC §223', docs: ['HDHP coverage verified', 'Investment strategy set', '2025 limit: $4,300/$8,550'] },
-      { number: 18, name: '#18: Backdoor Roth IRA', irc: 'IRC §408A(d)(3)', docs: ['Non-deductible IRA contrib', 'Form 8606 filed', 'Pro-rata rule considered'] },
-      { number: 19, name: '#19: Roth Conversions', irc: 'IRC §408A', docs: ['Tax bracket analysis', 'Conversion strategy timeline', 'Tax payment planning'] },
-      { number: 20, name: '#20: Self-Directed Accounts', irc: 'IRC §408, §401', docs: ['Custodian established', 'Prohibited transaction review', 'UBIT considerations'] },
-      { number: 21, name: '#21: QSEHRA/HRA', irc: 'IRC §9831', docs: ['Plan document current', 'Eligibility verified', 'Notice requirements met'] },
-    ],
-  },
-  {
-    id: 4,
-    name: 'Phase 4: Credits & Multistate',
-    color: 'bg-phase-credits',
-    targetSavings: '$8k-$30k',
-    strategies: [
-      { number: 22, name: '#22: R&D Tax Credit', irc: 'IRC §41', docs: ['4-part test documentation', 'Qualified research expenses', 'Form 6765 preparation'] },
-      { number: 23, name: '#23: WOTC', irc: 'IRC §51', docs: ['Form 8850 filed (28 days)', 'Target group certification', 'Wage/hour documentation'] },
-      { number: 24, name: '#24: PTET Election', irc: 'State-Specific', docs: ['State election filed', 'Estimated payments made', 'SALT cap workaround calc'] },
-      { number: 25, name: '#25: State Tax Planning', irc: 'Various', docs: ['Nexus analysis complete', 'Apportionment review', 'Credit/incentive evaluation'] },
-      { number: 26, name: '#26: Energy Credits', irc: 'IRC §30D, §45L', docs: ['Clean vehicle qualification', 'Energy efficiency docs', 'Credit calculation'] },
-    ],
-  },
-  {
-    id: 5,
-    name: 'Phase 5: Real Estate',
-    color: 'bg-phase-realestate',
-    targetSavings: '$30k-$150k+',
-    strategies: [
-      { number: 27, name: '#27: RE Professional Status', irc: 'IRC §469(c)(7)', docs: ['750+ hours documented', 'Material participation log', '>50% of services in RE'] },
-      { number: 28, name: '#28: Cost Segregation Study', irc: 'IRC §168', docs: ['Engineering study complete', 'Component breakdown', 'Catch-up depreciation calc'] },
-      { number: 29, name: '#29: STR Loophole', irc: 'IRC §469', docs: ['Average stay ≤7 days', 'Material participation met', 'Non-passive treatment docs'] },
-      { number: 30, name: '#30: Self-Rental Loophole', irc: 'IRC §469(c)(2)', docs: ['Lease agreement on file', 'FMV rental rate', 'Recharacterization election'] },
-      { number: 31, name: '#31: 1031 Exchange', irc: 'IRC §1031', docs: ['QI engaged before sale', '45-day ID requirement', '180-day closing deadline'] },
-      { number: 32, name: '#32: PAL Grouping Election', irc: 'IRC §469', docs: ['Grouping statement filed', 'Economic unit analysis', 'Material participation log'] },
-      { number: 33, name: '#33: Syndication Strategy', irc: 'IRC §469', docs: ['9(g) election filed', 'RE Pro status verified', 'K-1 loss allocation'] },
-    ],
-  },
-  {
-    id: 6,
-    name: 'Phase 6: Acquisitions & Leverage',
-    color: 'bg-phase-acquisitions',
-    targetSavings: '$20k-$75k',
-    strategies: [
-      { number: 34, name: '#34: Heavy Vehicle Strategy', irc: 'IRC §179(b)(5)', docs: ['GVWR >6,000 lbs documented', 'Business use >50%', '2025 SUV limit: $31,300'] },
-      { number: 35, name: '#35: Oil & Gas Investments', irc: 'IRC §263(c), §611', docs: ['IDC deduction calculated', 'Depletion allowance', 'K-1 partnership analysis'] },
-      { number: 36, name: '#36: DST Investments', irc: 'IRC §1031', docs: ['DST due diligence', 'Passive income treatment', '1031 replacement property'] },
-      { number: 37, name: '#37: Opportunity Zone', irc: 'IRC §1400Z-2', docs: ['180-day investment window', 'QOZ fund certification', 'Gain deferral election'] },
-      { number: 38, name: '#38: Equipment Acquisition', irc: 'IRC §179, §168(k)', docs: ['Business purpose documented', 'Placed in service date', 'Financing vs. purchase analysis'] },
-    ],
-  },
-  {
-    id: 7,
-    name: 'Phase 7: Exit & Wealth Transfer',
-    color: 'bg-phase-exit',
-    targetSavings: '$50k-$500k+',
-    strategies: [
-      { number: 39, name: '#39: QSBS Exclusion', irc: 'IRC §1202', docs: ['C-Corp issued stock', '5-year holding period', 'Qualified trade/business'] },
-      { number: 40, name: '#40: Installment Sale', irc: 'IRC §453', docs: ['Sale agreement terms', 'Interest rate >AFR', 'Gain deferral schedule'] },
-      { number: 41, name: '#41: Dynasty Trust', irc: 'State-Specific', docs: ['Trust document drafted', 'GST exemption applied', 'Trustee selection'] },
-      { number: 42, name: '#42: GRAT/GRUT', irc: 'IRC §2702', docs: ['Annuity payment schedule', 'IRS 7520 rate used', 'Remainder value calculated'] },
-      { number: 43, name: '#43: Life Insurance Strategy', irc: 'IRC §101', docs: ['Policy in force', 'ILIT if applicable', 'Premium payment schedule'] },
-      { number: 44, name: '#44: Succession Planning', irc: 'Various', docs: ['Buy-sell agreement', 'Valuation method set', 'Funding mechanism'] },
-    ],
-  },
-  {
-    id: 8,
-    name: 'Phase 8: Charitable & Philanthropic',
-    color: 'bg-phase-charitable',
-    targetSavings: '$10k-$100k+',
-    strategies: [
-      { number: 45, name: '#45: Charitable Lead Trust', irc: 'IRC §664', docs: ['CLT document drafted', 'Annual payment schedule', 'Remainder beneficiaries'] },
-      { number: 46, name: '#46: Charitable Remainder Trust', irc: 'IRC §664', docs: ['CRT established', 'Unitrust vs annuity trust', 'Income beneficiary terms'] },
-      { number: 47, name: '#47: Donor Advised Fund', irc: 'IRC §170', docs: ['DAF account open', 'Contribution documentation', 'Grant recommendations'] },
-      { number: 48, name: '#48: Appreciated Stock Donation', irc: 'IRC §170(e)', docs: ['FMV appraisal if >$5k', 'Form 8283 prepared', 'Holding period >1 year'] },
-      { number: 49, name: '#49: Private Foundation', irc: 'IRC §501(c)(3)', docs: ['Foundation established', 'Board governance', '5% distribution requirement'] },
-      { number: 50, name: '#50: Qualified Charitable Distribution', irc: 'IRC §408(d)(8)', docs: ['Age 70½+ verified', 'Direct transfer to charity', 'Up to $105,000 limit'] },
-    ],
-  },
-];
-
 const defaultStrategyTracking = (): StrategyTrackingData => ({
   q1_active: false, q2_active: false, q3_active: false, q4_active: false,
   doc1_complete: false, doc2_complete: false, doc3_complete: false,
@@ -235,7 +118,6 @@ interface HistoricalMeeting {
 export function QuarterlyReview({ clientName, companyName, clientId, savedData, onSave, onClose }: QuarterlyReviewProps) {
   const { toast } = useToast();
   const { user } = useAuth();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -247,22 +129,19 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
   const [strategies, setStrategies] = useState<Record<number, StrategyTrackingData>>({});
   const [phaseStatus, setPhaseStatus] = useState<Record<number, PhaseStatusData['status']>>({});
   const [actionItems, setActionItems] = useState<ActionItemData[]>([]);
-  
-  // File upload state
-  const [uploading, setUploading] = useState(false);
-  const [plFilePath, setPlFilePath] = useState('');
-  const [plFileName, setPlFileName] = useState('');
 
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+  const phases = getPhasesArray();
+  
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => ({
     meeting: true,
     pathway: true,
     financial: false,
     compensation: false,
     retirement: false,
     estTax: false,
-    ...PHASES.reduce((acc, phase) => ({ ...acc, [`phase${phase.id}`]: false }), {}),
+    ...phases.reduce((acc, phase) => ({ ...acc, [`phase${phase.number}`]: false }), {}),
     actionItems: false,
-  });
+  }));
 
   const toggleSection = (section: string) => {
     setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
@@ -293,7 +172,7 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
       setHistoricalMeetings(meetings || []);
       
       // Load phase status
-      const { data: phases } = await supabase
+      const { data: phasesData } = await supabase
         .from('phase_status')
         .select('phase, status')
         .eq('client_id', clientId);
@@ -302,7 +181,7 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
       for (let i = 1; i <= 8; i++) {
         phaseMap[i] = 'not-started';
       }
-      phases?.forEach(p => {
+      phasesData?.forEach(p => {
         phaseMap[p.phase] = p.status as PhaseStatusData['status'];
       });
       setPhaseStatus(phaseMap);
@@ -600,19 +479,6 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
       }
 
       // Handle action items
-      // Delete removed items
-      if (meeting.id) {
-        const existingIds = actionItems.filter(a => a.id).map(a => a.id);
-        if (existingIds.length > 0) {
-          await supabase
-            .from('action_items')
-            .delete()
-            .eq('meeting_id', meetingId)
-            .not('id', 'in', `(${existingIds.join(',')})`);
-        }
-      }
-
-      // Upsert action items
       for (const item of actionItems) {
         if (item.id) {
           await supabase
@@ -648,7 +514,7 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
       });
       
       onSave({ meeting, strategies, phaseStatus, actionItems }, totalSavings);
-      await loadData(); // Refresh
+      await loadData();
     } catch (error: any) {
       console.error('Save error:', error);
       toast({
@@ -684,19 +550,9 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
   };
 
   const getCurrentPhase = (): string => {
-    const phaseNames: Record<number, string> = {
-      1: 'P1: Foundational',
-      2: 'P2: Core',
-      3: 'P3: Retirement',
-      4: 'P4: Credits',
-      5: 'P5: Real Estate',
-      6: 'P6: Acquisitions',
-      7: 'P7: Exit & Wealth',
-      8: 'P8: Charitable',
-    };
     for (let i = 1; i <= 8; i++) {
       if (phaseStatus[i] !== 'complete' && phaseStatus[i] !== 'maintaining') {
-        return phaseNames[i];
+        return `P${i}: ${PHASES[i]?.name || ''}`;
       }
     }
     return 'Complete!';
@@ -765,9 +621,9 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
       <CardHeader className="gradient-header text-primary-foreground sticky top-0 z-10">
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-sm text-accent font-semibold tracking-wider">EIDUK PATHWAY™</div>
-            <CardTitle className="font-display text-2xl">S-Corp Quarterly Review Workpaper</CardTitle>
-            <p className="text-primary-foreground/80">Comprehensive 50-Strategy Tax Optimization Framework</p>
+            <div className="text-sm text-accent font-semibold tracking-wider">EIDUK SYSTEM™</div>
+            <CardTitle className="font-display text-2xl">S-Corp Quarterly Meeting Workpaper</CardTitle>
+            <p className="text-primary-foreground/80">Comprehensive {TOTAL_STRATEGIES}-Strategy Tax Optimization Framework</p>
             <p className="text-sm text-primary-foreground/70 mt-1">
               {clientName}{companyName ? ` • ${companyName}` : ''}
             </p>
@@ -863,30 +719,30 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
         {/* Eiduk Pathway Dashboard */}
         <Collapsible open={openSections.pathway} onOpenChange={() => toggleSection('pathway')}>
           <CollapsibleTrigger className="flex items-center justify-between w-full gradient-header text-primary-foreground p-3 rounded-lg">
-            <h3 className="font-display text-lg font-semibold">The Eiduk Pathway™ Client Journey</h3>
+            <h3 className="font-display text-lg font-semibold">The Eiduk System™ Client Journey</h3>
             {openSections.pathway ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-3">
             <div className="gradient-header text-primary-foreground p-6 rounded-lg">
-              <p className="text-sm opacity-90 mb-4">Systematic tax optimization through 8 strategic phases • 50 strategies • Building wealth while reducing taxes</p>
+              <p className="text-sm opacity-90 mb-4">Systematic tax optimization through 8 strategic phases • {TOTAL_STRATEGIES} strategies • Building wealth while reducing taxes</p>
               
               {/* Phase Timeline */}
-              <div className="flex flex-wrap justify-between items-start gap-2 mb-6">
-                {PHASES.map((phase) => (
-                  <div key={phase.id} className="flex-1 min-w-[100px] text-center">
-                    <div className={`w-12 h-12 mx-auto rounded-full ${getPhaseStatusColor(phaseStatus[phase.id] || 'not-started')} flex items-center justify-center font-bold text-lg mb-2`}>
-                      P{phase.id}
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2 mb-6">
+                {phases.map((phase) => (
+                  <div key={phase.number} className="text-center">
+                    <div className={`w-10 h-10 mx-auto rounded-full ${getPhaseStatusColor(phaseStatus[phase.number] || 'not-started')} flex items-center justify-center font-bold text-sm mb-1`}>
+                      P{phase.number}
                     </div>
-                    <div className="text-xs font-semibold uppercase tracking-wide">{phase.name.replace(`Phase ${phase.id}: `, '')}</div>
-                    <div className="text-xs opacity-80">{phase.strategies.length} Strategies</div>
+                    <div className="text-[10px] font-semibold uppercase tracking-wide">{phase.name}</div>
+                    <div className="text-[10px] opacity-80">{phase.target}</div>
                     <Select
-                      value={phaseStatus[phase.id] || 'not-started'}
+                      value={phaseStatus[phase.number] || 'not-started'}
                       onValueChange={(value) => setPhaseStatus(prev => ({
                         ...prev,
-                        [phase.id]: value as PhaseStatusData['status'],
+                        [phase.number]: value as PhaseStatusData['status'],
                       }))}
                     >
-                      <SelectTrigger className="mt-2 h-7 text-xs bg-white/20 border-white/30 text-white">
+                      <SelectTrigger className="mt-1 h-6 text-[10px] bg-white/20 border-white/30 text-white">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -908,7 +764,7 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
                 </div>
                 <div className="text-center">
                   <div className="text-xs uppercase opacity-80 mb-1">Strategies Active</div>
-                  <div className="text-lg font-bold">{countActiveStrategies()} / 50</div>
+                  <div className="text-lg font-bold">{countActiveStrategies()} / {TOTAL_STRATEGIES}</div>
                 </div>
                 <div className="text-center">
                   <div className="text-xs uppercase opacity-80 mb-1">Est. Annual Savings</div>
@@ -934,7 +790,7 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
             </div>
             <div className="bg-card p-3 rounded-lg shadow-soft">
               <div className="text-xs text-muted-foreground uppercase">Strategies Active</div>
-              <div className="text-2xl font-bold text-secondary">{countActiveStrategies()}/50</div>
+              <div className="text-2xl font-bold text-secondary">{countActiveStrategies()}/{TOTAL_STRATEGIES}</div>
             </div>
             <div className="bg-card p-3 rounded-lg shadow-soft">
               <div className="text-xs text-muted-foreground uppercase">YTD Tax Savings</div>
@@ -1026,7 +882,7 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
               <div>
                 <Label>Est. FICA Savings</Label>
                 <Input 
-                  value={formatCurrency(Math.round((meeting.current_salary - meeting.recommended_salary) * 0.153))} 
+                  value={formatCurrency(Math.max(0, Math.round((meeting.current_salary - meeting.recommended_salary) * 0.153)))} 
                   readOnly
                   className="bg-muted"
                 />
@@ -1126,104 +982,114 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
         <Separator />
 
         {/* Strategy Phases */}
-        {PHASES.map((phase) => (
-          <Collapsible key={phase.id} open={openSections[`phase${phase.id}`]} onOpenChange={() => toggleSection(`phase${phase.id}`)}>
-            <CollapsibleTrigger className={`flex items-center justify-between w-full ${phase.color} text-white p-3 rounded-lg`}>
-              <div className="flex items-center gap-3">
-                <h3 className="font-display font-semibold">{phase.name}</h3>
-                <Badge variant="secondary" className="bg-white/20 text-white border-0">
-                  {phase.strategies.length} Strategies • {phase.targetSavings}
-                </Badge>
-              </div>
-              {openSections[`phase${phase.id}`] ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
-            </CollapsibleTrigger>
-            <CollapsibleContent className="mt-3">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm border-collapse">
-                  <thead>
-                    <tr className="bg-muted/50">
-                      <th className="p-2 text-left w-[20%]">Strategy & IRC</th>
-                      <th className="p-2 text-center w-[5%]">Q1</th>
-                      <th className="p-2 text-center w-[5%]">Q2</th>
-                      <th className="p-2 text-center w-[5%]">Q3</th>
-                      <th className="p-2 text-center w-[5%]">Q4</th>
-                      <th className="p-2 text-left w-[20%]">Documentation</th>
-                      <th className="p-2 text-left w-[10%]">Savings</th>
-                      <th className="p-2 text-left w-[30%]">Notes</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {phase.strategies.map((strategy) => {
-                      const strategyData = strategies[strategy.number] || defaultStrategyTracking();
-                      return (
-                        <tr key={strategy.number} className="border-b hover:bg-muted/30">
-                          <td className="p-2">
-                            <div className="font-semibold text-primary">{strategy.name}</div>
-                            <div className="text-xs text-muted-foreground">{strategy.irc}</div>
-                          </td>
-                          <td className="p-2 text-center">
-                            <Checkbox
-                              checked={strategyData.q1_active}
-                              onCheckedChange={(checked) => updateStrategy(strategy.number, 'q1_active', !!checked)}
-                            />
-                          </td>
-                          <td className="p-2 text-center">
-                            <Checkbox
-                              checked={strategyData.q2_active}
-                              onCheckedChange={(checked) => updateStrategy(strategy.number, 'q2_active', !!checked)}
-                            />
-                          </td>
-                          <td className="p-2 text-center">
-                            <Checkbox
-                              checked={strategyData.q3_active}
-                              onCheckedChange={(checked) => updateStrategy(strategy.number, 'q3_active', !!checked)}
-                            />
-                          </td>
-                          <td className="p-2 text-center">
-                            <Checkbox
-                              checked={strategyData.q4_active}
-                              onCheckedChange={(checked) => updateStrategy(strategy.number, 'q4_active', !!checked)}
-                            />
-                          </td>
-                          <td className="p-2">
-                            <div className="space-y-1">
-                              {strategy.docs.map((doc, idx) => (
-                                <label key={idx} className="flex items-center gap-1 text-xs cursor-pointer">
-                                  <Checkbox
-                                    checked={strategyData[`doc${idx + 1}_complete` as keyof StrategyTrackingData] as boolean}
-                                    onCheckedChange={(checked) => updateStrategy(strategy.number, `doc${idx + 1}_complete` as keyof StrategyTrackingData, !!checked)}
-                                    className="h-3 w-3"
-                                  />
-                                  <span className="text-muted-foreground">{doc}</span>
-                                </label>
-                              ))}
-                            </div>
-                          </td>
-                          <td className="p-2">
-                            <Input
-                              value={strategyData.estimated_savings ? `$${strategyData.estimated_savings.toLocaleString()}` : ''}
-                              onChange={(e) => updateStrategy(strategy.number, 'estimated_savings', parseCurrency(e.target.value))}
-                              placeholder="$0"
-                              className="h-8 text-xs"
-                            />
-                          </td>
-                          <td className="p-2">
-                            <Textarea
-                              value={strategyData.notes}
-                              onChange={(e) => updateStrategy(strategy.number, 'notes', e.target.value)}
-                              placeholder="Notes..."
-                              className="min-h-[60px] text-xs"
-                            />
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-        ))}
+        {phases.map((phase) => {
+          const phaseStrategies = getStrategiesForPhase(phase.number);
+          return (
+            <Collapsible key={phase.number} open={openSections[`phase${phase.number}`]} onOpenChange={() => toggleSection(`phase${phase.number}`)}>
+              <CollapsibleTrigger className={`flex items-center justify-between w-full ${phase.color} text-white p-3 rounded-lg`}>
+                <div className="flex items-center gap-3">
+                  <h3 className="font-display font-semibold">Phase {phase.number}: {phase.name}</h3>
+                  <Badge variant="secondary" className="bg-white/20 text-white border-0">
+                    {phaseStrategies.length} Strategies • {phase.target}
+                  </Badge>
+                </div>
+                {openSections[`phase${phase.number}`] ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-3">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="bg-muted/50">
+                        <th className="p-2 text-left w-[20%]">Strategy & IRC</th>
+                        <th className="p-2 text-center w-[5%]">Q1</th>
+                        <th className="p-2 text-center w-[5%]">Q2</th>
+                        <th className="p-2 text-center w-[5%]">Q3</th>
+                        <th className="p-2 text-center w-[5%]">Q4</th>
+                        <th className="p-2 text-left w-[20%]">Documentation</th>
+                        <th className="p-2 text-left w-[10%]">Savings</th>
+                        <th className="p-2 text-left w-[30%]">Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {phaseStrategies.map((strategy) => {
+                        const strategyData = strategies[strategy.number] || defaultStrategyTracking();
+                        return (
+                          <tr key={strategy.number} className="border-b hover:bg-muted/30">
+                            <td className="p-2">
+                              <div className="flex items-center gap-1">
+                                <span className="font-semibold text-primary">#{strategy.number}: {strategy.name}</span>
+                                {strategy.warning && (
+                                  <span title={strategy.warning}>
+                                    <AlertTriangle className="h-4 w-4 text-warning" />
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-xs text-muted-foreground">{strategy.irc}</div>
+                            </td>
+                            <td className="p-2 text-center">
+                              <Checkbox
+                                checked={strategyData.q1_active}
+                                onCheckedChange={(checked) => updateStrategy(strategy.number, 'q1_active', !!checked)}
+                              />
+                            </td>
+                            <td className="p-2 text-center">
+                              <Checkbox
+                                checked={strategyData.q2_active}
+                                onCheckedChange={(checked) => updateStrategy(strategy.number, 'q2_active', !!checked)}
+                              />
+                            </td>
+                            <td className="p-2 text-center">
+                              <Checkbox
+                                checked={strategyData.q3_active}
+                                onCheckedChange={(checked) => updateStrategy(strategy.number, 'q3_active', !!checked)}
+                              />
+                            </td>
+                            <td className="p-2 text-center">
+                              <Checkbox
+                                checked={strategyData.q4_active}
+                                onCheckedChange={(checked) => updateStrategy(strategy.number, 'q4_active', !!checked)}
+                              />
+                            </td>
+                            <td className="p-2">
+                              <div className="space-y-1">
+                                {strategy.docs.map((doc, idx) => (
+                                  <label key={idx} className="flex items-center gap-1 text-xs cursor-pointer">
+                                    <Checkbox
+                                      checked={strategyData[`doc${idx + 1}_complete` as keyof StrategyTrackingData] as boolean}
+                                      onCheckedChange={(checked) => updateStrategy(strategy.number, `doc${idx + 1}_complete` as keyof StrategyTrackingData, !!checked)}
+                                      className="h-3 w-3"
+                                    />
+                                    <span className="text-muted-foreground">{doc}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="p-2">
+                              <Input
+                                value={strategyData.estimated_savings ? `$${strategyData.estimated_savings.toLocaleString()}` : ''}
+                                onChange={(e) => updateStrategy(strategy.number, 'estimated_savings', parseCurrency(e.target.value))}
+                                placeholder="$0"
+                                className="h-8 text-xs"
+                              />
+                            </td>
+                            <td className="p-2">
+                              <Textarea
+                                value={strategyData.notes}
+                                onChange={(e) => updateStrategy(strategy.number, 'notes', e.target.value)}
+                                placeholder="Notes..."
+                                className="min-h-[60px] text-xs"
+                              />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          );
+        })}
 
         <Separator />
 
