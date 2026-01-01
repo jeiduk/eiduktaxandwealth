@@ -135,6 +135,7 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [autoSaving, setAutoSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [historicalMeetings, setHistoricalMeetings] = useState<HistoricalMeeting[]>([]);
@@ -691,8 +692,6 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
       </Card>
     );
   }
-
-  const [exporting, setExporting] = useState(false);
 
   const handleExportPDF = async () => {
     setExporting(true);
