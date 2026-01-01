@@ -10,7 +10,8 @@ import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { FileText, ChevronDown, ChevronRight, Loader2, History, Plus, X, AlertTriangle, Check } from 'lucide-react';
+import { FileText, ChevronDown, ChevronRight, Loader2, History, Plus, X, AlertTriangle, Check, Download } from 'lucide-react';
+import html2pdf from 'html2pdf.js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -691,8 +692,38 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
     );
   }
 
+  const [exporting, setExporting] = useState(false);
+
+  const handleExportPDF = async () => {
+    setExporting(true);
+    try {
+      const element = document.getElementById('quarterly-review-content');
+      if (!element) return;
+
+      const opt = {
+        margin: [0.5, 0.5, 0.5, 0.5],
+        filename: `${clientName.replace(/\s+/g, '_')}_Q${meeting.quarter}_${meeting.tax_year}_Workpaper.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+      };
+
+      await html2pdf().set(opt).from(element).save();
+    } catch (error) {
+      console.error('PDF export error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Export failed',
+        description: 'Failed to generate PDF.',
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
-    <Card className="border-2 border-accent/30 max-h-[85vh] overflow-y-auto">
+    <Card id="quarterly-review-content" className="border-2 border-accent/30 max-h-[85vh] overflow-y-auto">
       <CardHeader className="gradient-header text-primary-foreground">
         <div className="flex items-center justify-between">
           <div>
@@ -706,6 +737,22 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
           </div>
           
           <div className="flex flex-col items-end gap-2">
+            {/* Export PDF button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportPDF}
+              disabled={exporting}
+              className="bg-white/20 border-white/30 text-white hover:bg-white/30"
+            >
+              {exporting ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Download className="h-4 w-4 mr-2" />
+              )}
+              Export PDF
+            </Button>
+            
             {/* Auto-save indicator */}
             <div className="flex items-center gap-2 text-sm">
               {autoSaving ? (
