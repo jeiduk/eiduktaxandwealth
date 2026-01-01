@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from 'react';
-import type { Json } from '@/integrations/supabase/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,7 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { FileText, ChevronDown, ChevronRight, Upload, Loader2, CheckCircle, ExternalLink, Trash2, History, Download } from 'lucide-react';
+import { FileText, ChevronDown, ChevronRight, Upload, Loader2, CheckCircle, ExternalLink, Trash2, History, Plus, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -25,233 +24,211 @@ interface QuarterlyReviewProps {
   onClose: () => void;
 }
 
-interface StrategyData {
-  q1: boolean;
-  q2: boolean;
-  q3: boolean;
-  q4: boolean;
-  doc1: boolean;
-  doc2: boolean;
-  doc3: boolean;
-  savings: string;
+interface StrategyTrackingData {
+  q1_active: boolean;
+  q2_active: boolean;
+  q3_active: boolean;
+  q4_active: boolean;
+  doc1_complete: boolean;
+  doc2_complete: boolean;
+  doc3_complete: boolean;
+  estimated_savings: number;
   notes: string;
 }
 
-interface PhaseStatus {
+interface PhaseStatusData {
+  phase: number;
   status: 'not-started' | 'in-progress' | 'complete' | 'maintaining';
 }
 
-interface ReviewData {
-  // Meeting Info
-  clientName: string;
-  entityName: string;
-  ein: string;
-  quarter: string;
-  meetingDate: string;
-  reviewDate: string;
-  
-  // Phase Status
-  phaseStatus: {
-    p1: PhaseStatus;
-    p2: PhaseStatus;
-    p3: PhaseStatus;
-    p4: PhaseStatus;
-    p5: PhaseStatus;
-    p6: PhaseStatus;
-    p7: PhaseStatus;
-    p8: PhaseStatus;
-  };
-  
-  // Client Snapshot
-  primaryContact: string;
-  filingStatus: string;
-  dependents: string;
-  primaryBusiness: string;
-  
-  // Financial Snapshot
-  ytdRevenue: string;
-  ytdExpenses: string;
-  ytdNetIncome: string;
-  projectedAnnual: string;
-  plFilePath: string;
-  plFileName: string;
-  
-  // Reasonable Compensation
-  currentW2: string;
-  recommendedW2: string;
-  ficaSavings: string;
-  distributionsYtd: string;
-  
-  // Estimated Taxes
-  estTaxes: {
-    fedQ1Req: string; fedQ1Paid: string; fedQ1Date: string;
-    fedQ2Req: string; fedQ2Paid: string; fedQ2Date: string;
-    fedQ3Req: string; fedQ3Paid: string; fedQ3Date: string;
-    fedQ4Req: string; fedQ4Paid: string; fedQ4Date: string;
-    stateQ1Req: string; stateQ1Paid: string; stateQ1Date: string;
-    stateQ2Req: string; stateQ2Paid: string; stateQ2Date: string;
-    stateQ3Req: string; stateQ3Paid: string; stateQ3Date: string;
-    stateQ4Req: string; stateQ4Paid: string; stateQ4Date: string;
-  };
-  
-  // All Strategies by Phase
-  strategies: Record<string, StrategyData>;
-  
-  // Action Items
-  actionItems: string;
-  nextQuarterPriorities: string;
+interface ActionItemData {
+  id?: string;
+  description: string;
+  responsible_party: 'client' | 'advisor' | null;
+  due_date: string;
+  status: 'pending' | 'in-progress' | 'complete';
+  priority: number;
+  strategy_number: number | null;
 }
 
-// Define all strategies organized by 8 phases (The Eiduk System™)
+interface MeetingData {
+  id?: string;
+  meeting_date: string;
+  quarter: number;
+  tax_year: number;
+  ytd_gross_revenue: number;
+  ytd_cogs: number;
+  ytd_operating_expenses: number;
+  ytd_net_income: number;
+  current_salary: number;
+  recommended_salary: number;
+  ytd_distributions: number;
+  retirement_contribution_401k: number;
+  retirement_contribution_profit_sharing: number;
+  retirement_contribution_cash_balance: number;
+  retirement_contribution_hsa: number;
+  federal_estimated_paid: number;
+  state_estimated_paid: number;
+  federal_estimated_due: number;
+  state_estimated_due: number;
+  general_notes: string;
+  next_quarter_priorities: string;
+}
+
+// Define all 50 strategies organized by 8 phases (The Eiduk System™)
 const PHASES = [
   {
-    id: 'p1',
+    id: 1,
     name: 'Phase 1: Foundational',
-    color: 'bg-blue-600',
+    color: 'bg-phase-foundation',
     targetSavings: '$26k-$52k',
     strategies: [
-      { key: 's1', name: '#1: S-Corp Election', irc: 'IRC §1361', docs: ['Form 2553 filed', 'State election filed', 'Shareholder consent'] },
-      { key: 's2', name: '#2: Reasonable Compensation', irc: 'IRC §3121', docs: ['Salary comparison study', 'Job description documented', 'Payroll records current'] },
-      { key: 's3', name: '#3: S-Corp Health Insurance', irc: 'IRC §162(l)', docs: ['Premiums paid by S-Corp', 'W-2 Box 1 includes premium', '>2% owner verification'] },
-      { key: 's4', name: '#4: Accountable Plan', irc: 'IRC §62(c)', docs: ['Written plan on file', 'Business connection proven', '60-day substantiation'] },
-      { key: 's5', name: '#5: Augusta Rule (14-Day Rental)', irc: 'IRC §280A(g)', docs: ['Board resolution on file', 'Fair rental rate documented', 'Meeting minutes/purpose'] },
-      { key: 's6', name: '#6: Asset Reimbursement', irc: 'IRC §162', docs: ['Asset use agreement', 'FMV rental rate documented', 'Business use percentage'] },
+      { number: 1, name: '#1: S-Corp Election', irc: 'IRC §1361', docs: ['Form 2553 filed', 'State election filed', 'Shareholder consent'] },
+      { number: 2, name: '#2: Reasonable Compensation', irc: 'IRC §3121', docs: ['Salary comparison study', 'Job description documented', 'Payroll records current'] },
+      { number: 3, name: '#3: S-Corp Health Insurance', irc: 'IRC §162(l)', docs: ['Premiums paid by S-Corp', 'W-2 Box 1 includes premium', '>2% owner verification'] },
+      { number: 4, name: '#4: Accountable Plan', irc: 'IRC §62(c)', docs: ['Written plan on file', 'Business connection proven', '60-day substantiation'] },
+      { number: 5, name: '#5: Augusta Rule (14-Day Rental)', irc: 'IRC §280A(g)', docs: ['Board resolution on file', 'Fair rental rate documented', 'Meeting minutes/purpose'] },
+      { number: 6, name: '#6: Asset Reimbursement', irc: 'IRC §162', docs: ['Asset use agreement', 'FMV rental rate documented', 'Business use percentage'] },
     ],
   },
   {
-    id: 'p2',
+    id: 2,
     name: 'Phase 2: Core',
-    color: 'bg-green-600',
+    color: 'bg-phase-deductions',
     targetSavings: '$12k-$30k',
     strategies: [
-      { key: 's7', name: '#7: Home Office Deduction', irc: 'IRC §280A', docs: ['Square footage calculation', 'Exclusive use documented', 'Direct/indirect expenses'] },
-      { key: 's8', name: '#8: Business Mileage', irc: 'IRC §162, §274', docs: ['Mileage log maintained', '2025 rate: $0.70/mile', 'Business purpose documented'] },
-      { key: 's9', name: '#9: Business Meals', irc: 'IRC §274(n)', docs: ['50% deduction applied', 'Business purpose noted', 'Receipt retention system'] },
-      { key: 's10', name: '#10: Technology & Software', irc: 'IRC §179', docs: ['Business use documented', 'Subscription tracking', 'Asset list maintained'] },
-      { key: 's11', name: '#11: Professional Development', irc: 'IRC §162', docs: ['Business connection clear', 'Receipt documentation', 'Maintains/improves skills'] },
-      { key: 's12', name: '#12: Family Employment', irc: 'IRC §162, §3121', docs: ['Reasonable wages paid', 'Time records maintained', 'W-2/W-4 on file'] },
+      { number: 7, name: '#7: Home Office Deduction', irc: 'IRC §280A', docs: ['Square footage calculation', 'Exclusive use documented', 'Direct/indirect expenses'] },
+      { number: 8, name: '#8: Business Mileage', irc: 'IRC §162, §274', docs: ['Mileage log maintained', '2025 rate: $0.70/mile', 'Business purpose documented'] },
+      { number: 9, name: '#9: Business Meals', irc: 'IRC §274(n)', docs: ['50% deduction applied', 'Business purpose noted', 'Receipt retention system'] },
+      { number: 10, name: '#10: Technology & Software', irc: 'IRC §179', docs: ['Business use documented', 'Subscription tracking', 'Asset list maintained'] },
+      { number: 11, name: '#11: Professional Development', irc: 'IRC §162', docs: ['Business connection clear', 'Receipt documentation', 'Maintains/improves skills'] },
+      { number: 12, name: '#12: Family Employment', irc: 'IRC §162, §3121', docs: ['Reasonable wages paid', 'Time records maintained', 'W-2/W-4 on file'] },
     ],
   },
   {
-    id: 'p3',
+    id: 3,
     name: 'Phase 3: Retirement & Benefits',
-    color: 'bg-purple-600',
+    color: 'bg-phase-retirement',
     targetSavings: '$35k-$100k+',
     strategies: [
-      { key: 's13', name: '#13: Solo 401(k) / SEP IRA', irc: 'IRC §401(k), §408', docs: ['Plan document on file', '2025 limit: $23,500 + $7,500', 'Contribution deadline noted'] },
-      { key: 's14', name: '#14: Profit Sharing', irc: 'IRC §401(a)', docs: ['Profit sharing formula set', 'Contribution calculation', 'Discrimination testing'] },
-      { key: 's15', name: '#15: Cash Balance Plan', irc: 'IRC §401(a)', docs: ['Actuarial study completed', 'Annual funding requirement', '2025 limit: up to $280,000+'] },
-      { key: 's16', name: '#16: Mega Backdoor Roth', irc: 'IRC §402(g), §415', docs: ['Plan allows after-tax contrib', 'In-plan Roth conversion setup', '2025 limit: $70k total cap'] },
-      { key: 's17', name: '#17: HSA Triple Tax', irc: 'IRC §223', docs: ['HDHP coverage verified', 'Investment strategy set', '2025 limit: $4,300/$8,550'] },
-      { key: 's18', name: '#18: Backdoor Roth IRA', irc: 'IRC §408A(d)(3)', docs: ['Non-deductible IRA contrib', 'Form 8606 filed', 'Pro-rata rule considered'] },
-      { key: 's19', name: '#19: Roth Conversions', irc: 'IRC §408A', docs: ['Tax bracket analysis', 'Conversion strategy timeline', 'Tax payment planning'] },
-      { key: 's20', name: '#20: Self-Directed Accounts', irc: 'IRC §408, §401', docs: ['Custodian established', 'Prohibited transaction review', 'UBIT considerations'] },
-      { key: 's21', name: '#21: QSEHRA/HRA', irc: 'IRC §9831', docs: ['Plan document current', 'Eligibility verified', 'Notice requirements met'] },
+      { number: 13, name: '#13: Solo 401(k) / SEP IRA', irc: 'IRC §401(k), §408', docs: ['Plan document on file', '2025 limit: $23,500 + $7,500', 'Contribution deadline noted'] },
+      { number: 14, name: '#14: Profit Sharing', irc: 'IRC §401(a)', docs: ['Profit sharing formula set', 'Contribution calculation', 'Discrimination testing'] },
+      { number: 15, name: '#15: Cash Balance Plan', irc: 'IRC §401(a)', docs: ['Actuarial study completed', 'Annual funding requirement', '2025 limit: up to $280,000+'] },
+      { number: 16, name: '#16: Mega Backdoor Roth', irc: 'IRC §402(g), §415', docs: ['Plan allows after-tax contrib', 'In-plan Roth conversion setup', '2025 limit: $70k total cap'] },
+      { number: 17, name: '#17: HSA Triple Tax', irc: 'IRC §223', docs: ['HDHP coverage verified', 'Investment strategy set', '2025 limit: $4,300/$8,550'] },
+      { number: 18, name: '#18: Backdoor Roth IRA', irc: 'IRC §408A(d)(3)', docs: ['Non-deductible IRA contrib', 'Form 8606 filed', 'Pro-rata rule considered'] },
+      { number: 19, name: '#19: Roth Conversions', irc: 'IRC §408A', docs: ['Tax bracket analysis', 'Conversion strategy timeline', 'Tax payment planning'] },
+      { number: 20, name: '#20: Self-Directed Accounts', irc: 'IRC §408, §401', docs: ['Custodian established', 'Prohibited transaction review', 'UBIT considerations'] },
+      { number: 21, name: '#21: QSEHRA/HRA', irc: 'IRC §9831', docs: ['Plan document current', 'Eligibility verified', 'Notice requirements met'] },
     ],
   },
   {
-    id: 'p4',
+    id: 4,
     name: 'Phase 4: Credits & Multistate',
-    color: 'bg-orange-600',
+    color: 'bg-phase-credits',
     targetSavings: '$8k-$30k',
     strategies: [
-      { key: 's22', name: '#22: R&D Tax Credit', irc: 'IRC §41', docs: ['4-part test documentation', 'Qualified research expenses', 'Form 6765 preparation'] },
-      { key: 's23', name: '#23: WOTC', irc: 'IRC §51', docs: ['Form 8850 filed (28 days)', 'Target group certification', 'Wage/hour documentation'] },
-      { key: 's24', name: '#24: PTET Election', irc: 'State-Specific', docs: ['State election filed', 'Estimated payments made', 'SALT cap workaround calc'] },
-      { key: 's25', name: '#25: State Tax Planning', irc: 'Various', docs: ['Nexus analysis complete', 'Apportionment review', 'Credit/incentive evaluation'] },
-      { key: 's26', name: '#26: Energy Credits', irc: 'IRC §30D, §45L', docs: ['Clean vehicle qualification', 'Energy efficiency docs', 'Credit calculation'] },
+      { number: 22, name: '#22: R&D Tax Credit', irc: 'IRC §41', docs: ['4-part test documentation', 'Qualified research expenses', 'Form 6765 preparation'] },
+      { number: 23, name: '#23: WOTC', irc: 'IRC §51', docs: ['Form 8850 filed (28 days)', 'Target group certification', 'Wage/hour documentation'] },
+      { number: 24, name: '#24: PTET Election', irc: 'State-Specific', docs: ['State election filed', 'Estimated payments made', 'SALT cap workaround calc'] },
+      { number: 25, name: '#25: State Tax Planning', irc: 'Various', docs: ['Nexus analysis complete', 'Apportionment review', 'Credit/incentive evaluation'] },
+      { number: 26, name: '#26: Energy Credits', irc: 'IRC §30D, §45L', docs: ['Clean vehicle qualification', 'Energy efficiency docs', 'Credit calculation'] },
     ],
   },
   {
-    id: 'p5',
+    id: 5,
     name: 'Phase 5: Real Estate',
-    color: 'bg-cyan-600',
+    color: 'bg-phase-realestate',
     targetSavings: '$30k-$150k+',
     strategies: [
-      { key: 's27', name: '#27: RE Professional Status', irc: 'IRC §469(c)(7)', docs: ['750+ hours documented', 'Material participation log', '>50% of services in RE'] },
-      { key: 's28', name: '#28: Cost Segregation Study', irc: 'IRC §168', docs: ['Engineering study complete', 'Component breakdown', 'Catch-up depreciation calc'] },
-      { key: 's29', name: '#29: STR Loophole', irc: 'IRC §469', docs: ['Average stay ≤7 days', 'Material participation met', 'Non-passive treatment docs'] },
-      { key: 's30', name: '#30: Self-Rental Loophole', irc: 'IRC §469(c)(2)', docs: ['Lease agreement on file', 'FMV rental rate', 'Recharacterization election'] },
-      { key: 's31', name: '#31: 1031 Exchange', irc: 'IRC §1031', docs: ['QI engaged before sale', '45-day ID requirement', '180-day closing deadline'] },
-      { key: 's32', name: '#32: PAL Grouping Election', irc: 'IRC §469', docs: ['Grouping statement filed', 'Economic unit analysis', 'Material participation log'] },
-      { key: 's33', name: '#33: Syndication Strategy', irc: 'IRC §469', docs: ['9(g) election filed', 'RE Pro status verified', 'K-1 loss allocation'] },
+      { number: 27, name: '#27: RE Professional Status', irc: 'IRC §469(c)(7)', docs: ['750+ hours documented', 'Material participation log', '>50% of services in RE'] },
+      { number: 28, name: '#28: Cost Segregation Study', irc: 'IRC §168', docs: ['Engineering study complete', 'Component breakdown', 'Catch-up depreciation calc'] },
+      { number: 29, name: '#29: STR Loophole', irc: 'IRC §469', docs: ['Average stay ≤7 days', 'Material participation met', 'Non-passive treatment docs'] },
+      { number: 30, name: '#30: Self-Rental Loophole', irc: 'IRC §469(c)(2)', docs: ['Lease agreement on file', 'FMV rental rate', 'Recharacterization election'] },
+      { number: 31, name: '#31: 1031 Exchange', irc: 'IRC §1031', docs: ['QI engaged before sale', '45-day ID requirement', '180-day closing deadline'] },
+      { number: 32, name: '#32: PAL Grouping Election', irc: 'IRC §469', docs: ['Grouping statement filed', 'Economic unit analysis', 'Material participation log'] },
+      { number: 33, name: '#33: Syndication Strategy', irc: 'IRC §469', docs: ['9(g) election filed', 'RE Pro status verified', 'K-1 loss allocation'] },
     ],
   },
   {
-    id: 'p6',
+    id: 6,
     name: 'Phase 6: Acquisitions & Leverage',
-    color: 'bg-red-600',
+    color: 'bg-phase-acquisitions',
     targetSavings: '$20k-$75k',
     strategies: [
-      { key: 's34', name: '#34: Heavy Vehicle Strategy', irc: 'IRC §179(b)(5)', docs: ['GVWR >6,000 lbs documented', 'Business use >50%', '2025 SUV limit: $31,300'] },
-      { key: 's35', name: '#35: Oil & Gas Investments', irc: 'IRC §263(c), §611', docs: ['IDC deduction calculated', 'Depletion allowance', 'K-1 partnership analysis'] },
-      { key: 's36', name: '#36: DST Investments', irc: 'IRC §1031', docs: ['DST due diligence', 'Passive income treatment', '1031 replacement property'] },
-      { key: 's37', name: '#37: Opportunity Zone', irc: 'IRC §1400Z-2', docs: ['180-day investment window', 'QOZ fund certification', 'Gain deferral election'] },
-      { key: 's38', name: '#38: Equipment Acquisition', irc: 'IRC §179, §168(k)', docs: ['Business purpose documented', 'Placed in service date', 'Financing vs. purchase analysis'] },
+      { number: 34, name: '#34: Heavy Vehicle Strategy', irc: 'IRC §179(b)(5)', docs: ['GVWR >6,000 lbs documented', 'Business use >50%', '2025 SUV limit: $31,300'] },
+      { number: 35, name: '#35: Oil & Gas Investments', irc: 'IRC §263(c), §611', docs: ['IDC deduction calculated', 'Depletion allowance', 'K-1 partnership analysis'] },
+      { number: 36, name: '#36: DST Investments', irc: 'IRC §1031', docs: ['DST due diligence', 'Passive income treatment', '1031 replacement property'] },
+      { number: 37, name: '#37: Opportunity Zone', irc: 'IRC §1400Z-2', docs: ['180-day investment window', 'QOZ fund certification', 'Gain deferral election'] },
+      { number: 38, name: '#38: Equipment Acquisition', irc: 'IRC §179, §168(k)', docs: ['Business purpose documented', 'Placed in service date', 'Financing vs. purchase analysis'] },
     ],
   },
   {
-    id: 'p7',
+    id: 7,
     name: 'Phase 7: Exit & Wealth Transfer',
-    color: 'bg-amber-600',
+    color: 'bg-phase-exit',
     targetSavings: '$50k-$500k+',
     strategies: [
-      { key: 's39', name: '#39: QSBS Exclusion', irc: 'IRC §1202', docs: ['C-Corp issued stock', '5-year holding period', 'Qualified trade/business'] },
-      { key: 's40', name: '#40: Installment Sale', irc: 'IRC §453', docs: ['Sale agreement terms', 'Interest rate >AFR', 'Gain deferral schedule'] },
-      { key: 's41', name: '#41: Dynasty Trust', irc: 'State-Specific', docs: ['Trust document drafted', 'GST exemption applied', 'Trustee selection'] },
-      { key: 's42', name: '#42: GRAT/GRUT', irc: 'IRC §2702', docs: ['Annuity payment schedule', 'IRS 7520 rate used', 'Remainder value calculated'] },
-      { key: 's43', name: '#43: Life Insurance Strategy', irc: 'IRC §101', docs: ['Policy in force', 'ILIT if applicable', 'Premium payment schedule'] },
-      { key: 's44', name: '#44: Succession Planning', irc: 'Various', docs: ['Buy-sell agreement', 'Valuation method set', 'Funding mechanism'] },
+      { number: 39, name: '#39: QSBS Exclusion', irc: 'IRC §1202', docs: ['C-Corp issued stock', '5-year holding period', 'Qualified trade/business'] },
+      { number: 40, name: '#40: Installment Sale', irc: 'IRC §453', docs: ['Sale agreement terms', 'Interest rate >AFR', 'Gain deferral schedule'] },
+      { number: 41, name: '#41: Dynasty Trust', irc: 'State-Specific', docs: ['Trust document drafted', 'GST exemption applied', 'Trustee selection'] },
+      { number: 42, name: '#42: GRAT/GRUT', irc: 'IRC §2702', docs: ['Annuity payment schedule', 'IRS 7520 rate used', 'Remainder value calculated'] },
+      { number: 43, name: '#43: Life Insurance Strategy', irc: 'IRC §101', docs: ['Policy in force', 'ILIT if applicable', 'Premium payment schedule'] },
+      { number: 44, name: '#44: Succession Planning', irc: 'Various', docs: ['Buy-sell agreement', 'Valuation method set', 'Funding mechanism'] },
     ],
   },
   {
-    id: 'p8',
+    id: 8,
     name: 'Phase 8: Charitable & Philanthropic',
-    color: 'bg-pink-600',
+    color: 'bg-phase-charitable',
     targetSavings: '$10k-$100k+',
     strategies: [
-      { key: 's45', name: '#45: Charitable Lead Trust', irc: 'IRC §664', docs: ['CLT document drafted', 'Annual payment schedule', 'Remainder beneficiaries'] },
-      { key: 's46', name: '#46: Charitable Remainder Trust', irc: 'IRC §664', docs: ['CRT established', 'Unitrust vs annuity trust', 'Income beneficiary terms'] },
-      { key: 's47', name: '#47: Donor Advised Fund', irc: 'IRC §170', docs: ['DAF account open', 'Contribution documentation', 'Grant recommendations'] },
-      { key: 's48', name: '#48: Appreciated Stock Donation', irc: 'IRC §170(e)', docs: ['FMV appraisal if >$5k', 'Form 8283 prepared', 'Holding period >1 year'] },
-      { key: 's49', name: '#49: Private Foundation', irc: 'IRC §501(c)(3)', docs: ['Foundation established', 'Board governance', '5% distribution requirement'] },
-      { key: 's50', name: '#50: Qualified Charitable Distribution', irc: 'IRC §408(d)(8)', docs: ['Age 70½+ verified', 'Direct transfer to charity', 'Up to $105,000 limit'] },
+      { number: 45, name: '#45: Charitable Lead Trust', irc: 'IRC §664', docs: ['CLT document drafted', 'Annual payment schedule', 'Remainder beneficiaries'] },
+      { number: 46, name: '#46: Charitable Remainder Trust', irc: 'IRC §664', docs: ['CRT established', 'Unitrust vs annuity trust', 'Income beneficiary terms'] },
+      { number: 47, name: '#47: Donor Advised Fund', irc: 'IRC §170', docs: ['DAF account open', 'Contribution documentation', 'Grant recommendations'] },
+      { number: 48, name: '#48: Appreciated Stock Donation', irc: 'IRC §170(e)', docs: ['FMV appraisal if >$5k', 'Form 8283 prepared', 'Holding period >1 year'] },
+      { number: 49, name: '#49: Private Foundation', irc: 'IRC §501(c)(3)', docs: ['Foundation established', 'Board governance', '5% distribution requirement'] },
+      { number: 50, name: '#50: Qualified Charitable Distribution', irc: 'IRC §408(d)(8)', docs: ['Age 70½+ verified', 'Direct transfer to charity', 'Up to $105,000 limit'] },
     ],
   },
 ];
 
-const defaultStrategyData = (): StrategyData => ({
-  q1: false, q2: false, q3: false, q4: false,
-  doc1: false, doc2: false, doc3: false,
-  savings: '', notes: '',
+const defaultStrategyTracking = (): StrategyTrackingData => ({
+  q1_active: false, q2_active: false, q3_active: false, q4_active: false,
+  doc1_complete: false, doc2_complete: false, doc3_complete: false,
+  estimated_savings: 0, notes: '',
 });
 
-const defaultStrategies = (): Record<string, StrategyData> => {
-  const strategies: Record<string, StrategyData> = {};
-  PHASES.forEach(phase => {
-    phase.strategies.forEach(strategy => {
-      strategies[`${phase.id}-${strategy.key}`] = defaultStrategyData();
-    });
-  });
-  return strategies;
-};
-
-// Generate available quarters for dropdown (current year and previous year)
-const getAvailableQuarters = (): string[] => {
-  const currentYear = new Date().getFullYear();
-  const quarters: string[] = [];
-  for (let year = currentYear; year >= currentYear - 2; year--) {
-    for (let q = 4; q >= 1; q--) {
-      quarters.push(`Q${q} ${year}`);
-    }
-  }
-  return quarters;
+const defaultMeeting = (): MeetingData => {
+  const now = new Date();
+  return {
+    meeting_date: now.toISOString().split('T')[0],
+    quarter: Math.ceil((now.getMonth() + 1) / 3),
+    tax_year: now.getFullYear(),
+    ytd_gross_revenue: 0,
+    ytd_cogs: 0,
+    ytd_operating_expenses: 0,
+    ytd_net_income: 0,
+    current_salary: 0,
+    recommended_salary: 0,
+    ytd_distributions: 0,
+    retirement_contribution_401k: 0,
+    retirement_contribution_profit_sharing: 0,
+    retirement_contribution_cash_balance: 0,
+    retirement_contribution_hsa: 0,
+    federal_estimated_paid: 0,
+    state_estimated_paid: 0,
+    federal_estimated_due: 0,
+    state_estimated_due: 0,
+    general_notes: '',
+    next_quarter_priorities: '',
+  };
 };
 
 interface HistoricalMeeting {
   id: string;
-  quarter: string;
-  total_savings: number;
+  quarter: number;
+  tax_year: number;
   updated_at: string;
 }
 
@@ -259,67 +236,31 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
   const { toast } = useToast();
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const currentQuarter = `Q${Math.ceil((new Date().getMonth() + 1) / 3)} ${new Date().getFullYear()}`;
   
-  const [uploading, setUploading] = useState(false);
-  const [savingToHistory, setSavingToHistory] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [historicalMeetings, setHistoricalMeetings] = useState<HistoricalMeeting[]>([]);
-  const [selectedHistoricalQuarter, setSelectedHistoricalQuarter] = useState<string>('');
   const [loadingHistory, setLoadingHistory] = useState(false);
   
-  const [data, setData] = useState<ReviewData>({
-    clientName: (savedData.clientName as string) || clientName || '',
-    entityName: (savedData.entityName as string) || companyName || '',
-    ein: (savedData.ein as string) || '',
-    quarter: (savedData.quarter as string) || currentQuarter,
-    meetingDate: (savedData.meetingDate as string) || '',
-    reviewDate: (savedData.reviewDate as string) || '',
-    phaseStatus: (savedData.phaseStatus as ReviewData['phaseStatus']) || {
-      p1: { status: 'not-started' },
-      p2: { status: 'not-started' },
-      p3: { status: 'not-started' },
-      p4: { status: 'not-started' },
-      p5: { status: 'not-started' },
-      p6: { status: 'not-started' },
-      p7: { status: 'not-started' },
-      p8: { status: 'not-started' },
-    },
-    primaryContact: (savedData.primaryContact as string) || '',
-    filingStatus: (savedData.filingStatus as string) || '',
-    dependents: (savedData.dependents as string) || '',
-    primaryBusiness: (savedData.primaryBusiness as string) || '',
-    ytdRevenue: (savedData.ytdRevenue as string) || '',
-    ytdExpenses: (savedData.ytdExpenses as string) || '',
-    ytdNetIncome: (savedData.ytdNetIncome as string) || '',
-    projectedAnnual: (savedData.projectedAnnual as string) || '',
-    plFilePath: (savedData.plFilePath as string) || '',
-    plFileName: (savedData.plFileName as string) || '',
-    currentW2: (savedData.currentW2 as string) || '',
-    recommendedW2: (savedData.recommendedW2 as string) || '',
-    ficaSavings: (savedData.ficaSavings as string) || '',
-    distributionsYtd: (savedData.distributionsYtd as string) || '',
-    estTaxes: (savedData.estTaxes as ReviewData['estTaxes']) || {
-      fedQ1Req: '', fedQ1Paid: '', fedQ1Date: '',
-      fedQ2Req: '', fedQ2Paid: '', fedQ2Date: '',
-      fedQ3Req: '', fedQ3Paid: '', fedQ3Date: '',
-      fedQ4Req: '', fedQ4Paid: '', fedQ4Date: '',
-      stateQ1Req: '', stateQ1Paid: '', stateQ1Date: '',
-      stateQ2Req: '', stateQ2Paid: '', stateQ2Date: '',
-      stateQ3Req: '', stateQ3Paid: '', stateQ3Date: '',
-      stateQ4Req: '', stateQ4Paid: '', stateQ4Date: '',
-    },
-    strategies: (savedData.strategies as Record<string, StrategyData>) || defaultStrategies(),
-    actionItems: (savedData.actionItems as string) || '',
-    nextQuarterPriorities: (savedData.nextQuarterPriorities as string) || '',
-  });
+  // Main data state
+  const [meeting, setMeeting] = useState<MeetingData>(defaultMeeting());
+  const [strategies, setStrategies] = useState<Record<number, StrategyTrackingData>>({});
+  const [phaseStatus, setPhaseStatus] = useState<Record<number, PhaseStatusData['status']>>({});
+  const [actionItems, setActionItems] = useState<ActionItemData[]>([]);
+  
+  // File upload state
+  const [uploading, setUploading] = useState(false);
+  const [plFilePath, setPlFilePath] = useState('');
+  const [plFileName, setPlFileName] = useState('');
 
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     meeting: true,
     pathway: true,
     financial: false,
     compensation: false,
+    retirement: false,
     estTax: false,
-    ...PHASES.reduce((acc, phase) => ({ ...acc, [phase.id]: false }), {}),
+    ...PHASES.reduce((acc, phase) => ({ ...acc, [`phase${phase.id}`]: false }), {}),
     actionItems: false,
   });
 
@@ -327,18 +268,405 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
     setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
 
-  const calculateTotalSavings = (): number => {
-    let total = 0;
-    Object.values(data.strategies).forEach(strategy => {
-      if (strategy.savings) {
-        total += parseFloat(strategy.savings.replace(/[^0-9.]/g, '')) || 0;
+  // Load data on mount
+  useEffect(() => {
+    if (clientId) {
+      loadData();
+    } else {
+      setLoading(false);
+    }
+  }, [clientId]);
+
+  const loadData = async () => {
+    if (!clientId || !user?.id) return;
+    
+    setLoading(true);
+    try {
+      // Load historical meetings list
+      const { data: meetings } = await supabase
+        .from('meetings')
+        .select('id, quarter, tax_year, updated_at')
+        .eq('client_id', clientId)
+        .order('tax_year', { ascending: false })
+        .order('quarter', { ascending: false });
+      
+      setHistoricalMeetings(meetings || []);
+      
+      // Load phase status
+      const { data: phases } = await supabase
+        .from('phase_status')
+        .select('phase, status')
+        .eq('client_id', clientId);
+      
+      const phaseMap: Record<number, PhaseStatusData['status']> = {};
+      for (let i = 1; i <= 8; i++) {
+        phaseMap[i] = 'not-started';
       }
-    });
-    return total;
+      phases?.forEach(p => {
+        phaseMap[p.phase] = p.status as PhaseStatusData['status'];
+      });
+      setPhaseStatus(phaseMap);
+      
+      // If there's a current quarter meeting, load it
+      const currentQuarter = Math.ceil((new Date().getMonth() + 1) / 3);
+      const currentYear = new Date().getFullYear();
+      
+      const { data: currentMeeting } = await supabase
+        .from('meetings')
+        .select('*')
+        .eq('client_id', clientId)
+        .eq('quarter', currentQuarter)
+        .eq('tax_year', currentYear)
+        .maybeSingle();
+      
+      if (currentMeeting) {
+        setMeeting({
+          id: currentMeeting.id,
+          meeting_date: currentMeeting.meeting_date,
+          quarter: currentMeeting.quarter,
+          tax_year: currentMeeting.tax_year,
+          ytd_gross_revenue: Number(currentMeeting.ytd_gross_revenue) || 0,
+          ytd_cogs: Number(currentMeeting.ytd_cogs) || 0,
+          ytd_operating_expenses: Number(currentMeeting.ytd_operating_expenses) || 0,
+          ytd_net_income: Number(currentMeeting.ytd_net_income) || 0,
+          current_salary: Number(currentMeeting.current_salary) || 0,
+          recommended_salary: Number(currentMeeting.recommended_salary) || 0,
+          ytd_distributions: Number(currentMeeting.ytd_distributions) || 0,
+          retirement_contribution_401k: Number(currentMeeting.retirement_contribution_401k) || 0,
+          retirement_contribution_profit_sharing: Number(currentMeeting.retirement_contribution_profit_sharing) || 0,
+          retirement_contribution_cash_balance: Number(currentMeeting.retirement_contribution_cash_balance) || 0,
+          retirement_contribution_hsa: Number(currentMeeting.retirement_contribution_hsa) || 0,
+          federal_estimated_paid: Number(currentMeeting.federal_estimated_paid) || 0,
+          state_estimated_paid: Number(currentMeeting.state_estimated_paid) || 0,
+          federal_estimated_due: Number(currentMeeting.federal_estimated_due) || 0,
+          state_estimated_due: Number(currentMeeting.state_estimated_due) || 0,
+          general_notes: currentMeeting.general_notes || '',
+          next_quarter_priorities: currentMeeting.next_quarter_priorities || '',
+        });
+        
+        // Load strategy tracking for this meeting
+        const { data: strategyData } = await supabase
+          .from('strategy_tracking')
+          .select('*')
+          .eq('meeting_id', currentMeeting.id);
+        
+        const strategyMap: Record<number, StrategyTrackingData> = {};
+        strategyData?.forEach(s => {
+          strategyMap[s.strategy_number] = {
+            q1_active: s.q1_active || false,
+            q2_active: s.q2_active || false,
+            q3_active: s.q3_active || false,
+            q4_active: s.q4_active || false,
+            doc1_complete: s.doc1_complete || false,
+            doc2_complete: s.doc2_complete || false,
+            doc3_complete: s.doc3_complete || false,
+            estimated_savings: Number(s.estimated_savings) || 0,
+            notes: s.notes || '',
+          };
+        });
+        setStrategies(strategyMap);
+        
+        // Load action items
+        const { data: items } = await supabase
+          .from('action_items')
+          .select('*')
+          .eq('meeting_id', currentMeeting.id)
+          .order('priority', { ascending: true });
+        
+        setActionItems(items?.map(item => ({
+          id: item.id,
+          description: item.description,
+          responsible_party: item.responsible_party as 'client' | 'advisor' | null,
+          due_date: item.due_date || '',
+          status: item.status as 'pending' | 'in-progress' | 'complete',
+          priority: item.priority || 2,
+          strategy_number: item.strategy_number,
+        })) || []);
+      }
+    } catch (error) {
+      console.error('Error loading data:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Failed to load meeting data',
+        description: 'Please try again.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadHistoricalMeeting = async (meetingId: string) => {
+    if (!clientId) return;
+    
+    setLoadingHistory(true);
+    try {
+      const { data: meetingData, error } = await supabase
+        .from('meetings')
+        .select('*')
+        .eq('id', meetingId)
+        .single();
+
+      if (error) throw error;
+
+      if (meetingData) {
+        setMeeting({
+          id: meetingData.id,
+          meeting_date: meetingData.meeting_date,
+          quarter: meetingData.quarter,
+          tax_year: meetingData.tax_year,
+          ytd_gross_revenue: Number(meetingData.ytd_gross_revenue) || 0,
+          ytd_cogs: Number(meetingData.ytd_cogs) || 0,
+          ytd_operating_expenses: Number(meetingData.ytd_operating_expenses) || 0,
+          ytd_net_income: Number(meetingData.ytd_net_income) || 0,
+          current_salary: Number(meetingData.current_salary) || 0,
+          recommended_salary: Number(meetingData.recommended_salary) || 0,
+          ytd_distributions: Number(meetingData.ytd_distributions) || 0,
+          retirement_contribution_401k: Number(meetingData.retirement_contribution_401k) || 0,
+          retirement_contribution_profit_sharing: Number(meetingData.retirement_contribution_profit_sharing) || 0,
+          retirement_contribution_cash_balance: Number(meetingData.retirement_contribution_cash_balance) || 0,
+          retirement_contribution_hsa: Number(meetingData.retirement_contribution_hsa) || 0,
+          federal_estimated_paid: Number(meetingData.federal_estimated_paid) || 0,
+          state_estimated_paid: Number(meetingData.state_estimated_paid) || 0,
+          federal_estimated_due: Number(meetingData.federal_estimated_due) || 0,
+          state_estimated_due: Number(meetingData.state_estimated_due) || 0,
+          general_notes: meetingData.general_notes || '',
+          next_quarter_priorities: meetingData.next_quarter_priorities || '',
+        });
+        
+        // Load strategy tracking
+        const { data: strategyData } = await supabase
+          .from('strategy_tracking')
+          .select('*')
+          .eq('meeting_id', meetingId);
+        
+        const strategyMap: Record<number, StrategyTrackingData> = {};
+        strategyData?.forEach(s => {
+          strategyMap[s.strategy_number] = {
+            q1_active: s.q1_active || false,
+            q2_active: s.q2_active || false,
+            q3_active: s.q3_active || false,
+            q4_active: s.q4_active || false,
+            doc1_complete: s.doc1_complete || false,
+            doc2_complete: s.doc2_complete || false,
+            doc3_complete: s.doc3_complete || false,
+            estimated_savings: Number(s.estimated_savings) || 0,
+            notes: s.notes || '',
+          };
+        });
+        setStrategies(strategyMap);
+        
+        // Load action items
+        const { data: items } = await supabase
+          .from('action_items')
+          .select('*')
+          .eq('meeting_id', meetingId)
+          .order('priority', { ascending: true });
+        
+        setActionItems(items?.map(item => ({
+          id: item.id,
+          description: item.description,
+          responsible_party: item.responsible_party as 'client' | 'advisor' | null,
+          due_date: item.due_date || '',
+          status: item.status as 'pending' | 'in-progress' | 'complete',
+          priority: item.priority || 2,
+          strategy_number: item.strategy_number,
+        })) || []);
+        
+        toast({
+          title: 'Meeting loaded',
+          description: `Loaded Q${meetingData.quarter} ${meetingData.tax_year} meeting.`,
+        });
+      }
+    } catch (error: any) {
+      console.error('Load historical meeting error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Load failed',
+        description: error.message || 'Failed to load meeting.',
+      });
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!clientId || !user?.id) {
+      toast({
+        variant: 'destructive',
+        title: 'Save unavailable',
+        description: 'Client ID and authentication required.',
+      });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      let meetingId = meeting.id;
+      
+      // Upsert meeting
+      if (meetingId) {
+        const { error } = await supabase
+          .from('meetings')
+          .update({
+            meeting_date: meeting.meeting_date,
+            ytd_gross_revenue: meeting.ytd_gross_revenue,
+            ytd_cogs: meeting.ytd_cogs,
+            ytd_operating_expenses: meeting.ytd_operating_expenses,
+            ytd_net_income: meeting.ytd_net_income,
+            current_salary: meeting.current_salary,
+            recommended_salary: meeting.recommended_salary,
+            ytd_distributions: meeting.ytd_distributions,
+            retirement_contribution_401k: meeting.retirement_contribution_401k,
+            retirement_contribution_profit_sharing: meeting.retirement_contribution_profit_sharing,
+            retirement_contribution_cash_balance: meeting.retirement_contribution_cash_balance,
+            retirement_contribution_hsa: meeting.retirement_contribution_hsa,
+            federal_estimated_paid: meeting.federal_estimated_paid,
+            state_estimated_paid: meeting.state_estimated_paid,
+            federal_estimated_due: meeting.federal_estimated_due,
+            state_estimated_due: meeting.state_estimated_due,
+            general_notes: meeting.general_notes,
+            next_quarter_priorities: meeting.next_quarter_priorities,
+          })
+          .eq('id', meetingId);
+        if (error) throw error;
+      } else {
+        const { data: newMeeting, error } = await supabase
+          .from('meetings')
+          .insert({
+            client_id: clientId,
+            user_id: user.id,
+            meeting_date: meeting.meeting_date,
+            quarter: meeting.quarter,
+            tax_year: meeting.tax_year,
+            ytd_gross_revenue: meeting.ytd_gross_revenue,
+            ytd_cogs: meeting.ytd_cogs,
+            ytd_operating_expenses: meeting.ytd_operating_expenses,
+            ytd_net_income: meeting.ytd_net_income,
+            current_salary: meeting.current_salary,
+            recommended_salary: meeting.recommended_salary,
+            ytd_distributions: meeting.ytd_distributions,
+            retirement_contribution_401k: meeting.retirement_contribution_401k,
+            retirement_contribution_profit_sharing: meeting.retirement_contribution_profit_sharing,
+            retirement_contribution_cash_balance: meeting.retirement_contribution_cash_balance,
+            retirement_contribution_hsa: meeting.retirement_contribution_hsa,
+            federal_estimated_paid: meeting.federal_estimated_paid,
+            state_estimated_paid: meeting.state_estimated_paid,
+            federal_estimated_due: meeting.federal_estimated_due,
+            state_estimated_due: meeting.state_estimated_due,
+            general_notes: meeting.general_notes,
+            next_quarter_priorities: meeting.next_quarter_priorities,
+          })
+          .select()
+          .single();
+        if (error) throw error;
+        meetingId = newMeeting.id;
+        setMeeting(prev => ({ ...prev, id: meetingId }));
+      }
+
+      // Upsert strategy tracking
+      const strategyUpdates = Object.entries(strategies).map(([stratNum, data]) => ({
+        meeting_id: meetingId,
+        strategy_number: parseInt(stratNum),
+        q1_active: data.q1_active,
+        q2_active: data.q2_active,
+        q3_active: data.q3_active,
+        q4_active: data.q4_active,
+        doc1_complete: data.doc1_complete,
+        doc2_complete: data.doc2_complete,
+        doc3_complete: data.doc3_complete,
+        estimated_savings: data.estimated_savings,
+        notes: data.notes,
+      }));
+
+      if (strategyUpdates.length > 0) {
+        const { error: strategyError } = await supabase
+          .from('strategy_tracking')
+          .upsert(strategyUpdates, { onConflict: 'meeting_id,strategy_number' });
+        if (strategyError) throw strategyError;
+      }
+
+      // Upsert phase status
+      const phaseUpdates = Object.entries(phaseStatus).map(([phase, status]) => ({
+        client_id: clientId,
+        phase: parseInt(phase),
+        status,
+      }));
+
+      if (phaseUpdates.length > 0) {
+        const { error: phaseError } = await supabase
+          .from('phase_status')
+          .upsert(phaseUpdates, { onConflict: 'client_id,phase' });
+        if (phaseError) throw phaseError;
+      }
+
+      // Handle action items
+      // Delete removed items
+      if (meeting.id) {
+        const existingIds = actionItems.filter(a => a.id).map(a => a.id);
+        if (existingIds.length > 0) {
+          await supabase
+            .from('action_items')
+            .delete()
+            .eq('meeting_id', meetingId)
+            .not('id', 'in', `(${existingIds.join(',')})`);
+        }
+      }
+
+      // Upsert action items
+      for (const item of actionItems) {
+        if (item.id) {
+          await supabase
+            .from('action_items')
+            .update({
+              description: item.description,
+              responsible_party: item.responsible_party,
+              due_date: item.due_date || null,
+              status: item.status,
+              priority: item.priority,
+              strategy_number: item.strategy_number,
+            })
+            .eq('id', item.id);
+        } else if (item.description.trim()) {
+          await supabase
+            .from('action_items')
+            .insert({
+              meeting_id: meetingId,
+              description: item.description,
+              responsible_party: item.responsible_party,
+              due_date: item.due_date || null,
+              status: item.status,
+              priority: item.priority,
+              strategy_number: item.strategy_number,
+            });
+        }
+      }
+
+      const totalSavings = calculateTotalSavings();
+      toast({
+        title: 'Meeting saved',
+        description: `Q${meeting.quarter} ${meeting.tax_year} meeting saved successfully.`,
+      });
+      
+      onSave({ meeting, strategies, phaseStatus, actionItems }, totalSavings);
+      await loadData(); // Refresh
+    } catch (error: any) {
+      console.error('Save error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Save failed',
+        description: error.message || 'Failed to save meeting.',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const calculateTotalSavings = (): number => {
+    return Object.values(strategies).reduce((total, s) => total + (s.estimated_savings || 0), 0);
   };
 
   const countActiveStrategies = (): number => {
-    return Object.values(data.strategies).filter(s => s.q1 || s.q2 || s.q3 || s.q4).length;
+    return Object.values(strategies).filter(s => s.q1_active || s.q2_active || s.q3_active || s.q4_active).length;
   };
 
   const calculatePathwayProgress = (): number => {
@@ -348,293 +676,112 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
       'complete': 100,
       'maintaining': 100,
     };
-    const totalPhases = 8;
     let totalProgress = 0;
-    Object.values(data.phaseStatus).forEach(phase => {
-      totalProgress += phaseValues[phase.status] || 0;
+    Object.values(phaseStatus).forEach(status => {
+      totalProgress += phaseValues[status] || 0;
     });
-    return Math.round(totalProgress / totalPhases);
+    return Math.round(totalProgress / 8);
   };
 
   const getCurrentPhase = (): string => {
-    const phaseOrder = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'];
-    const phaseNames: Record<string, string> = {
-      p1: 'P1: Foundational',
-      p2: 'P2: Core',
-      p3: 'P3: Retirement',
-      p4: 'P4: Credits',
-      p5: 'P5: Real Estate',
-      p6: 'P6: Acquisitions',
-      p7: 'P7: Exit & Wealth',
-      p8: 'P8: Charitable',
+    const phaseNames: Record<number, string> = {
+      1: 'P1: Foundational',
+      2: 'P2: Core',
+      3: 'P3: Retirement',
+      4: 'P4: Credits',
+      5: 'P5: Real Estate',
+      6: 'P6: Acquisitions',
+      7: 'P7: Exit & Wealth',
+      8: 'P8: Charitable',
     };
-    for (const phase of phaseOrder) {
-      if (data.phaseStatus[phase as keyof typeof data.phaseStatus].status !== 'complete' && 
-          data.phaseStatus[phase as keyof typeof data.phaseStatus].status !== 'maintaining') {
-        return phaseNames[phase];
+    for (let i = 1; i <= 8; i++) {
+      if (phaseStatus[i] !== 'complete' && phaseStatus[i] !== 'maintaining') {
+        return phaseNames[i];
       }
     }
     return 'Complete!';
   };
 
-  // Load historical meetings on mount
-  useEffect(() => {
-    if (clientId) {
-      loadHistoricalMeetings();
-    }
-  }, [clientId]);
-
-  const loadHistoricalMeetings = async () => {
-    if (!clientId) return;
-    
-    try {
-      const { data: meetings, error } = await supabase
-        .from('quarterly_meetings')
-        .select('id, quarter, total_savings, updated_at')
-        .eq('client_id', clientId)
-        .order('quarter', { ascending: false });
-      
-      if (error) throw error;
-      setHistoricalMeetings(meetings || []);
-    } catch (error) {
-      console.error('Error loading historical meetings:', error);
-    }
-  };
-
-  const handleSaveToHistory = async () => {
-    if (!clientId || !user?.id) {
-      toast({
-        variant: 'destructive',
-        title: 'Save unavailable',
-        description: 'Client ID and user authentication are required.',
-      });
-      return;
-    }
-
-    setSavingToHistory(true);
-    try {
-      const totalSavings = calculateTotalSavings();
-      
-      // First check if record exists
-      const { data: existing } = await supabase
-        .from('quarterly_meetings')
-        .select('id')
-        .eq('client_id', clientId)
-        .eq('quarter', data.quarter)
-        .maybeSingle();
-
-      if (existing) {
-        // Update existing record
-        const { error: updateError } = await supabase
-          .from('quarterly_meetings')
-          .update({
-            meeting_data: JSON.parse(JSON.stringify(data)) as Json,
-            total_savings: totalSavings,
-          })
-          .eq('id', existing.id);
-        if (updateError) throw updateError;
-      } else {
-        // Insert new record
-        const { error: insertError } = await supabase
-          .from('quarterly_meetings')
-          .insert([{
-            client_id: clientId,
-            user_id: user.id,
-            quarter: data.quarter,
-            meeting_data: JSON.parse(JSON.stringify(data)) as Json,
-            total_savings: totalSavings,
-          }]);
-        if (insertError) throw insertError;
-      }
-
-      toast({
-        title: 'Meeting saved',
-        description: `${data.quarter} meeting notes saved successfully.`,
-      });
-
-      // Refresh the historical meetings list
-      await loadHistoricalMeetings();
-      
-      // Also save to the parent component
-      handleSave();
-    } catch (error: any) {
-      console.error('Save to history error:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Save failed',
-        description: error.message || 'Failed to save meeting notes.',
-      });
-    } finally {
-      setSavingToHistory(false);
-    }
-  };
-
-  const loadHistoricalMeeting = async (quarter: string) => {
-    if (!clientId) return;
-    
-    setLoadingHistory(true);
-    try {
-      const { data: meeting, error } = await supabase
-        .from('quarterly_meetings')
-        .select('meeting_data')
-        .eq('client_id', clientId)
-        .eq('quarter', quarter)
-        .maybeSingle();
-
-      if (error) throw error;
-
-      if (meeting?.meeting_data) {
-        const meetingData = meeting.meeting_data as unknown as ReviewData;
-        setData(meetingData);
-        setSelectedHistoricalQuarter(quarter);
-        toast({
-          title: 'Meeting loaded',
-          description: `Loaded ${quarter} meeting notes.`,
-        });
-      }
-    } catch (error: any) {
-      console.error('Load historical meeting error:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Load failed',
-        description: error.message || 'Failed to load meeting notes.',
-      });
-    } finally {
-      setLoadingHistory(false);
-    }
-  };
-
-  const handleSave = () => {
-    const totalSavings = calculateTotalSavings();
-    onSave(data as unknown as Record<string, unknown>, totalSavings);
-  };
-
-  const handlePLUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !clientId) {
-      if (!clientId) {
-        toast({
-          variant: 'destructive',
-          title: 'Upload unavailable',
-          description: 'Client ID is required to upload documents.',
-        });
-      }
-      return;
-    }
-
-    setUploading(true);
-    try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${clientId}/quarterly-review-pl/${Date.now()}-${file.name}`;
-      
-      const { error: uploadError } = await supabase.storage
-        .from('client-documents')
-        .upload(fileName, file);
-
-      if (uploadError) throw uploadError;
-
-      setData(prev => ({
-        ...prev,
-        plFilePath: fileName,
-        plFileName: file.name,
-      }));
-
-      toast({
-        title: 'P&L uploaded',
-        description: `${file.name} has been uploaded successfully.`,
-      });
-    } catch (error: any) {
-      console.error('Upload error:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Upload failed',
-        description: error.message || 'Failed to upload P&L document',
-      });
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  };
-
-  const handleRemovePL = async () => {
-    if (!data.plFilePath) return;
-    
-    try {
-      await supabase.storage
-        .from('client-documents')
-        .remove([data.plFilePath]);
-      
-      setData(prev => ({
-        ...prev,
-        plFilePath: '',
-        plFileName: '',
-      }));
-      
-      toast({
-        title: 'P&L removed',
-        description: 'The P&L document has been removed.',
-      });
-    } catch (error: any) {
-      console.error('Remove error:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Remove failed',
-        description: error.message || 'Failed to remove P&L document',
-      });
-    }
-  };
-
-  const getPLUrl = (): string | null => {
-    if (!data.plFilePath) return null;
-    const { data: urlData } = supabase.storage
-      .from('client-documents')
-      .getPublicUrl(data.plFilePath);
-    return urlData?.publicUrl || null;
-  };
-
-  const updateStrategy = (phaseKey: string, strategyKey: string, field: keyof StrategyData, value: string | boolean) => {
-    const key = `${phaseKey}-${strategyKey}`;
-    setData(prev => ({
+  const updateStrategy = (strategyNumber: number, field: keyof StrategyTrackingData, value: any) => {
+    setStrategies(prev => ({
       ...prev,
-      strategies: {
-        ...prev.strategies,
-        [key]: {
-          ...prev.strategies[key],
-          [field]: value,
-        },
+      [strategyNumber]: {
+        ...(prev[strategyNumber] || defaultStrategyTracking()),
+        [field]: value,
       },
     }));
   };
 
   const getPhaseStatusColor = (status: string): string => {
     switch (status) {
-      case 'complete': return 'bg-eiduk-gold text-eiduk-navy';
+      case 'complete': return 'bg-accent text-accent-foreground';
       case 'maintaining': return 'bg-success text-white';
-      case 'in-progress': return 'bg-eiduk-blue text-white';
+      case 'in-progress': return 'bg-secondary text-secondary-foreground';
       default: return 'bg-white/20 border-2 border-white/40 text-white';
     }
   };
 
+  const formatCurrency = (value: number): string => {
+    return value ? `$${value.toLocaleString()}` : '';
+  };
+
+  const parseCurrency = (value: string): number => {
+    return parseFloat(value.replace(/[^0-9.-]/g, '')) || 0;
+  };
+
+  const addActionItem = () => {
+    setActionItems(prev => [...prev, {
+      description: '',
+      responsible_party: null,
+      due_date: '',
+      status: 'pending',
+      priority: 2,
+      strategy_number: null,
+    }]);
+  };
+
+  const removeActionItem = (index: number) => {
+    setActionItems(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const updateActionItem = (index: number, field: keyof ActionItemData, value: any) => {
+    setActionItems(prev => prev.map((item, i) => 
+      i === index ? { ...item, [field]: value } : item
+    ));
+  };
+
+  if (loading) {
+    return (
+      <Card className="border-2 border-accent/30">
+        <CardContent className="flex items-center justify-center p-12">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
-    <Card className="border-2 border-eiduk-gold/30 max-h-[85vh] overflow-y-auto">
-      <CardHeader className="bg-gradient-to-r from-eiduk-navy to-eiduk-blue text-white sticky top-0 z-10">
+    <Card className="border-2 border-accent/30 max-h-[85vh] overflow-y-auto">
+      <CardHeader className="gradient-header text-primary-foreground sticky top-0 z-10">
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-sm text-eiduk-gold font-semibold tracking-wider">EIDUK PATHWAY™</div>
+            <div className="text-sm text-accent font-semibold tracking-wider">EIDUK PATHWAY™</div>
             <CardTitle className="font-display text-2xl">S-Corp Quarterly Review Workpaper</CardTitle>
-            <p className="text-white/80">Comprehensive 50-Strategy Tax Optimization Framework</p>
-            <div className="text-eiduk-gold font-display italic">Pay Less. Keep More. Build Wealth.</div>
+            <p className="text-primary-foreground/80">Comprehensive 50-Strategy Tax Optimization Framework</p>
+            <p className="text-sm text-primary-foreground/70 mt-1">
+              {clientName}{companyName ? ` • ${companyName}` : ''}
+            </p>
+            <div className="text-accent font-display italic">Pay Less. Keep More. Build Wealth.</div>
           </div>
           
-          {/* Historical Meetings Dropdown */}
           {historicalMeetings.length > 0 && (
             <div className="flex flex-col items-end gap-2">
-              <div className="flex items-center gap-2 text-white/80 text-sm">
+              <div className="flex items-center gap-2 text-primary-foreground/80 text-sm">
                 <History className="h-4 w-4" />
                 <span>Past Meetings</span>
               </div>
               <Select 
-                value={selectedHistoricalQuarter} 
+                value={meeting.id || ''} 
                 onValueChange={loadHistoricalMeeting}
                 disabled={loadingHistory}
               >
@@ -649,14 +796,9 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
                   )}
                 </SelectTrigger>
                 <SelectContent>
-                  {historicalMeetings.map((meeting) => (
-                    <SelectItem key={meeting.id} value={meeting.quarter}>
-                      <div className="flex items-center justify-between gap-4">
-                        <span>{meeting.quarter}</span>
-                        <span className="text-muted-foreground text-xs">
-                          ${meeting.total_savings?.toLocaleString() || 0}
-                        </span>
-                      </div>
+                  {historicalMeetings.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      Q{m.quarter} {m.tax_year}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -670,42 +812,48 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
         {/* Meeting Information */}
         <Collapsible open={openSections.meeting} onOpenChange={() => toggleSection('meeting')}>
           <CollapsibleTrigger className="flex items-center justify-between w-full bg-muted/50 p-3 rounded-lg hover:bg-muted transition-colors">
-            <h3 className="font-display text-lg font-semibold text-eiduk-navy">Meeting Information</h3>
+            <h3 className="font-display text-lg font-semibold text-primary">Meeting Information</h3>
             {openSections.meeting ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-3">
-            <div className="bg-muted/30 p-4 rounded-lg border-l-4 border-eiduk-blue">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div>
-                  <Label>Client Name</Label>
-                  <Input value={data.clientName} onChange={(e) => setData(prev => ({ ...prev, clientName: e.target.value }))} />
-                </div>
-                <div>
-                  <Label>Entity Name</Label>
-                  <Input value={data.entityName} onChange={(e) => setData(prev => ({ ...prev, entityName: e.target.value }))} />
-                </div>
-                <div>
-                  <Label>EIN</Label>
-                  <Input value={data.ein} onChange={(e) => setData(prev => ({ ...prev, ein: e.target.value }))} placeholder="XX-XXXXXXX" />
-                </div>
+            <div className="bg-muted/30 p-4 rounded-lg border-l-4 border-secondary">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                   <Label>Quarter</Label>
-                  <Select value={data.quarter} onValueChange={(value) => setData(prev => ({ ...prev, quarter: value }))}>
-                    <SelectTrigger><SelectValue placeholder="Select Quarter" /></SelectTrigger>
+                  <Select 
+                    value={meeting.quarter.toString()} 
+                    onValueChange={(v) => setMeeting(prev => ({ ...prev, quarter: parseInt(v) }))}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {getAvailableQuarters().map((q) => (
-                        <SelectItem key={q} value={q}>{q}</SelectItem>
+                      <SelectItem value="1">Q1</SelectItem>
+                      <SelectItem value="2">Q2</SelectItem>
+                      <SelectItem value="3">Q3</SelectItem>
+                      <SelectItem value="4">Q4</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Tax Year</Label>
+                  <Select 
+                    value={meeting.tax_year.toString()} 
+                    onValueChange={(v) => setMeeting(prev => ({ ...prev, tax_year: parseInt(v) }))}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {[2026, 2025, 2024, 2023].map(year => (
+                        <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
                   <Label>Meeting Date</Label>
-                  <Input type="date" value={data.meetingDate} onChange={(e) => setData(prev => ({ ...prev, meetingDate: e.target.value }))} />
-                </div>
-                <div>
-                  <Label>Review Date</Label>
-                  <Input type="date" value={data.reviewDate} onChange={(e) => setData(prev => ({ ...prev, reviewDate: e.target.value }))} />
+                  <Input 
+                    type="date" 
+                    value={meeting.meeting_date} 
+                    onChange={(e) => setMeeting(prev => ({ ...prev, meeting_date: e.target.value }))} 
+                  />
                 </div>
               </div>
             </div>
@@ -714,40 +862,28 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
 
         {/* Eiduk Pathway Dashboard */}
         <Collapsible open={openSections.pathway} onOpenChange={() => toggleSection('pathway')}>
-          <CollapsibleTrigger className="flex items-center justify-between w-full bg-gradient-to-r from-eiduk-navy to-eiduk-blue text-white p-3 rounded-lg">
+          <CollapsibleTrigger className="flex items-center justify-between w-full gradient-header text-primary-foreground p-3 rounded-lg">
             <h3 className="font-display text-lg font-semibold">The Eiduk Pathway™ Client Journey</h3>
             {openSections.pathway ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-3">
-            <div className="bg-gradient-to-r from-eiduk-navy to-eiduk-blue text-white p-6 rounded-lg">
+            <div className="gradient-header text-primary-foreground p-6 rounded-lg">
               <p className="text-sm opacity-90 mb-4">Systematic tax optimization through 8 strategic phases • 50 strategies • Building wealth while reducing taxes</p>
               
               {/* Phase Timeline */}
               <div className="flex flex-wrap justify-between items-start gap-2 mb-6">
-                {[
-                  { key: 'p1', label: 'Foundational', count: 6 },
-                  { key: 'p2', label: 'Core', count: 6 },
-                  { key: 'p3', label: 'Retirement', count: 9 },
-                  { key: 'p4', label: 'Credits', count: 5 },
-                  { key: 'p5', label: 'Real Estate', count: 7 },
-                  { key: 'p6', label: 'Acquisitions', count: 5 },
-                  { key: 'p7', label: 'Exit & Wealth', count: 6 },
-                  { key: 'p8', label: 'Charitable', count: 6 },
-                ].map((phase, index) => (
-                  <div key={phase.key} className="flex-1 min-w-[100px] text-center">
-                    <div className={`w-12 h-12 mx-auto rounded-full ${getPhaseStatusColor(data.phaseStatus[phase.key as keyof typeof data.phaseStatus].status)} flex items-center justify-center font-bold text-lg mb-2`}>
-                      P{index + 1}
+                {PHASES.map((phase) => (
+                  <div key={phase.id} className="flex-1 min-w-[100px] text-center">
+                    <div className={`w-12 h-12 mx-auto rounded-full ${getPhaseStatusColor(phaseStatus[phase.id] || 'not-started')} flex items-center justify-center font-bold text-lg mb-2`}>
+                      P{phase.id}
                     </div>
-                    <div className="text-xs font-semibold uppercase tracking-wide">{phase.label}</div>
-                    <div className="text-xs opacity-80">{phase.count} Strategies</div>
+                    <div className="text-xs font-semibold uppercase tracking-wide">{phase.name.replace(`Phase ${phase.id}: `, '')}</div>
+                    <div className="text-xs opacity-80">{phase.strategies.length} Strategies</div>
                     <Select
-                      value={data.phaseStatus[phase.key as keyof typeof data.phaseStatus].status}
-                      onValueChange={(value) => setData(prev => ({
+                      value={phaseStatus[phase.id] || 'not-started'}
+                      onValueChange={(value) => setPhaseStatus(prev => ({
                         ...prev,
-                        phaseStatus: {
-                          ...prev.phaseStatus,
-                          [phase.key]: { status: value as PhaseStatus['status'] },
-                        },
+                        [phase.id]: value as PhaseStatusData['status'],
                       }))}
                     >
                       <SelectTrigger className="mt-2 h-7 text-xs bg-white/20 border-white/30 text-white">
@@ -788,25 +924,25 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
         </Collapsible>
 
         {/* Compliance Scorecard */}
-        <div className="bg-gradient-to-r from-amber-50 to-yellow-50 border-2 border-amber-400 p-6 rounded-lg text-center">
-          <h3 className="font-display text-xl font-semibold text-eiduk-navy mb-4">Quarterly Compliance Scorecard</h3>
+        <div className="bg-gradient-to-r from-amber-50 to-yellow-50 border-2 border-accent p-6 rounded-lg text-center">
+          <h3 className="font-display text-xl font-semibold text-primary mb-4">Quarterly Compliance Scorecard</h3>
           <Progress value={calculatePathwayProgress()} className="h-5 mb-4" />
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-white p-3 rounded-lg shadow">
+            <div className="bg-card p-3 rounded-lg shadow-soft">
               <div className="text-xs text-muted-foreground uppercase">Compliance Score</div>
-              <div className="text-2xl font-bold text-eiduk-navy">{calculatePathwayProgress()}%</div>
+              <div className="text-2xl font-bold text-primary">{calculatePathwayProgress()}%</div>
             </div>
-            <div className="bg-white p-3 rounded-lg shadow">
+            <div className="bg-card p-3 rounded-lg shadow-soft">
               <div className="text-xs text-muted-foreground uppercase">Strategies Active</div>
-              <div className="text-2xl font-bold text-eiduk-blue">{countActiveStrategies()}/50</div>
+              <div className="text-2xl font-bold text-secondary">{countActiveStrategies()}/50</div>
             </div>
-            <div className="bg-white p-3 rounded-lg shadow">
+            <div className="bg-card p-3 rounded-lg shadow-soft">
               <div className="text-xs text-muted-foreground uppercase">YTD Tax Savings</div>
               <div className="text-2xl font-bold text-success">${calculateTotalSavings().toLocaleString()}</div>
             </div>
-            <div className="bg-white p-3 rounded-lg shadow">
+            <div className="bg-card p-3 rounded-lg shadow-soft">
               <div className="text-xs text-muted-foreground uppercase">Quarter</div>
-              <div className="text-2xl font-bold text-eiduk-navy">{data.quarter.split(' ')[0]}</div>
+              <div className="text-2xl font-bold text-primary">Q{meeting.quarter}</div>
             </div>
           </div>
         </div>
@@ -814,91 +950,43 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
         {/* Financial Snapshot */}
         <Collapsible open={openSections.financial} onOpenChange={() => toggleSection('financial')}>
           <CollapsibleTrigger className="flex items-center justify-between w-full bg-muted/50 p-3 rounded-lg hover:bg-muted transition-colors">
-            <h3 className="font-display text-lg font-semibold text-eiduk-navy">Financial Snapshot</h3>
+            <h3 className="font-display text-lg font-semibold text-primary">Financial Snapshot</h3>
             {openSections.financial ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-3 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
-                <Label>YTD Revenue</Label>
-                <Input value={data.ytdRevenue} onChange={(e) => setData(prev => ({ ...prev, ytdRevenue: e.target.value }))} placeholder="$0" />
+                <Label>YTD Gross Revenue</Label>
+                <Input 
+                  value={formatCurrency(meeting.ytd_gross_revenue)} 
+                  onChange={(e) => setMeeting(prev => ({ ...prev, ytd_gross_revenue: parseCurrency(e.target.value) }))} 
+                  placeholder="$0" 
+                />
               </div>
               <div>
-                <Label>YTD Expenses</Label>
-                <Input value={data.ytdExpenses} onChange={(e) => setData(prev => ({ ...prev, ytdExpenses: e.target.value }))} placeholder="$0" />
+                <Label>YTD COGS</Label>
+                <Input 
+                  value={formatCurrency(meeting.ytd_cogs)} 
+                  onChange={(e) => setMeeting(prev => ({ ...prev, ytd_cogs: parseCurrency(e.target.value) }))} 
+                  placeholder="$0" 
+                />
+              </div>
+              <div>
+                <Label>YTD Operating Expenses</Label>
+                <Input 
+                  value={formatCurrency(meeting.ytd_operating_expenses)} 
+                  onChange={(e) => setMeeting(prev => ({ ...prev, ytd_operating_expenses: parseCurrency(e.target.value) }))} 
+                  placeholder="$0" 
+                />
               </div>
               <div>
                 <Label>YTD Net Income</Label>
-                <Input value={data.ytdNetIncome} onChange={(e) => setData(prev => ({ ...prev, ytdNetIncome: e.target.value }))} placeholder="$0" />
+                <Input 
+                  value={formatCurrency(meeting.ytd_net_income)} 
+                  onChange={(e) => setMeeting(prev => ({ ...prev, ytd_net_income: parseCurrency(e.target.value) }))} 
+                  placeholder="$0" 
+                />
               </div>
-              <div>
-                <Label>Projected Annual</Label>
-                <Input value={data.projectedAnnual} onChange={(e) => setData(prev => ({ ...prev, projectedAnnual: e.target.value }))} placeholder="$0" />
-              </div>
-            </div>
-
-            {/* P&L Upload Section */}
-            <div className="border-t pt-4">
-              <Label className="mb-2 block">Recent P&L Statement</Label>
-              {data.plFileName ? (
-                <div className="flex items-center gap-3 p-3 bg-success/5 border border-success/20 rounded-lg">
-                  <CheckCircle className="h-5 w-5 text-success shrink-0" />
-                  <FileText className="h-5 w-5 text-eiduk-blue shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-foreground truncate">{data.plFileName}</p>
-                    <p className="text-xs text-muted-foreground">Uploaded</p>
-                  </div>
-                  <div className="flex gap-2">
-                    {getPLUrl() && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => window.open(getPLUrl()!, '_blank')}
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleRemovePL}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div
-                  className="border-2 border-dashed border-eiduk-blue/30 rounded-lg p-6 text-center hover:border-eiduk-blue/50 transition-colors cursor-pointer"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    onChange={handlePLUpload}
-                    className="hidden"
-                    accept=".pdf,.xls,.xlsx,.csv"
-                  />
-                  
-                  {uploading ? (
-                    <div className="flex flex-col items-center gap-2">
-                      <Loader2 className="h-8 w-8 animate-spin text-eiduk-blue" />
-                      <p className="text-sm text-muted-foreground">Uploading...</p>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center gap-2">
-                      <div className="w-12 h-12 rounded-full bg-eiduk-blue/10 flex items-center justify-center">
-                        <Upload className="h-6 w-6 text-eiduk-blue" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-eiduk-navy">Click to upload P&L</p>
-                        <p className="text-xs text-muted-foreground">PDF, Excel, or CSV</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           </CollapsibleContent>
         </Collapsible>
@@ -906,26 +994,130 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
         {/* Reasonable Compensation */}
         <Collapsible open={openSections.compensation} onOpenChange={() => toggleSection('compensation')}>
           <CollapsibleTrigger className="flex items-center justify-between w-full bg-muted/50 p-3 rounded-lg hover:bg-muted transition-colors">
-            <h3 className="font-display text-lg font-semibold text-eiduk-navy">Reasonable Compensation Review</h3>
+            <h3 className="font-display text-lg font-semibold text-primary">Reasonable Compensation Review</h3>
             {openSections.compensation ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-3">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
-                <Label>Current W-2 Compensation</Label>
-                <Input value={data.currentW2} onChange={(e) => setData(prev => ({ ...prev, currentW2: e.target.value }))} placeholder="$0" />
+                <Label>Current Salary</Label>
+                <Input 
+                  value={formatCurrency(meeting.current_salary)} 
+                  onChange={(e) => setMeeting(prev => ({ ...prev, current_salary: parseCurrency(e.target.value) }))} 
+                  placeholder="$0" 
+                />
               </div>
               <div>
-                <Label>Recommended W-2</Label>
-                <Input value={data.recommendedW2} onChange={(e) => setData(prev => ({ ...prev, recommendedW2: e.target.value }))} placeholder="$0" />
+                <Label>Recommended Salary</Label>
+                <Input 
+                  value={formatCurrency(meeting.recommended_salary)} 
+                  onChange={(e) => setMeeting(prev => ({ ...prev, recommended_salary: parseCurrency(e.target.value) }))} 
+                  placeholder="$0" 
+                />
+              </div>
+              <div>
+                <Label>YTD Distributions</Label>
+                <Input 
+                  value={formatCurrency(meeting.ytd_distributions)} 
+                  onChange={(e) => setMeeting(prev => ({ ...prev, ytd_distributions: parseCurrency(e.target.value) }))} 
+                  placeholder="$0" 
+                />
               </div>
               <div>
                 <Label>Est. FICA Savings</Label>
-                <Input value={data.ficaSavings} onChange={(e) => setData(prev => ({ ...prev, ficaSavings: e.target.value }))} placeholder="$0" />
+                <Input 
+                  value={formatCurrency(Math.round((meeting.current_salary - meeting.recommended_salary) * 0.153))} 
+                  readOnly
+                  className="bg-muted"
+                />
+              </div>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+
+        {/* Retirement Contributions */}
+        <Collapsible open={openSections.retirement} onOpenChange={() => toggleSection('retirement')}>
+          <CollapsibleTrigger className="flex items-center justify-between w-full bg-muted/50 p-3 rounded-lg hover:bg-muted transition-colors">
+            <h3 className="font-display text-lg font-semibold text-primary">Retirement Contributions</h3>
+            {openSections.retirement ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div>
+                <Label>401(k) Contribution</Label>
+                <Input 
+                  value={formatCurrency(meeting.retirement_contribution_401k)} 
+                  onChange={(e) => setMeeting(prev => ({ ...prev, retirement_contribution_401k: parseCurrency(e.target.value) }))} 
+                  placeholder="$0" 
+                />
               </div>
               <div>
-                <Label>Distributions YTD</Label>
-                <Input value={data.distributionsYtd} onChange={(e) => setData(prev => ({ ...prev, distributionsYtd: e.target.value }))} placeholder="$0" />
+                <Label>Profit Sharing</Label>
+                <Input 
+                  value={formatCurrency(meeting.retirement_contribution_profit_sharing)} 
+                  onChange={(e) => setMeeting(prev => ({ ...prev, retirement_contribution_profit_sharing: parseCurrency(e.target.value) }))} 
+                  placeholder="$0" 
+                />
+              </div>
+              <div>
+                <Label>Cash Balance</Label>
+                <Input 
+                  value={formatCurrency(meeting.retirement_contribution_cash_balance)} 
+                  onChange={(e) => setMeeting(prev => ({ ...prev, retirement_contribution_cash_balance: parseCurrency(e.target.value) }))} 
+                  placeholder="$0" 
+                />
+              </div>
+              <div>
+                <Label>HSA Contribution</Label>
+                <Input 
+                  value={formatCurrency(meeting.retirement_contribution_hsa)} 
+                  onChange={(e) => setMeeting(prev => ({ ...prev, retirement_contribution_hsa: parseCurrency(e.target.value) }))} 
+                  placeholder="$0" 
+                />
+              </div>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+
+        {/* Estimated Taxes */}
+        <Collapsible open={openSections.estTax} onOpenChange={() => toggleSection('estTax')}>
+          <CollapsibleTrigger className="flex items-center justify-between w-full bg-muted/50 p-3 rounded-lg hover:bg-muted transition-colors">
+            <h3 className="font-display text-lg font-semibold text-primary">Estimated Taxes</h3>
+            {openSections.estTax ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div>
+                <Label>Federal Estimated Paid</Label>
+                <Input 
+                  value={formatCurrency(meeting.federal_estimated_paid)} 
+                  onChange={(e) => setMeeting(prev => ({ ...prev, federal_estimated_paid: parseCurrency(e.target.value) }))} 
+                  placeholder="$0" 
+                />
+              </div>
+              <div>
+                <Label>Federal Estimated Due</Label>
+                <Input 
+                  value={formatCurrency(meeting.federal_estimated_due)} 
+                  onChange={(e) => setMeeting(prev => ({ ...prev, federal_estimated_due: parseCurrency(e.target.value) }))} 
+                  placeholder="$0" 
+                />
+              </div>
+              <div>
+                <Label>State Estimated Paid</Label>
+                <Input 
+                  value={formatCurrency(meeting.state_estimated_paid)} 
+                  onChange={(e) => setMeeting(prev => ({ ...prev, state_estimated_paid: parseCurrency(e.target.value) }))} 
+                  placeholder="$0" 
+                />
+              </div>
+              <div>
+                <Label>State Estimated Due</Label>
+                <Input 
+                  value={formatCurrency(meeting.state_estimated_due)} 
+                  onChange={(e) => setMeeting(prev => ({ ...prev, state_estimated_due: parseCurrency(e.target.value) }))} 
+                  placeholder="$0" 
+                />
               </div>
             </div>
           </CollapsibleContent>
@@ -935,7 +1127,7 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
 
         {/* Strategy Phases */}
         {PHASES.map((phase) => (
-          <Collapsible key={phase.id} open={openSections[phase.id]} onOpenChange={() => toggleSection(phase.id)}>
+          <Collapsible key={phase.id} open={openSections[`phase${phase.id}`]} onOpenChange={() => toggleSection(`phase${phase.id}`)}>
             <CollapsibleTrigger className={`flex items-center justify-between w-full ${phase.color} text-white p-3 rounded-lg`}>
               <div className="flex items-center gap-3">
                 <h3 className="font-display font-semibold">{phase.name}</h3>
@@ -943,7 +1135,7 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
                   {phase.strategies.length} Strategies • {phase.targetSavings}
                 </Badge>
               </div>
-              {openSections[phase.id] ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+              {openSections[`phase${phase.id}`] ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-3">
               <div className="overflow-x-auto">
@@ -962,36 +1154,35 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
                   </thead>
                   <tbody>
                     {phase.strategies.map((strategy) => {
-                      const strategyKey = `${phase.id}-${strategy.key}`;
-                      const strategyData = data.strategies[strategyKey] || defaultStrategyData();
+                      const strategyData = strategies[strategy.number] || defaultStrategyTracking();
                       return (
-                        <tr key={strategy.key} className="border-b hover:bg-muted/30">
+                        <tr key={strategy.number} className="border-b hover:bg-muted/30">
                           <td className="p-2">
-                            <div className="font-semibold text-eiduk-navy">{strategy.name}</div>
+                            <div className="font-semibold text-primary">{strategy.name}</div>
                             <div className="text-xs text-muted-foreground">{strategy.irc}</div>
                           </td>
                           <td className="p-2 text-center">
                             <Checkbox
-                              checked={strategyData.q1}
-                              onCheckedChange={(checked) => updateStrategy(phase.id, strategy.key, 'q1', !!checked)}
+                              checked={strategyData.q1_active}
+                              onCheckedChange={(checked) => updateStrategy(strategy.number, 'q1_active', !!checked)}
                             />
                           </td>
                           <td className="p-2 text-center">
                             <Checkbox
-                              checked={strategyData.q2}
-                              onCheckedChange={(checked) => updateStrategy(phase.id, strategy.key, 'q2', !!checked)}
+                              checked={strategyData.q2_active}
+                              onCheckedChange={(checked) => updateStrategy(strategy.number, 'q2_active', !!checked)}
                             />
                           </td>
                           <td className="p-2 text-center">
                             <Checkbox
-                              checked={strategyData.q3}
-                              onCheckedChange={(checked) => updateStrategy(phase.id, strategy.key, 'q3', !!checked)}
+                              checked={strategyData.q3_active}
+                              onCheckedChange={(checked) => updateStrategy(strategy.number, 'q3_active', !!checked)}
                             />
                           </td>
                           <td className="p-2 text-center">
                             <Checkbox
-                              checked={strategyData.q4}
-                              onCheckedChange={(checked) => updateStrategy(phase.id, strategy.key, 'q4', !!checked)}
+                              checked={strategyData.q4_active}
+                              onCheckedChange={(checked) => updateStrategy(strategy.number, 'q4_active', !!checked)}
                             />
                           </td>
                           <td className="p-2">
@@ -999,8 +1190,8 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
                               {strategy.docs.map((doc, idx) => (
                                 <label key={idx} className="flex items-center gap-1 text-xs cursor-pointer">
                                   <Checkbox
-                                    checked={strategyData[`doc${idx + 1}` as keyof StrategyData] as boolean}
-                                    onCheckedChange={(checked) => updateStrategy(phase.id, strategy.key, `doc${idx + 1}` as keyof StrategyData, !!checked)}
+                                    checked={strategyData[`doc${idx + 1}_complete` as keyof StrategyTrackingData] as boolean}
+                                    onCheckedChange={(checked) => updateStrategy(strategy.number, `doc${idx + 1}_complete` as keyof StrategyTrackingData, !!checked)}
                                     className="h-3 w-3"
                                   />
                                   <span className="text-muted-foreground">{doc}</span>
@@ -1010,8 +1201,8 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
                           </td>
                           <td className="p-2">
                             <Input
-                              value={strategyData.savings}
-                              onChange={(e) => updateStrategy(phase.id, strategy.key, 'savings', e.target.value)}
+                              value={strategyData.estimated_savings ? `$${strategyData.estimated_savings.toLocaleString()}` : ''}
+                              onChange={(e) => updateStrategy(strategy.number, 'estimated_savings', parseCurrency(e.target.value))}
                               placeholder="$0"
                               className="h-8 text-xs"
                             />
@@ -1019,7 +1210,7 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
                           <td className="p-2">
                             <Textarea
                               value={strategyData.notes}
-                              onChange={(e) => updateStrategy(phase.id, strategy.key, 'notes', e.target.value)}
+                              onChange={(e) => updateStrategy(strategy.number, 'notes', e.target.value)}
                               placeholder="Notes..."
                               className="min-h-[60px] text-xs"
                             />
@@ -1038,25 +1229,73 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
 
         {/* Action Items */}
         <Collapsible open={openSections.actionItems} onOpenChange={() => toggleSection('actionItems')}>
-          <CollapsibleTrigger className="flex items-center justify-between w-full bg-gradient-to-r from-eiduk-navy to-eiduk-blue text-white p-3 rounded-lg">
+          <CollapsibleTrigger className="flex items-center justify-between w-full gradient-header text-primary-foreground p-3 rounded-lg">
             <h3 className="font-display text-lg font-semibold">Action Items & Next Steps</h3>
             {openSections.actionItems ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-3 space-y-4">
+            <div className="space-y-3">
+              {actionItems.map((item, index) => (
+                <div key={index} className="flex gap-2 items-start p-3 bg-muted/30 rounded-lg">
+                  <div className="flex-1 grid grid-cols-1 md:grid-cols-5 gap-2">
+                    <div className="md:col-span-2">
+                      <Input
+                        value={item.description}
+                        onChange={(e) => updateActionItem(index, 'description', e.target.value)}
+                        placeholder="Action item description..."
+                      />
+                    </div>
+                    <Select
+                      value={item.responsible_party || ''}
+                      onValueChange={(v) => updateActionItem(index, 'responsible_party', v || null)}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Assign to..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="advisor">Advisor</SelectItem>
+                        <SelectItem value="client">Client</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      type="date"
+                      value={item.due_date}
+                      onChange={(e) => updateActionItem(index, 'due_date', e.target.value)}
+                    />
+                    <Select
+                      value={item.status}
+                      onValueChange={(v) => updateActionItem(index, 'status', v as ActionItemData['status'])}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="in-progress">In Progress</SelectItem>
+                        <SelectItem value="complete">Complete</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={() => removeActionItem(index)}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              <Button variant="outline" onClick={addActionItem} className="w-full">
+                <Plus className="h-4 w-4 mr-2" /> Add Action Item
+              </Button>
+            </div>
+            
             <div>
-              <Label>Action Items from This Meeting</Label>
+              <Label>General Notes</Label>
               <Textarea
-                value={data.actionItems}
-                onChange={(e) => setData(prev => ({ ...prev, actionItems: e.target.value }))}
-                placeholder="List specific action items, responsible parties, and deadlines..."
+                value={meeting.general_notes}
+                onChange={(e) => setMeeting(prev => ({ ...prev, general_notes: e.target.value }))}
+                placeholder="General meeting notes..."
                 className="min-h-[100px]"
               />
             </div>
             <div>
               <Label>Next Quarter Priorities</Label>
               <Textarea
-                value={data.nextQuarterPriorities}
-                onChange={(e) => setData(prev => ({ ...prev, nextQuarterPriorities: e.target.value }))}
+                value={meeting.next_quarter_priorities}
+                onChange={(e) => setMeeting(prev => ({ ...prev, next_quarter_priorities: e.target.value }))}
                 placeholder="Strategies to implement or review next quarter..."
               />
             </div>
@@ -1067,20 +1306,16 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
         <div className="flex justify-end gap-3 pt-4 sticky bottom-0 bg-background py-4 border-t">
           <Button variant="outline" onClick={onClose}>Close</Button>
           <Button 
-            onClick={handleSaveToHistory} 
-            disabled={savingToHistory || !clientId}
-            className="bg-eiduk-gold hover:bg-eiduk-gold/90 text-eiduk-navy"
+            onClick={handleSave} 
+            disabled={saving || !clientId}
+            className="bg-primary hover:bg-secondary"
           >
-            {savingToHistory ? (
+            {saving ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
             ) : (
-              <History className="h-4 w-4 mr-2" />
+              <FileText className="h-4 w-4 mr-2" />
             )}
-            Save {data.quarter} Meeting
-          </Button>
-          <Button onClick={handleSave} className="bg-eiduk-navy hover:bg-eiduk-blue">
-            <FileText className="h-4 w-4 mr-2" />
-            Save & Close
+            Save Q{meeting.quarter} {meeting.tax_year} Meeting
           </Button>
         </div>
       </CardContent>
