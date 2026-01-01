@@ -14,6 +14,53 @@ export type Database = {
   }
   public: {
     Tables: {
+      action_items: {
+        Row: {
+          created_at: string
+          description: string
+          due_date: string | null
+          id: string
+          meeting_id: string
+          priority: number | null
+          responsible_party: string | null
+          status: string | null
+          strategy_number: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          due_date?: string | null
+          id?: string
+          meeting_id: string
+          priority?: number | null
+          responsible_party?: string | null
+          status?: string | null
+          strategy_number?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          due_date?: string | null
+          id?: string
+          meeting_id?: string
+          priority?: number | null
+          responsible_party?: string | null
+          status?: string | null
+          strategy_number?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "action_items_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_access_tokens: {
         Row: {
           client_id: string
@@ -294,51 +341,205 @@ export type Database = {
       }
       clients: {
         Row: {
+          address: string | null
           annual_income: string | null
           business_type: string | null
+          city: string | null
           company_name: string | null
           created_at: string
+          ein: string | null
           email: string | null
+          entity_name: string | null
+          filing_status: string | null
           first_name: string
+          fiscal_year_end: string | null
           id: string
           last_name: string
           notes: string | null
           phone: string | null
+          service_tier: string | null
+          state: string | null
           status: string | null
           updated_at: string
           user_id: string
+          zip: string | null
         }
         Insert: {
+          address?: string | null
           annual_income?: string | null
           business_type?: string | null
+          city?: string | null
           company_name?: string | null
           created_at?: string
+          ein?: string | null
           email?: string | null
+          entity_name?: string | null
+          filing_status?: string | null
           first_name: string
+          fiscal_year_end?: string | null
           id?: string
           last_name: string
           notes?: string | null
           phone?: string | null
+          service_tier?: string | null
+          state?: string | null
           status?: string | null
           updated_at?: string
           user_id: string
+          zip?: string | null
         }
         Update: {
+          address?: string | null
           annual_income?: string | null
           business_type?: string | null
+          city?: string | null
           company_name?: string | null
           created_at?: string
+          ein?: string | null
           email?: string | null
+          entity_name?: string | null
+          filing_status?: string | null
           first_name?: string
+          fiscal_year_end?: string | null
           id?: string
           last_name?: string
           notes?: string | null
           phone?: string | null
+          service_tier?: string | null
+          state?: string | null
           status?: string | null
           updated_at?: string
           user_id?: string
+          zip?: string | null
         }
         Relationships: []
+      }
+      meetings: {
+        Row: {
+          client_id: string
+          created_at: string
+          current_salary: number | null
+          federal_estimated_due: number | null
+          federal_estimated_paid: number | null
+          general_notes: string | null
+          id: string
+          meeting_date: string
+          next_quarter_priorities: string | null
+          quarter: number
+          recommended_salary: number | null
+          retirement_contribution_401k: number | null
+          retirement_contribution_cash_balance: number | null
+          retirement_contribution_hsa: number | null
+          retirement_contribution_profit_sharing: number | null
+          state_estimated_due: number | null
+          state_estimated_paid: number | null
+          tax_year: number
+          updated_at: string
+          user_id: string
+          ytd_cogs: number | null
+          ytd_distributions: number | null
+          ytd_gross_revenue: number | null
+          ytd_net_income: number | null
+          ytd_operating_expenses: number | null
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          current_salary?: number | null
+          federal_estimated_due?: number | null
+          federal_estimated_paid?: number | null
+          general_notes?: string | null
+          id?: string
+          meeting_date?: string
+          next_quarter_priorities?: string | null
+          quarter: number
+          recommended_salary?: number | null
+          retirement_contribution_401k?: number | null
+          retirement_contribution_cash_balance?: number | null
+          retirement_contribution_hsa?: number | null
+          retirement_contribution_profit_sharing?: number | null
+          state_estimated_due?: number | null
+          state_estimated_paid?: number | null
+          tax_year: number
+          updated_at?: string
+          user_id: string
+          ytd_cogs?: number | null
+          ytd_distributions?: number | null
+          ytd_gross_revenue?: number | null
+          ytd_net_income?: number | null
+          ytd_operating_expenses?: number | null
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          current_salary?: number | null
+          federal_estimated_due?: number | null
+          federal_estimated_paid?: number | null
+          general_notes?: string | null
+          id?: string
+          meeting_date?: string
+          next_quarter_priorities?: string | null
+          quarter?: number
+          recommended_salary?: number | null
+          retirement_contribution_401k?: number | null
+          retirement_contribution_cash_balance?: number | null
+          retirement_contribution_hsa?: number | null
+          retirement_contribution_profit_sharing?: number | null
+          state_estimated_due?: number | null
+          state_estimated_paid?: number | null
+          tax_year?: number
+          updated_at?: string
+          user_id?: string
+          ytd_cogs?: number | null
+          ytd_distributions?: number | null
+          ytd_gross_revenue?: number | null
+          ytd_net_income?: number | null
+          ytd_operating_expenses?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meetings_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      phase_status: {
+        Row: {
+          client_id: string
+          created_at: string
+          id: string
+          phase: number
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          id?: string
+          phase: number
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          id?: string
+          phase?: number
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "phase_status_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -366,47 +567,6 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
-      }
-      quarterly_meetings: {
-        Row: {
-          client_id: string
-          created_at: string
-          id: string
-          meeting_data: Json
-          quarter: string
-          total_savings: number | null
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          client_id: string
-          created_at?: string
-          id?: string
-          meeting_data?: Json
-          quarter: string
-          total_savings?: number | null
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          client_id?: string
-          created_at?: string
-          id?: string
-          meeting_data?: Json
-          quarter?: string
-          total_savings?: number | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "quarterly_meetings_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       roadmap_templates: {
         Row: {
@@ -530,6 +690,65 @@ export type Database = {
           strategy_number?: number
         }
         Relationships: []
+      }
+      strategy_tracking: {
+        Row: {
+          created_at: string
+          doc1_complete: boolean | null
+          doc2_complete: boolean | null
+          doc3_complete: boolean | null
+          estimated_savings: number | null
+          id: string
+          meeting_id: string
+          notes: string | null
+          q1_active: boolean | null
+          q2_active: boolean | null
+          q3_active: boolean | null
+          q4_active: boolean | null
+          strategy_number: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          doc1_complete?: boolean | null
+          doc2_complete?: boolean | null
+          doc3_complete?: boolean | null
+          estimated_savings?: number | null
+          id?: string
+          meeting_id: string
+          notes?: string | null
+          q1_active?: boolean | null
+          q2_active?: boolean | null
+          q3_active?: boolean | null
+          q4_active?: boolean | null
+          strategy_number: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          doc1_complete?: boolean | null
+          doc2_complete?: boolean | null
+          doc3_complete?: boolean | null
+          estimated_savings?: number | null
+          id?: string
+          meeting_id?: string
+          notes?: string | null
+          q1_active?: boolean | null
+          q2_active?: boolean | null
+          q3_active?: boolean | null
+          q4_active?: boolean | null
+          strategy_number?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "strategy_tracking_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

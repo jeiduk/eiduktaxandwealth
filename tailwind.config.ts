@@ -73,6 +73,7 @@ export default {
           realestate: "hsl(var(--phase-realestate))",
           acquisitions: "hsl(var(--phase-acquisitions))",
           exit: "hsl(var(--phase-exit))",
+          charitable: "hsl(var(--phase-charitable))",
         },
         success: "hsl(var(--success))",
         warning: "hsl(var(--warning))",
