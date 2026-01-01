@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,11 +10,24 @@ import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { FileText, ChevronDown, ChevronRight, Loader2, History, Plus, X, AlertTriangle } from 'lucide-react';
+import { FileText, ChevronDown, ChevronRight, Loader2, History, Plus, X, AlertTriangle, Check } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { STRATEGIES, PHASES, getStrategiesForPhase, getPhasesArray, TOTAL_STRATEGIES } from '@/data/strategyReference';
+
+// Debounce utility
+function debounce<T extends (...args: any[]) => any>(fn: T, delay: number): T & { cancel: () => void } {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  const debounced = (...args: Parameters<T>) => {
+    if (timeoutId) clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => fn(...args), delay);
+  };
+  debounced.cancel = () => {
+    if (timeoutId) clearTimeout(timeoutId);
+  };
+  return debounced as T & { cancel: () => void };
+}
 
 interface QuarterlyReviewProps {
   clientName: string;
@@ -121,6 +134,8 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [autoSaving, setAutoSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [historicalMeetings, setHistoricalMeetings] = useState<HistoricalMeeting[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   
@@ -129,6 +144,66 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
   const [strategies, setStrategies] = useState<Record<number, StrategyTrackingData>>({});
   const [phaseStatus, setPhaseStatus] = useState<Record<number, PhaseStatusData['status']>>({});
   const [actionItems, setActionItems] = useState<ActionItemData[]>([]);
+  
+  // Ref to track if we should auto-save
+  const meetingIdRef = useRef<string | undefined>(meeting.id);
+  
+  // Update ref when meeting.id changes
+  useEffect(() => {
+    meetingIdRef.current = meeting.id;
+  }, [meeting.id]);
+
+  // Debounced auto-save for strategy tracking
+  const debouncedSaveStrategies = useMemo(
+    () => debounce(async (meetingId: string, strategiesData: Record<number, StrategyTrackingData>) => {
+      if (!meetingId) return;
+      
+      setAutoSaving(true);
+      try {
+        const strategyUpdates = Object.entries(strategiesData).map(([stratNum, data]) => ({
+          meeting_id: meetingId,
+          strategy_number: parseInt(stratNum),
+          q1_active: data.q1_active,
+          q2_active: data.q2_active,
+          q3_active: data.q3_active,
+          q4_active: data.q4_active,
+          doc1_complete: data.doc1_complete,
+          doc2_complete: data.doc2_complete,
+          doc3_complete: data.doc3_complete,
+          estimated_savings: data.estimated_savings,
+          notes: data.notes,
+        }));
+
+        if (strategyUpdates.length > 0) {
+          const { error } = await supabase
+            .from('strategy_tracking')
+            .upsert(strategyUpdates, { onConflict: 'meeting_id,strategy_number' });
+          if (error) throw error;
+        }
+        
+        setLastSaved(new Date());
+      } catch (error) {
+        console.error('Auto-save error:', error);
+      } finally {
+        setAutoSaving(false);
+      }
+    }, 500),
+    []
+  );
+
+  // Trigger auto-save when strategies change (only if we have a meeting ID)
+  useEffect(() => {
+    if (meetingIdRef.current && Object.keys(strategies).length > 0) {
+      debouncedSaveStrategies(meetingIdRef.current, strategies);
+    }
+    return () => debouncedSaveStrategies.cancel();
+  }, [strategies, debouncedSaveStrategies]);
+
+  // Format last saved time
+  const formatLastSaved = useCallback((date: Date | null): string => {
+    if (!date) return '';
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  }, []);
 
   const phases = getPhasesArray();
   
@@ -630,37 +705,54 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
             <div className="text-accent font-display italic">Pay Less. Keep More. Build Wealth.</div>
           </div>
           
-          {historicalMeetings.length > 0 && (
-            <div className="flex flex-col items-end gap-2">
-              <div className="flex items-center gap-2 text-primary-foreground/80 text-sm">
-                <History className="h-4 w-4" />
-                <span>Past Meetings</span>
-              </div>
-              <Select 
-                value={meeting.id || ''} 
-                onValueChange={loadHistoricalMeeting}
-                disabled={loadingHistory}
-              >
-                <SelectTrigger className="w-48 bg-white/20 border-white/30 text-white">
-                  {loadingHistory ? (
-                    <div className="flex items-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Loading...
-                    </div>
-                  ) : (
-                    <SelectValue placeholder="Load past meeting" />
-                  )}
-                </SelectTrigger>
-                <SelectContent>
-                  {historicalMeetings.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      Q{m.quarter} {m.tax_year}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <div className="flex flex-col items-end gap-2">
+            {/* Auto-save indicator */}
+            <div className="flex items-center gap-2 text-sm">
+              {autoSaving ? (
+                <span className="flex items-center gap-1 text-accent">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Saving...
+                </span>
+              ) : lastSaved ? (
+                <span className="flex items-center gap-1 text-primary-foreground/70">
+                  <Check className="h-3 w-3" />
+                  Saved at {formatLastSaved(lastSaved)}
+                </span>
+              ) : null}
             </div>
-          )}
+            
+            {historicalMeetings.length > 0 && (
+              <>
+                <div className="flex items-center gap-2 text-primary-foreground/80 text-sm">
+                  <History className="h-4 w-4" />
+                  <span>Past Meetings</span>
+                </div>
+                <Select 
+                  value={meeting.id || ''} 
+                  onValueChange={loadHistoricalMeeting}
+                  disabled={loadingHistory}
+                >
+                  <SelectTrigger className="w-48 bg-white/20 border-white/30 text-white">
+                    {loadingHistory ? (
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading...
+                      </div>
+                    ) : (
+                      <SelectValue placeholder="Load past meeting" />
+                    )}
+                  </SelectTrigger>
+                  <SelectContent>
+                    {historicalMeetings.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        Q{m.quarter} {m.tax_year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </>
+            )}
+          </div>
         </div>
       </CardHeader>
       
