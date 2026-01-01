@@ -422,13 +422,14 @@ export function StrategyDashboard({ clientId, clientName, companyName }: Strateg
                 <FileText className="h-6 w-6 text-eiduk-blue" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Strategies</p>
+                <p className="text-sm text-muted-foreground">Tools Completed</p>
                 <p className="text-2xl font-bold">
                   {Array.from(clientStrategies.values()).filter(cs => cs.status === 'completed').length}
                   <span className="text-muted-foreground text-lg font-normal">/{strategies.length}</span>
                 </p>
               </div>
             </div>
+            <p className="text-xs text-muted-foreground mt-2">Strategies with calculators</p>
           </CardContent>
         </Card>
       </div>
