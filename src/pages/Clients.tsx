@@ -127,11 +127,11 @@ export default function Clients() {
           </div>
         </div>
 
-        {/* Client Grid */}
+        {/* Client List */}
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="space-y-2">
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-48 bg-card rounded-card animate-pulse" />
+              <div key={i} className="h-14 bg-card rounded-lg animate-pulse" />
             ))}
           </div>
         ) : filteredClients.length === 0 ? (
@@ -156,61 +156,55 @@ export default function Clients() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredClients.map((client, index) => (
-              <Link
-                key={client.id}
-                to={`/clients/${client.id}`}
-                className="animate-fade-in"
-                style={{ animationDelay: `${index * 50}ms` }}
-              >
-                <Card className="h-full hover:shadow-medium transition-all hover:-translate-y-1">
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="w-12 h-12 rounded-full bg-eiduk-navy flex items-center justify-center text-white font-display font-bold text-lg">
-                        {client.first_name[0]}{client.last_name[0]}
-                      </div>
-                      <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                        client.status === 'Active' 
-                          ? 'bg-success/10 text-success' 
-                          : client.status === 'Prospect'
-                          ? 'bg-eiduk-blue/10 text-eiduk-blue'
-                          : 'bg-muted text-muted-foreground'
-                      }`}>
-                        {client.status}
-                      </span>
+          <Card>
+            <CardContent className="p-0">
+              <div className="divide-y">
+                {filteredClients.map((client, index) => (
+                  <Link
+                    key={client.id}
+                    to={`/clients/${client.id}`}
+                    className="flex items-center gap-4 p-3 hover:bg-muted/50 transition-colors animate-fade-in"
+                    style={{ animationDelay: `${index * 30}ms` }}
+                  >
+                    <div className="w-9 h-9 rounded-full bg-eiduk-navy flex items-center justify-center text-white font-display font-semibold text-sm shrink-0">
+                      {client.first_name[0]}{client.last_name[0]}
                     </div>
                     
-                    <h3 className="font-display text-lg font-semibold text-foreground mb-1">
-                      {client.first_name} {client.last_name}
-                    </h3>
-                    
-                    {client.company_name && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-                        <Building2 className="h-4 w-4" />
-                        {client.company_name}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-foreground">
+                          {client.first_name} {client.last_name}
+                        </span>
+                        {client.company_name && (
+                          <span className="text-sm text-muted-foreground hidden sm:inline">
+                            • {client.company_name}
+                          </span>
+                        )}
                       </div>
-                    )}
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        {client.email && (
+                          <span className="truncate max-w-[200px]">{client.email}</span>
+                        )}
+                        {client.phone && (
+                          <span className="hidden md:inline">{client.phone}</span>
+                        )}
+                      </div>
+                    </div>
 
-                    <div className="space-y-1 text-sm text-muted-foreground">
-                      {client.email && (
-                        <div className="flex items-center gap-2">
-                          <Mail className="h-3 w-3" />
-                          <span className="truncate">{client.email}</span>
-                        </div>
-                      )}
-                      {client.phone && (
-                        <div className="flex items-center gap-2">
-                          <Phone className="h-3 w-3" />
-                          {client.phone}
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
-          </div>
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${
+                      client.status === 'Active' 
+                        ? 'bg-success/10 text-success' 
+                        : client.status === 'Prospect'
+                        ? 'bg-eiduk-blue/10 text-eiduk-blue'
+                        : 'bg-muted text-muted-foreground'
+                    }`}>
+                      {client.status}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         )}
       </div>
     </DashboardLayout>
