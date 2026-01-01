@@ -72,17 +72,19 @@ export default function ClientDocumentUpload({ clientId, clientName, accessToken
 
         if (uploadError) throw uploadError;
 
-        // Create document record - use a placeholder user_id since clients don't have auth
+        // Create document record - use client_id as user_id for audit trail
+        // uploaded_by_client flag distinguishes client uploads from advisor uploads
         const { data: docData, error: docError } = await supabase
           .from('client_documents')
           .insert({
             client_id: clientId,
-            user_id: '00000000-0000-0000-0000-000000000000', // Placeholder for client uploads
+            user_id: clientId, // Use client_id for audit trail when client uploads
             name: file.name,
             file_path: fileName,
             file_type: fileExt || null,
             file_size: file.size,
             category: selectedCategory,
+            uploaded_by_client: true,
           })
           .select()
           .single();
