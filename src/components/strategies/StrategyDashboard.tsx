@@ -304,6 +304,7 @@ export function StrategyDashboard({ clientId, clientName, companyName }: Strateg
       case 'quarterly_review':
         return (
           <QuarterlyReview
+            clientId={clientId}
             clientName={clientName}
             companyName={companyName}
             savedData={savedData}
