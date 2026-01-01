@@ -5,3 +5,6 @@ verify_jwt = true
 
 [functions.notify-document-upload]
 verify_jwt = false
+
+[functions.get-signed-document-url]
+verify_jwt = false
