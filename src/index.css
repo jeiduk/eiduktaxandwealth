@@ -175,7 +175,7 @@
   animation: slide-in-right 0.3s ease-out forwards;
 }
 
-/* Print Styles */
+/* Print & PDF Export Styles */
 @media print {
   body {
     background: white !important;
@@ -184,11 +184,11 @@
     print-color-adjust: exact;
   }
 
-  .print\\:hidden {
+  .print\:hidden {
     display: none !important;
   }
 
-  .print\\:break-before-page {
+  .print\:break-before-page {
     page-break-before: always;
   }
 
@@ -200,11 +200,11 @@
   }
 
   /* Card styling for print */
-  .print\\:border-0 {
+  .print\:border-0 {
     border: none !important;
   }
 
-  .print\\:shadow-none {
+  .print\:shadow-none {
     box-shadow: none !important;
   }
 
@@ -216,4 +216,77 @@
   table, figure {
     page-break-inside: avoid;
   }
+}
+
+/* PDF Export Mode - applied via .pdf-export-mode class */
+.pdf-export-mode {
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.pdf-export-mode .hide-on-export {
+  display: none !important;
+}
+
+.pdf-export-mode button,
+.pdf-export-mode [role="button"] {
+  display: none !important;
+}
+
+.pdf-export-mode select,
+.pdf-export-mode input[type="checkbox"],
+.pdf-export-mode textarea {
+  pointer-events: none;
+  opacity: 1;
+}
+
+.pdf-export-mode input {
+  border: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.pdf-export-mode .gradient-header {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+  background: linear-gradient(135deg, hsl(213 52% 25%) 0%, hsl(216 57% 40%) 100%) !important;
+}
+
+/* Keep visual checkboxes visible but styled for PDF */
+.pdf-export-mode input[type="checkbox"] {
+  display: inline-block !important;
+  width: 14px !important;
+  height: 14px !important;
+  border: 1px solid #666 !important;
+  background: white !important;
+}
+
+.pdf-export-mode input[type="checkbox"]:checked {
+  background: hsl(160 84% 29%) !important;
+}
+
+/* Collapsible sections should be fully visible */
+.pdf-export-mode [data-state="closed"] > [data-radix-collapsible-content] {
+  display: block !important;
+  height: auto !important;
+}
+
+/* Page break utilities for PDF */
+.pdf-export-mode .pdf-page-break {
+  page-break-before: always;
+}
+
+.pdf-export-mode .pdf-avoid-break {
+  page-break-inside: avoid;
+}
+
+/* Clean up spacing for PDF */
+.pdf-export-mode .space-y-4 > * + * {
+  margin-top: 0.75rem;
+}
+
+/* Ensure text is readable */
+.pdf-export-mode {
+  font-size: 11px;
+  line-height: 1.4;
 }

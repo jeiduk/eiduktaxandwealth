@@ -700,18 +700,26 @@ export function QuarterlyReview({ clientName, companyName, clientId, savedData, 
       const element = document.getElementById('quarterly-review-content');
       if (!element) return;
 
+      // Add export mode class for styling
+      element.classList.add('pdf-export-mode');
+
       const opt = {
-        margin: [0.5, 0.5, 0.5, 0.5],
+        margin: [0.3, 0.3, 0.3, 0.3],
         filename: `${clientName.replace(/\s+/g, '_')}_Q${meeting.quarter}_${meeting.tax_year}_Workpaper.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
         jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
         pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
       };
 
       await html2pdf().set(opt).from(element).save();
+      
+      // Remove export mode class
+      element.classList.remove('pdf-export-mode');
     } catch (error) {
       console.error('PDF export error:', error);
+      // Ensure class is removed even on error
+      document.getElementById('quarterly-review-content')?.classList.remove('pdf-export-mode');
       toast({
         variant: 'destructive',
         title: 'Export failed',
