@@ -116,6 +116,7 @@ export type Database = {
           file_type: string | null
           id: string
           name: string
+          uploaded_by_client: boolean
           user_id: string
         }
         Insert: {
@@ -127,6 +128,7 @@ export type Database = {
           file_type?: string | null
           id?: string
           name: string
+          uploaded_by_client?: boolean
           user_id: string
         }
         Update: {
@@ -138,6 +140,7 @@ export type Database = {
           file_type?: string | null
           id?: string
           name?: string
+          uploaded_by_client?: boolean
           user_id?: string
         }
         Relationships: [
