@@ -356,7 +356,10 @@ const ClientDetail = () => {
               <p className="text-2xl font-bold text-emerald-600">{formatCurrency(stats.totalSavings)}</p>
               <p className="text-sm text-muted-foreground">Est. Savings</p>
             </div>
-            <Button className="bg-amber-500 hover:bg-amber-600 text-white">
+            <Button 
+              className="bg-amber-500 hover:bg-amber-600 text-white"
+              onClick={() => navigate(`/clients/${id}/review`)}
+            >
               Start Quarterly Review
             </Button>
           </div>
