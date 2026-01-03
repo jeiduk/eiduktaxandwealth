@@ -1,275 +1,202 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-import { useToast } from '@/hooks/use-toast';
-import { z } from 'zod';
-import { ArrowLeft } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { ArrowLeft } from "lucide-react";
 
-const clientSchema = z.object({
-  firstName: z.string().min(1, 'First name is required').max(100),
-  lastName: z.string().min(1, 'Last name is required').max(100),
-  email: z.string().email('Invalid email').optional().or(z.literal('')),
-  phone: z.string().max(20).optional(),
-  companyName: z.string().max(200).optional(),
-  businessType: z.string().optional(),
-  annualIncome: z.string().optional(),
-  notes: z.string().max(2000).optional(),
-  status: z.enum(['Active', 'Inactive', 'Prospect']),
-});
-
-export default function ClientNew() {
+const ClientNew = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    companyName: '',
-    businessType: 'S-Corporation',
-    annualIncome: '',
-    notes: '',
-    status: 'Active' as const,
+    name: "",
+    entity_type: "S-Corp",
+    package_tier: "Foundation",
+    income_range: "",
+    next_review_date: "",
+    notes: "",
   });
-
-  const handleChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    try {
-      clientSchema.parse(formData);
-      setErrors({});
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const newErrors: Record<string, string> = {};
-        error.errors.forEach((err) => {
-          if (err.path[0]) {
-            newErrors[err.path[0] as string] = err.message;
-          }
-        });
-        setErrors(newErrors);
-        return;
-      }
-    }
+    if (!user) return;
 
-    setIsLoading(true);
-
+    setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('clients')
-        .insert({
-          user_id: user!.id,
-          first_name: formData.firstName.trim(),
-          last_name: formData.lastName.trim(),
-          email: formData.email.trim() || null,
-          phone: formData.phone.trim() || null,
-          company_name: formData.companyName.trim() || null,
-          business_type: formData.businessType || null,
-          annual_income: formData.annualIncome.trim() || null,
-          notes: formData.notes.trim() || null,
-          status: formData.status,
-        })
-        .select()
-        .single();
+      const { error } = await supabase.from("clients").insert({
+        user_id: user.id,
+        name: formData.name,
+        entity_type: formData.entity_type,
+        package_tier: formData.package_tier,
+        income_range: formData.income_range || null,
+        next_review_date: formData.next_review_date || null,
+        notes: formData.notes || null,
+      });
 
       if (error) throw error;
 
       toast({
-        title: 'Client created',
-        description: `${formData.firstName} ${formData.lastName} has been added.`,
+        title: "Client created",
+        description: `${formData.name} has been added to your portfolio.`,
       });
-
-      navigate(`/clients/${data.id}`);
-    } catch (error: any) {
+      navigate("/clients");
+    } catch (error) {
+      console.error("Error creating client:", error);
       toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: error.message || 'Failed to create client',
+        title: "Error",
+        description: "Failed to create client. Please try again.",
+        variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   return (
     <DashboardLayout>
-      <div className="max-w-2xl mx-auto animate-fade-in">
-        <div className="mb-6">
-          <Link 
-            to="/clients" 
-            className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Clients
-          </Link>
+      <div className="max-w-2xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate("/clients")}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="font-display text-2xl font-bold text-foreground">Add New Client</h1>
+            <p className="text-muted-foreground font-body">
+              Enter client information to add them to your portfolio
+            </p>
+          </div>
         </div>
 
-        <Card>
+        {/* Form */}
+        <Card className="shadow-soft">
           <CardHeader>
-            <CardTitle className="font-display text-2xl">Add New Client</CardTitle>
+            <CardTitle className="font-display">Client Information</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Name Row */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="firstName">First Name *</Label>
-                  <Input
-                    id="firstName"
-                    value={formData.firstName}
-                    onChange={(e) => handleChange('firstName', e.target.value)}
-                    className={errors.firstName ? 'border-destructive' : ''}
-                  />
-                  {errors.firstName && (
-                    <p className="text-sm text-destructive">{errors.firstName}</p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Last Name *</Label>
-                  <Input
-                    id="lastName"
-                    value={formData.lastName}
-                    onChange={(e) => handleChange('lastName', e.target.value)}
-                    className={errors.lastName ? 'border-destructive' : ''}
-                  />
-                  {errors.lastName && (
-                    <p className="text-sm text-destructive">{errors.lastName}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Contact Row */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => handleChange('email', e.target.value)}
-                    className={errors.email ? 'border-destructive' : ''}
-                  />
-                  {errors.email && (
-                    <p className="text-sm text-destructive">{errors.email}</p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone</Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => handleChange('phone', e.target.value)}
-                  />
-                </div>
-              </div>
-
-              {/* Business Info */}
+              {/* Name */}
               <div className="space-y-2">
-                <Label htmlFor="companyName">Company Name</Label>
+                <Label htmlFor="name">Business/Client Name *</Label>
                 <Input
-                  id="companyName"
-                  value={formData.companyName}
-                  onChange={(e) => handleChange('companyName', e.target.value)}
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Enter client or business name"
+                  required
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="businessType">Business Type</Label>
-                  <Select
-                    value={formData.businessType}
-                    onValueChange={(value) => handleChange('businessType', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="S-Corporation">S-Corporation</SelectItem>
-                      <SelectItem value="C-Corporation">C-Corporation</SelectItem>
-                      <SelectItem value="LLC">LLC</SelectItem>
-                      <SelectItem value="Sole Proprietorship">Sole Proprietorship</SelectItem>
-                      <SelectItem value="Partnership">Partnership</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="annualIncome">Annual Income</Label>
-                  <Select
-                    value={formData.annualIncome}
-                    onValueChange={(value) => handleChange('annualIncome', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select range" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="$100k - $250k">$100k - $250k</SelectItem>
-                      <SelectItem value="$250k - $500k">$250k - $500k</SelectItem>
-                      <SelectItem value="$500k - $1M">$500k - $1M</SelectItem>
-                      <SelectItem value="$1M - $5M">$1M - $5M</SelectItem>
-                      <SelectItem value="$5M+">$5M+</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
+              {/* Entity Type */}
               <div className="space-y-2">
-                <Label htmlFor="status">Status</Label>
+                <Label htmlFor="entity_type">Entity Type</Label>
                 <Select
-                  value={formData.status}
-                  onValueChange={(value) => handleChange('status', value)}
+                  value={formData.entity_type}
+                  onValueChange={(value) => setFormData({ ...formData, entity_type: value })}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Active">Active</SelectItem>
-                    <SelectItem value="Inactive">Inactive</SelectItem>
-                    <SelectItem value="Prospect">Prospect</SelectItem>
+                    <SelectItem value="S-Corp">S-Corp</SelectItem>
+                    <SelectItem value="LLC">LLC</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
+              {/* Package Tier */}
+              <div className="space-y-2">
+                <Label htmlFor="package_tier">Package Tier</Label>
+                <Select
+                  value={formData.package_tier}
+                  onValueChange={(value) => setFormData({ ...formData, package_tier: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Essentials">Essentials</SelectItem>
+                    <SelectItem value="Foundation">Foundation</SelectItem>
+                    <SelectItem value="Complete">Complete</SelectItem>
+                    <SelectItem value="Premium">Premium</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Income Range */}
+              <div className="space-y-2">
+                <Label htmlFor="income_range">Income Range</Label>
+                <Select
+                  value={formData.income_range}
+                  onValueChange={(value) => setFormData({ ...formData, income_range: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select income range" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Under $100k">Under $100k</SelectItem>
+                    <SelectItem value="$100k-$300k">$100k-$300k</SelectItem>
+                    <SelectItem value="$300k-$600k">$300k-$600k</SelectItem>
+                    <SelectItem value="$600k-$1M">$600k-$1M</SelectItem>
+                    <SelectItem value="Over $1M">Over $1M</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Next Review Date */}
+              <div className="space-y-2">
+                <Label htmlFor="next_review_date">Next Review Date</Label>
+                <Input
+                  id="next_review_date"
+                  type="date"
+                  value={formData.next_review_date}
+                  onChange={(e) => setFormData({ ...formData, next_review_date: e.target.value })}
+                />
+              </div>
+
+              {/* Notes */}
               <div className="space-y-2">
                 <Label htmlFor="notes">Notes</Label>
                 <Textarea
                   id="notes"
                   value={formData.notes}
-                  onChange={(e) => handleChange('notes', e.target.value)}
-                  rows={4}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                   placeholder="Any additional notes about this client..."
+                  rows={4}
                 />
               </div>
 
-              <div className="flex gap-4">
+              {/* Actions */}
+              <div className="flex gap-4 pt-4">
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => navigate('/clients')}
+                  onClick={() => navigate("/clients")}
+                  className="flex-1"
                 >
                   Cancel
                 </Button>
-                <Button type="submit" variant="navy" disabled={isLoading}>
-                  {isLoading ? 'Creating...' : 'Create Client'}
+                <Button
+                  type="submit"
+                  disabled={loading || !formData.name}
+                  className="flex-1 bg-eiduk-blue hover:bg-eiduk-light-blue"
+                >
+                  {loading ? "Creating..." : "Create Client"}
                 </Button>
               </div>
             </form>
@@ -278,4 +205,6 @@ export default function ClientNew() {
       </div>
     </DashboardLayout>
   );
-}
+};
+
+export default ClientNew;

@@ -6,7 +6,6 @@ import { cn } from '@/lib/utils';
 import { 
   LayoutDashboard, 
   Users, 
-  FileText, 
   LogOut,
   Menu,
   X
@@ -20,7 +19,6 @@ interface DashboardLayoutProps {
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/clients', label: 'Clients', icon: Users },
-  { href: '/documents', label: 'Documents', icon: FileText },
 ];
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {

@@ -1,214 +1,185 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-import { Users, FileText, TrendingUp, Plus } from 'lucide-react';
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Users, FileText, TrendingUp, Calendar } from "lucide-react";
 
 interface DashboardStats {
   totalClients: number;
-  activeClients: number;
-  totalDocuments: number;
-  prospects: number;
+  activeStrategies: number;
+  totalSavings: number;
+  upcomingReviews: number;
 }
 
-export default function Dashboard() {
+const Dashboard = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState<DashboardStats>({
     totalClients: 0,
-    activeClients: 0,
-    totalDocuments: 0,
-    prospects: 0,
+    activeStrategies: 0,
+    totalSavings: 0,
+    upcomingReviews: 0,
   });
-  const [recentClients, setRecentClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
-      fetchDashboardData();
-    }
+    const fetchStats = async () => {
+      if (!user) return;
+
+      try {
+        // Fetch client count
+        const { count: clientCount } = await supabase
+          .from("clients")
+          .select("*", { count: "exact", head: true });
+
+        // Fetch active strategies (in_progress or complete)
+        const { count: strategyCount } = await supabase
+          .from("client_strategies")
+          .select("*", { count: "exact", head: true })
+          .in("status", ["in_progress", "complete"]);
+
+        // Fetch total savings
+        const { data: savingsData } = await supabase
+          .from("client_strategies")
+          .select("actual_savings")
+          .not("actual_savings", "is", null);
+
+        const totalSavings = savingsData?.reduce(
+          (sum, item) => sum + (item.actual_savings || 0),
+          0
+        ) || 0;
+
+        // Fetch upcoming reviews (next 30 days)
+        const thirtyDaysFromNow = new Date();
+        thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+        
+        const { count: reviewCount } = await supabase
+          .from("clients")
+          .select("*", { count: "exact", head: true })
+          .not("next_review_date", "is", null)
+          .lte("next_review_date", thirtyDaysFromNow.toISOString().split("T")[0]);
+
+        setStats({
+          totalClients: clientCount || 0,
+          activeStrategies: strategyCount || 0,
+          totalSavings,
+          upcomingReviews: reviewCount || 0,
+        });
+      } catch (error) {
+        console.error("Error fetching dashboard stats:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
   }, [user]);
 
-  const fetchDashboardData = async () => {
-    try {
-      // Fetch client stats
-      const { data: clients, error: clientsError } = await supabase
-        .from('clients')
-        .select('id, status, created_at, first_name, last_name, company_name')
-        .order('created_at', { ascending: false });
-
-      if (clientsError) throw clientsError;
-
-      // Fetch document count
-      const { count: docCount, error: docError } = await supabase
-        .from('client_documents')
-        .select('*', { count: 'exact', head: true });
-
-      if (docError) throw docError;
-
-      const activeCount = clients?.filter(c => c.status === 'Active').length || 0;
-      const prospectCount = clients?.filter(c => c.status === 'Prospect').length || 0;
-
-      setStats({
-        totalClients: clients?.length || 0,
-        activeClients: activeCount,
-        totalDocuments: docCount || 0,
-        prospects: prospectCount,
-      });
-
-      setRecentClients(clients?.slice(0, 5) || []);
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-    } finally {
-      setLoading(false);
-    }
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
   };
 
   const statCards = [
-    { 
-      title: 'Total Clients', 
-      value: stats.totalClients, 
-      icon: Users, 
-      color: 'bg-eiduk-navy',
-      href: '/clients'
+    {
+      title: "Total Clients",
+      value: stats.totalClients,
+      icon: Users,
+      color: "text-eiduk-blue",
+      bgColor: "bg-eiduk-blue/10",
     },
-    { 
-      title: 'Active Clients', 
-      value: stats.activeClients, 
-      icon: TrendingUp, 
-      color: 'bg-success',
-      href: '/clients?status=Active'
+    {
+      title: "Active Strategies",
+      value: stats.activeStrategies,
+      icon: FileText,
+      color: "text-success",
+      bgColor: "bg-success/10",
     },
-    { 
-      title: 'Prospects', 
-      value: stats.prospects, 
-      icon: Users, 
-      color: 'bg-eiduk-blue',
-      href: '/clients?status=Prospect'
+    {
+      title: "Total Savings",
+      value: formatCurrency(stats.totalSavings),
+      icon: TrendingUp,
+      color: "text-eiduk-gold",
+      bgColor: "bg-eiduk-gold/10",
     },
-    { 
-      title: 'Documents', 
-      value: stats.totalDocuments, 
-      icon: FileText, 
-      color: 'bg-eiduk-gold',
-      href: '/documents'
+    {
+      title: "Upcoming Reviews",
+      value: stats.upcomingReviews,
+      icon: Calendar,
+      color: "text-phase-retirement",
+      bgColor: "bg-phase-retirement/10",
     },
   ];
 
   return (
     <DashboardLayout>
-      <div className="space-y-8 animate-fade-in">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="font-display text-3xl font-bold text-primary">Dashboard</h1>
-            <p className="text-muted-foreground mt-1">
-              Welcome back to your advisor portal
-            </p>
-          </div>
-          <Button variant="gold" asChild>
-            <Link to="/clients/new">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Client
-            </Link>
-          </Button>
+      <div className="space-y-8">
+        {/* Welcome Header */}
+        <div className="gradient-header rounded-xl p-8 text-white">
+          <h1 className="font-display text-3xl font-bold mb-2">
+            Welcome back{user?.user_metadata?.full_name ? `, ${user.user_metadata.full_name}` : ""}
+          </h1>
+          <p className="text-white/80 font-body">
+            Here's an overview of your client portfolio and tax strategies.
+          </p>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {statCards.map((stat, index) => (
-            <Link key={stat.title} to={stat.href}>
-              <Card 
-                className="hover:shadow-medium transition-all hover:-translate-y-1 cursor-pointer"
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">{stat.title}</p>
-                      <p className="text-3xl font-bold text-foreground mt-1">
-                        {loading ? '—' : stat.value}
-                      </p>
-                    </div>
-                    <div className={`${stat.color} p-3 rounded-card`}>
-                      <stat.icon className="h-6 w-6 text-white" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {statCards.map((stat) => (
+            <Card key={stat.title} className="shadow-soft hover:shadow-medium transition-shadow">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-body font-medium text-muted-foreground">
+                  {stat.title}
+                </CardTitle>
+                <div className={`p-2 rounded-lg ${stat.bgColor}`}>
+                  <stat.icon className={`h-5 w-5 ${stat.color}`} />
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="h-8 bg-muted animate-pulse rounded" />
+                ) : (
+                  <p className="text-2xl font-display font-bold text-foreground">
+                    {stat.value}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
           ))}
         </div>
 
-        {/* Recent Clients */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="font-display text-xl">Recent Clients</CardTitle>
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/clients">View All</Link>
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="space-y-3">
-                {[...Array(3)].map((_, i) => (
-                  <div key={i} className="h-16 bg-muted rounded-lg animate-pulse" />
-                ))}
-              </div>
-            ) : recentClients.length === 0 ? (
-              <div className="text-center py-8">
-                <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground mb-4">No clients yet</p>
-                <Button variant="navy" asChild>
-                  <Link to="/clients/new">Add Your First Client</Link>
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {recentClients.map((client) => (
-                  <Link
-                    key={client.id}
-                    to={`/clients/${client.id}`}
-                    className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-full bg-eiduk-navy flex items-center justify-center text-white font-semibold">
-                        {client.first_name[0]}{client.last_name[0]}
-                      </div>
-                      <div>
-                        <p className="font-medium">
-                          {client.first_name} {client.last_name}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {client.company_name || 'No company'}
-                        </p>
-                      </div>
-                    </div>
-                    <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                      client.status === 'Active' 
-                        ? 'bg-success/10 text-success' 
-                        : client.status === 'Prospect'
-                        ? 'bg-eiduk-blue/10 text-eiduk-blue'
-                        : 'bg-muted text-muted-foreground'
-                    }`}>
-                      {client.status}
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {/* Placeholder sections */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card className="shadow-soft">
+            <CardHeader>
+              <CardTitle className="font-display text-lg">Recent Activity</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground font-body">
+                Activity feed coming soon...
+              </p>
+            </CardContent>
+          </Card>
 
-        {/* Tagline Footer */}
-        <div className="text-center py-4">
-          <p className="text-eiduk-gold font-display font-semibold">
-            Pay Less. Keep More. Build Wealth.
-          </p>
+          <Card className="shadow-soft">
+            <CardHeader>
+              <CardTitle className="font-display text-lg">Quick Actions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground font-body">
+                Quick actions coming soon...
+              </p>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </DashboardLayout>
   );
-}
+};
+
+export default Dashboard;

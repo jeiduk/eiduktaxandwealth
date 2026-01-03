@@ -1,212 +1,168 @@
-import { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-import { 
-  Plus, 
-  Search, 
-  Users,
-  Building2,
-  Phone,
-  Mail
-} from 'lucide-react';
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Search, Building2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 interface Client {
   id: string;
-  first_name: string;
-  last_name: string;
-  email: string | null;
-  phone: string | null;
-  company_name: string | null;
-  status: string;
+  name: string;
+  entity_type: string;
+  package_tier: string;
+  income_range: string | null;
+  next_review_date: string | null;
   created_at: string;
 }
 
-export default function Clients() {
+const Clients = () => {
   const { user } = useAuth();
-  const [searchParams] = useSearchParams();
   const [clients, setClients] = useState<Client[]>([]);
-  const [filteredClients, setFilteredClients] = useState<Client[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || 'All');
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
-    if (user) {
-      fetchClients();
-    }
+    const fetchClients = async () => {
+      if (!user) return;
+
+      try {
+        const { data, error } = await supabase
+          .from("clients")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (error) throw error;
+        setClients(data || []);
+      } catch (error) {
+        console.error("Error fetching clients:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchClients();
   }, [user]);
 
-  useEffect(() => {
-    filterClients();
-  }, [clients, searchQuery, statusFilter]);
+  const filteredClients = clients.filter((client) =>
+    client.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
-  const fetchClients = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('clients')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setClients(data || []);
-    } catch (error) {
-      console.error('Error fetching clients:', error);
-    } finally {
-      setLoading(false);
+  const getTierColor = (tier: string) => {
+    switch (tier) {
+      case "Premium":
+        return "bg-eiduk-gold/20 text-eiduk-gold border-eiduk-gold/30";
+      case "Complete":
+        return "bg-phase-retirement/20 text-phase-retirement border-phase-retirement/30";
+      case "Foundation":
+        return "bg-eiduk-blue/20 text-eiduk-blue border-eiduk-blue/30";
+      default:
+        return "bg-muted text-muted-foreground";
     }
   };
-
-  const filterClients = () => {
-    let filtered = clients;
-
-    if (statusFilter !== 'All') {
-      filtered = filtered.filter(c => c.status === statusFilter);
-    }
-
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(c =>
-        c.first_name.toLowerCase().includes(query) ||
-        c.last_name.toLowerCase().includes(query) ||
-        c.company_name?.toLowerCase().includes(query) ||
-        c.email?.toLowerCase().includes(query)
-      );
-    }
-
-    setFilteredClients(filtered);
-  };
-
-  const statusOptions = ['All', 'Active', 'Inactive', 'Prospect'];
 
   return (
     <DashboardLayout>
-      <div className="space-y-6 animate-fade-in">
+      <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="font-display text-3xl font-bold text-primary">Clients</h1>
-            <p className="text-muted-foreground mt-1">
-              Manage your client relationships
+            <h1 className="font-display text-2xl font-bold text-foreground">Clients</h1>
+            <p className="text-muted-foreground font-body">
+              Manage your client portfolio
             </p>
           </div>
-          <Button variant="gold" asChild>
-            <Link to="/clients/new">
+          <Link to="/clients/new">
+            <Button className="bg-eiduk-blue hover:bg-eiduk-light-blue">
               <Plus className="h-4 w-4 mr-2" />
               Add Client
-            </Link>
-          </Button>
+            </Button>
+          </Link>
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search clients..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          <div className="flex gap-2">
-            {statusOptions.map((status) => (
-              <Button
-                key={status}
-                variant={statusFilter === status ? 'navy' : 'outline'}
-                size="sm"
-                onClick={() => setStatusFilter(status)}
-              >
-                {status}
-              </Button>
-            ))}
-          </div>
+        {/* Search */}
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search clients..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
         </div>
 
         {/* Client List */}
         {loading ? (
-          <div className="space-y-2">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-14 bg-card rounded-lg animate-pulse" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[1, 2, 3].map((i) => (
+              <Card key={i} className="animate-pulse">
+                <CardHeader>
+                  <div className="h-6 bg-muted rounded w-3/4" />
+                </CardHeader>
+                <CardContent>
+                  <div className="h-4 bg-muted rounded w-1/2" />
+                </CardContent>
+              </Card>
             ))}
           </div>
         ) : filteredClients.length === 0 ? (
-          <Card className="py-12">
-            <CardContent className="text-center">
-              <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="font-display text-xl font-semibold mb-2">
-                {searchQuery || statusFilter !== 'All' 
-                  ? 'No clients found' 
-                  : 'No clients yet'}
-              </h3>
-              <p className="text-muted-foreground mb-4">
-                {searchQuery || statusFilter !== 'All'
-                  ? 'Try adjusting your search or filters'
-                  : 'Add your first client to get started'}
+          <Card className="shadow-soft">
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="font-display text-lg font-semibold mb-2">No clients yet</h3>
+              <p className="text-muted-foreground font-body mb-4">
+                Get started by adding your first client
               </p>
-              {!searchQuery && statusFilter === 'All' && (
-                <Button variant="navy" asChild>
-                  <Link to="/clients/new">Add Your First Client</Link>
+              <Link to="/clients/new">
+                <Button className="bg-eiduk-blue hover:bg-eiduk-light-blue">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Client
                 </Button>
-              )}
+              </Link>
             </CardContent>
           </Card>
         ) : (
-          <Card>
-            <CardContent className="p-0">
-              <div className="divide-y">
-                {filteredClients.map((client, index) => (
-                  <Link
-                    key={client.id}
-                    to={`/clients/${client.id}`}
-                    className="flex items-center gap-4 p-3 hover:bg-muted/50 transition-colors animate-fade-in"
-                    style={{ animationDelay: `${index * 30}ms` }}
-                  >
-                    <div className="w-9 h-9 rounded-full bg-eiduk-navy flex items-center justify-center text-white font-display font-semibold text-sm shrink-0">
-                      {client.first_name[0]}{client.last_name[0]}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredClients.map((client) => (
+              <Link key={client.id} to={`/clients/${client.id}`}>
+                <Card className="shadow-soft hover:shadow-medium transition-all hover:border-eiduk-blue/30 cursor-pointer h-full">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-start justify-between">
+                      <CardTitle className="font-display text-lg line-clamp-1">
+                        {client.name}
+                      </CardTitle>
+                      <Badge variant="outline" className={getTierColor(client.package_tier)}>
+                        {client.package_tier}
+                      </Badge>
                     </div>
-                    
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-foreground">
-                          {client.first_name} {client.last_name}
-                        </span>
-                        {client.company_name && (
-                          <span className="text-sm text-muted-foreground hidden sm:inline">
-                            • {client.company_name}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        {client.email && (
-                          <span className="truncate max-w-[200px]">{client.email}</span>
-                        )}
-                        {client.phone && (
-                          <span className="hidden md:inline">{client.phone}</span>
-                        )}
-                      </div>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Building2 className="h-4 w-4" />
+                      <span>{client.entity_type}</span>
                     </div>
-
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${
-                      client.status === 'Active' 
-                        ? 'bg-success/10 text-success' 
-                        : client.status === 'Prospect'
-                        ? 'bg-eiduk-blue/10 text-eiduk-blue'
-                        : 'bg-muted text-muted-foreground'
-                    }`}>
-                      {client.status}
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                    {client.income_range && (
+                      <p className="text-sm text-muted-foreground">
+                        Income: {client.income_range}
+                      </p>
+                    )}
+                    {client.next_review_date && (
+                      <p className="text-xs text-muted-foreground">
+                        Next Review: {new Date(client.next_review_date).toLocaleDateString()}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
         )}
       </div>
     </DashboardLayout>
   );
-}
+};
+
+export default Clients;
