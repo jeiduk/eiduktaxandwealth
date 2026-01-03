@@ -244,7 +244,7 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-4">
-              <Button className="bg-eiduk-gold hover:bg-eiduk-gold/90 text-primary">
+              <Button variant="gold">
                 <Clock className="h-4 w-4 mr-2" />
                 Start Quarterly Review
               </Button>
