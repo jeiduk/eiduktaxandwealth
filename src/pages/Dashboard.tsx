@@ -17,7 +17,7 @@ import {
   ChevronRight,
   Clock
 } from "lucide-react";
-import { format, isAfter, startOfMonth, endOfMonth, addDays } from "date-fns";
+import { format, startOfMonth, endOfMonth, addDays } from "date-fns";
 
 interface DashboardStats {
   activeClients: number;
@@ -39,10 +39,10 @@ interface ClientReview {
 
 // Strategy counts per tier
 const TIER_STRATEGY_COUNTS: Record<string, number> = {
-  Essentials: 6,
+  Essentials: 0,
   Foundation: 13,
   Complete: 30,
-  Premium: 70,
+  Premium: 59,
 };
 
 const Dashboard = () => {
@@ -69,28 +69,33 @@ const Dashboard = () => {
       const monthEnd = endOfMonth(today);
       const thirtyDaysFromNow = addDays(today, 30);
 
-      // Fetch all clients
+      // Fetch all clients with tax_rate
       const { data: clients, error: clientsError } = await supabase
         .from("clients")
         .select("*");
 
       if (clientsError) throw clientsError;
 
-      // Fetch all completed strategies with savings
+      // Fetch all completed strategies with deduction amounts
       const { data: completedStrategies, error: strategiesError } = await supabase
         .from("client_strategies")
-        .select("client_id, actual_savings, status")
+        .select("client_id, deduction_amount, status")
         .eq("status", "complete");
 
       if (strategiesError) throw strategiesError;
 
-      // Calculate stats
+      // Calculate stats - tax savings = sum of (deductions × client tax rate)
       const activeClients = clients?.length || 0;
       
-      const totalSavings = completedStrategies?.reduce(
-        (sum, s) => sum + (s.actual_savings || 0), 
-        0
-      ) || 0;
+      // Calculate total savings across all clients
+      let totalSavings = 0;
+      clients?.forEach(client => {
+        const clientDeductions = completedStrategies
+          ?.filter(s => s.client_id === client.id)
+          .reduce((sum, s) => sum + (s.deduction_amount || 0), 0) || 0;
+        const taxRate = client.tax_rate || 0.37;
+        totalSavings += Math.round(clientDeductions * taxRate);
+      });
       
       const strategiesImplemented = completedStrategies?.length || 0;
 
@@ -121,6 +126,11 @@ const Dashboard = () => {
           
           const reviewDate = new Date(c.next_review_date);
           const isOverdue = reviewDate < today;
+          const totalDeductions = clientStrategies.reduce(
+            (sum, s) => sum + (s.deduction_amount || 0), 
+            0
+          );
+          const taxRate = c.tax_rate || 0.37;
 
           return {
             id: c.id,
@@ -128,11 +138,8 @@ const Dashboard = () => {
             package_tier: c.package_tier,
             next_review_date: c.next_review_date,
             completedStrategies: clientStrategies.length,
-            totalStrategies: TIER_STRATEGY_COUNTS[c.package_tier] || 6,
-            totalSavings: clientStrategies.reduce(
-              (sum, s) => sum + (s.actual_savings || 0), 
-              0
-            ),
+            totalStrategies: TIER_STRATEGY_COUNTS[c.package_tier] || 0,
+            totalSavings: Math.round(totalDeductions * taxRate),
             isOverdue,
           };
         })
@@ -201,6 +208,21 @@ const Dashboard = () => {
     },
   ];
 
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="space-y-6 animate-pulse">
+          <div className="h-8 bg-muted rounded w-1/4" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-32 bg-muted rounded-xl" />
+            ))}
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-8">
@@ -213,20 +235,14 @@ const Dashboard = () => {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {statCards.map((stat) => (
-            <Card key={stat.title} className="shadow-soft hover:shadow-medium transition-shadow">
+            <Card key={stat.title}>
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-body text-muted-foreground">{stat.title}</p>
-                    {loading ? (
-                      <div className="h-8 w-20 bg-muted animate-pulse rounded mt-1" />
-                    ) : (
-                      <p className="text-2xl font-display font-bold text-foreground mt-1">
-                        {stat.value}
-                      </p>
-                    )}
+                    <p className="text-sm text-muted-foreground font-body">{stat.title}</p>
+                    <p className="text-2xl font-bold font-display mt-1 tabular-nums">{stat.value}</p>
                   </div>
                   <div className={`p-3 rounded-xl ${stat.bgColor}`}>
                     <stat.icon className={`h-6 w-6 ${stat.color}`} />
@@ -238,119 +254,87 @@ const Dashboard = () => {
         </div>
 
         {/* Quick Actions */}
-        <Card className="shadow-soft">
-          <CardHeader>
-            <CardTitle className="font-display text-lg">Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-4">
-              <Button variant="gold">
-                <Clock className="h-4 w-4 mr-2" />
-                Start Quarterly Review
-              </Button>
-              <Button variant="outline" className="border-eiduk-blue text-eiduk-blue hover:bg-eiduk-blue/10" asChild>
-                <Link to="/clients/new">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add New Client
-                </Link>
-              </Button>
-              <Button variant="outline" className="border-eiduk-blue text-eiduk-blue hover:bg-eiduk-blue/10" asChild>
-                <Link to="/settings">
-                  <FileText className="h-4 w-4 mr-2" />
-                  View All Strategies
-                </Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex flex-wrap gap-3">
+          <Button variant="gold">
+            <Clock className="h-4 w-4 mr-2" />
+            Start Quarterly Review
+          </Button>
+          <Button variant="outline" className="border-eiduk-blue text-eiduk-blue hover:bg-eiduk-blue/10" asChild>
+            <Link to="/clients/new">
+              <Plus className="h-4 w-4 mr-2" />
+              Add New Client
+            </Link>
+          </Button>
+          <Button variant="outline" className="border-eiduk-blue text-eiduk-blue hover:bg-eiduk-blue/10" asChild>
+            <Link to="/strategies">
+              <FileText className="h-4 w-4 mr-2" />
+              View All Strategies
+            </Link>
+          </Button>
+        </div>
 
-        {/* Upcoming Reviews Table */}
-        <Card className="shadow-soft">
+        {/* Upcoming Reviews */}
+        <Card>
           <CardHeader>
-            <CardTitle className="font-display text-lg">Upcoming Reviews</CardTitle>
+            <CardTitle className="font-display flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-eiduk-blue" />
+              Upcoming Reviews
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            {loading ? (
-              <div className="space-y-3">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-16 bg-muted animate-pulse rounded" />
-                ))}
-              </div>
-            ) : upcomingReviews.length === 0 ? (
-              <div className="text-center py-8">
-                <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">No upcoming reviews in the next 30 days</p>
+            {upcomingReviews.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Calendar className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p>No upcoming reviews in the next 30 days</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left py-3 px-4 font-semibold text-muted-foreground text-sm">Client</th>
-                      <th className="text-left py-3 px-4 font-semibold text-muted-foreground text-sm">Package</th>
-                      <th className="text-left py-3 px-4 font-semibold text-muted-foreground text-sm">Progress</th>
-                      <th className="text-left py-3 px-4 font-semibold text-muted-foreground text-sm">Est. Savings</th>
-                      <th className="text-left py-3 px-4 font-semibold text-muted-foreground text-sm">Next Review</th>
-                      <th className="text-right py-3 px-4 font-semibold text-muted-foreground text-sm">Action</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Client</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Package</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Progress</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Est. Savings</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Next Review</th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Action</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {upcomingReviews.map((client, index) => {
-                      const progress = client.totalStrategies > 0 
-                        ? (client.completedStrategies / client.totalStrategies) * 100 
+                    {upcomingReviews.map((review, index) => {
+                      const progress = review.totalStrategies > 0 
+                        ? (review.completedStrategies / review.totalStrategies) * 100 
                         : 0;
-
+                      
                       return (
                         <tr 
-                          key={client.id} 
-                          className={`border-b last:border-0 hover:bg-muted/50 transition-colors ${
-                            index % 2 === 0 ? "bg-background" : "bg-muted/20"
-                          } ${client.isOverdue ? "bg-destructive/5" : ""}`}
+                          key={review.id} 
+                          className={`border-b last:border-b-0 ${index % 2 === 0 ? 'bg-background' : 'bg-muted/30'}`}
                         >
-                          <td className="py-4 px-4">
-                            <Link 
-                              to={`/clients/${client.id}`}
-                              className="font-medium text-foreground hover:text-eiduk-blue transition-colors"
-                            >
-                              {client.name}
-                            </Link>
-                          </td>
-                          <td className="py-4 px-4">
-                            <Badge variant="outline" className={getTierBadgeClass(client.package_tier)}>
-                              {client.package_tier}
+                          <td className="py-3 px-4 font-medium">{review.name}</td>
+                          <td className="py-3 px-4">
+                            <Badge variant="outline" className={getTierBadgeClass(review.package_tier)}>
+                              {review.package_tier}
                             </Badge>
                           </td>
-                          <td className="py-4 px-4">
-                            <div className="flex items-center gap-2">
-                              <Progress value={progress} className="w-20 h-2" />
-                              <span className="text-sm text-muted-foreground">
-                                {client.completedStrategies}/{client.totalStrategies}
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-2 min-w-[120px]">
+                              <Progress value={progress} className="h-2 flex-1" />
+                              <span className="text-sm text-muted-foreground tabular-nums w-10">
+                                {Math.round(progress)}%
                               </span>
                             </div>
                           </td>
-                          <td className="py-4 px-4">
-                            <span className="font-medium text-eiduk-gold">
-                              {formatCurrency(client.totalSavings)}
-                            </span>
+                          <td className="py-3 px-4 font-medium text-emerald-600 tabular-nums">
+                            {formatCurrency(review.totalSavings)}
                           </td>
-                          <td className="py-4 px-4">
-                            <span className={`${client.isOverdue ? "text-destructive font-semibold" : "text-foreground"}`}>
-                              {format(new Date(client.next_review_date), "MMM d, yyyy")}
-                              {client.isOverdue && (
-                                <span className="ml-2 text-xs bg-destructive/10 text-destructive px-2 py-0.5 rounded">
-                                  Overdue
-                                </span>
-                              )}
-                            </span>
+                          <td className={`py-3 px-4 ${review.isOverdue ? 'text-destructive font-medium' : ''}`}>
+                            {format(new Date(review.next_review_date), "MMM d, yyyy")}
+                            {review.isOverdue && <span className="ml-2 text-xs">(Overdue)</span>}
                           </td>
-                          <td className="py-4 px-4 text-right">
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="text-eiduk-blue hover:text-eiduk-blue hover:bg-eiduk-blue/10"
-                              asChild
-                            >
-                              <Link to={`/clients/${client.id}`}>
+                          <td className="py-3 px-4 text-right">
+                            <Button variant="ghost" size="sm" asChild>
+                              <Link to={`/clients/${review.id}/review`}>
                                 Start Review
                                 <ChevronRight className="h-4 w-4 ml-1" />
                               </Link>

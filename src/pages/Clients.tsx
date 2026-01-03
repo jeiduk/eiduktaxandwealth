@@ -43,6 +43,7 @@ interface ClientWithStats {
   income_range: string | null;
   next_review_date: string | null;
   created_at: string;
+  tax_rate: number | null;
   completed_strategies: number;
   total_strategies: number;
   total_savings: number;
@@ -80,6 +81,8 @@ const Clients = () => {
     income_range: "",
     next_review_date: "",
     notes: "",
+    tax_rate: "0.37",
+    custom_tax_rate: "",
   });
 
   const fetchClients = async () => {
@@ -97,30 +100,31 @@ const Clients = () => {
       // Fetch strategy stats for all clients
       const { data: strategiesData, error: strategiesError } = await supabase
         .from("client_strategies")
-        .select("client_id, status, actual_savings");
+        .select("client_id, status, deduction_amount");
 
       if (strategiesError) throw strategiesError;
 
-      // Aggregate stats per client
-      const statsMap = new Map<string, { completed: number; total: number; savings: number }>();
+      // Aggregate stats per client (deductions, then calculate savings with tax rate)
+      const deductionsMap = new Map<string, { completed: number; total: number; deductions: number }>();
       strategiesData?.forEach((cs) => {
-        const current = statsMap.get(cs.client_id) || { completed: 0, total: 0, savings: 0 };
+        const current = deductionsMap.get(cs.client_id) || { completed: 0, total: 0, deductions: 0 };
         current.total += 1;
         if (cs.status === "complete") {
           current.completed += 1;
-          current.savings += cs.actual_savings || 0;
+          current.deductions += cs.deduction_amount || 0;
         }
-        statsMap.set(cs.client_id, current);
+        deductionsMap.set(cs.client_id, current);
       });
 
       const enrichedClients: ClientWithStats[] = (clientsData || []).map((client) => {
-        const stats = statsMap.get(client.id) || { completed: 0, total: 0, savings: 0 };
+        const clientStats = deductionsMap.get(client.id) || { completed: 0, total: 0, deductions: 0 };
         const expectedTotal = TIER_STRATEGY_COUNTS[client.package_tier] || 0;
+        const taxRate = client.tax_rate || 0.37;
         return {
           ...client,
-          completed_strategies: stats.completed,
+          completed_strategies: clientStats.completed,
           total_strategies: expectedTotal,
-          total_savings: stats.savings,
+          total_savings: Math.round(clientStats.deductions * taxRate),
         };
       });
 
@@ -142,6 +146,10 @@ const Clients = () => {
 
     setFormLoading(true);
     try {
+      const taxRate = formData.tax_rate === "custom" 
+        ? parseFloat(formData.custom_tax_rate) / 100 
+        : parseFloat(formData.tax_rate);
+
       // Insert client
       const { data: newClient, error: clientError } = await supabase
         .from("clients")
@@ -153,6 +161,7 @@ const Clients = () => {
           income_range: formData.income_range || null,
           next_review_date: formData.next_review_date || null,
           notes: formData.notes || null,
+          tax_rate: taxRate,
         })
         .select()
         .single();
@@ -199,6 +208,8 @@ const Clients = () => {
         income_range: "",
         next_review_date: "",
         notes: "",
+        tax_rate: "0.37",
+        custom_tax_rate: "",
       });
       setDialogOpen(false);
       fetchClients();
@@ -326,6 +337,36 @@ const Clients = () => {
                       <SelectItem value="$600k-$1M+">$600k-$1M+</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Tax Rate</Label>
+                  <Select
+                    value={formData.tax_rate}
+                    onValueChange={(value) => setFormData({ ...formData, tax_rate: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0.24">24%</SelectItem>
+                      <SelectItem value="0.32">32%</SelectItem>
+                      <SelectItem value="0.35">35%</SelectItem>
+                      <SelectItem value="0.37">37%</SelectItem>
+                      <SelectItem value="custom">Custom</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {formData.tax_rate === "custom" && (
+                    <Input
+                      type="number"
+                      placeholder="Enter rate (0-50)"
+                      min="0"
+                      max="50"
+                      value={formData.custom_tax_rate}
+                      onChange={(e) => setFormData({ ...formData, custom_tax_rate: e.target.value })}
+                      className="mt-2"
+                    />
+                  )}
                 </div>
 
                 <div className="space-y-2">

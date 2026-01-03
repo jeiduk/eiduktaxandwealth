@@ -16,8 +16,8 @@ export type Database = {
     Tables: {
       client_strategies: {
         Row: {
-          actual_savings: number | null
           client_id: string
+          deduction_amount: number | null
           id: string
           implemented_date: string | null
           notes: string | null
@@ -26,8 +26,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          actual_savings?: number | null
           client_id: string
+          deduction_amount?: number | null
           id?: string
           implemented_date?: string | null
           notes?: string | null
@@ -36,8 +36,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          actual_savings?: number | null
           client_id?: string
+          deduction_amount?: number | null
           id?: string
           implemented_date?: string | null
           notes?: string | null
@@ -72,6 +72,7 @@ export type Database = {
           next_review_date: string | null
           notes: string | null
           package_tier: string
+          tax_rate: number | null
           user_id: string
         }
         Insert: {
@@ -83,6 +84,7 @@ export type Database = {
           next_review_date?: string | null
           notes?: string | null
           package_tier?: string
+          tax_rate?: number | null
           user_id: string
         }
         Update: {
@@ -94,6 +96,7 @@ export type Database = {
           next_review_date?: string | null
           notes?: string | null
           package_tier?: string
+          tax_rate?: number | null
           user_id?: string
         }
         Relationships: []
