@@ -14,316 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
-      action_items: {
-        Row: {
-          created_at: string
-          description: string
-          due_date: string | null
-          id: string
-          meeting_id: string
-          priority: number | null
-          responsible_party: string | null
-          status: string | null
-          strategy_number: number | null
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          description: string
-          due_date?: string | null
-          id?: string
-          meeting_id: string
-          priority?: number | null
-          responsible_party?: string | null
-          status?: string | null
-          strategy_number?: number | null
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          description?: string
-          due_date?: string | null
-          id?: string
-          meeting_id?: string
-          priority?: number | null
-          responsible_party?: string | null
-          status?: string | null
-          strategy_number?: number | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "action_items_meeting_id_fkey"
-            columns: ["meeting_id"]
-            isOneToOne: false
-            referencedRelation: "meetings"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      client_access_tokens: {
-        Row: {
-          client_id: string
-          created_at: string
-          expires_at: string
-          id: string
-          last_accessed_at: string | null
-          roadmap_id: string
-          token: string
-        }
-        Insert: {
-          client_id: string
-          created_at?: string
-          expires_at?: string
-          id?: string
-          last_accessed_at?: string | null
-          roadmap_id: string
-          token: string
-        }
-        Update: {
-          client_id?: string
-          created_at?: string
-          expires_at?: string
-          id?: string
-          last_accessed_at?: string | null
-          roadmap_id?: string
-          token?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "client_access_tokens_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "client_access_tokens_roadmap_id_fkey"
-            columns: ["roadmap_id"]
-            isOneToOne: false
-            referencedRelation: "client_roadmaps"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      client_documents: {
-        Row: {
-          category: string | null
-          client_id: string
-          created_at: string
-          file_path: string
-          file_size: number | null
-          file_type: string | null
-          id: string
-          name: string
-          uploaded_by_client: boolean
-          user_id: string
-        }
-        Insert: {
-          category?: string | null
-          client_id: string
-          created_at?: string
-          file_path: string
-          file_size?: number | null
-          file_type?: string | null
-          id?: string
-          name: string
-          uploaded_by_client?: boolean
-          user_id: string
-        }
-        Update: {
-          category?: string | null
-          client_id?: string
-          created_at?: string
-          file_path?: string
-          file_size?: number | null
-          file_type?: string | null
-          id?: string
-          name?: string
-          uploaded_by_client?: boolean
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "client_documents_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      client_roadmaps: {
-        Row: {
-          client_id: string
-          created_at: string
-          estimated_savings_max: number
-          estimated_savings_min: number
-          id: string
-          phase1_completed: Json | null
-          phase1_description: string
-          phase1_tasks: Json
-          phase1_title: string
-          phase2_completed: Json | null
-          phase2_description: string
-          phase2_tasks: Json
-          phase2_title: string
-          phase3_completed: Json | null
-          phase3_description: string
-          phase3_tasks: Json
-          phase3_title: string
-          phase4_completed: Json | null
-          phase4_description: string
-          phase4_tasks: Json
-          phase4_title: string
-          phase5_completed: Json | null
-          phase5_description: string
-          phase5_tasks: Json
-          phase5_title: string
-          phase6_completed: Json | null
-          phase6_description: string
-          phase6_tasks: Json
-          phase6_title: string
-          service_level: string | null
-          status: string
-          template_id: string | null
-          title: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          client_id: string
-          created_at?: string
-          estimated_savings_max?: number
-          estimated_savings_min?: number
-          id?: string
-          phase1_completed?: Json | null
-          phase1_description?: string
-          phase1_tasks?: Json
-          phase1_title?: string
-          phase2_completed?: Json | null
-          phase2_description?: string
-          phase2_tasks?: Json
-          phase2_title?: string
-          phase3_completed?: Json | null
-          phase3_description?: string
-          phase3_tasks?: Json
-          phase3_title?: string
-          phase4_completed?: Json | null
-          phase4_description?: string
-          phase4_tasks?: Json
-          phase4_title?: string
-          phase5_completed?: Json | null
-          phase5_description?: string
-          phase5_tasks?: Json
-          phase5_title?: string
-          phase6_completed?: Json | null
-          phase6_description?: string
-          phase6_tasks?: Json
-          phase6_title?: string
-          service_level?: string | null
-          status?: string
-          template_id?: string | null
-          title?: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          client_id?: string
-          created_at?: string
-          estimated_savings_max?: number
-          estimated_savings_min?: number
-          id?: string
-          phase1_completed?: Json | null
-          phase1_description?: string
-          phase1_tasks?: Json
-          phase1_title?: string
-          phase2_completed?: Json | null
-          phase2_description?: string
-          phase2_tasks?: Json
-          phase2_title?: string
-          phase3_completed?: Json | null
-          phase3_description?: string
-          phase3_tasks?: Json
-          phase3_title?: string
-          phase4_completed?: Json | null
-          phase4_description?: string
-          phase4_tasks?: Json
-          phase4_title?: string
-          phase5_completed?: Json | null
-          phase5_description?: string
-          phase5_tasks?: Json
-          phase5_title?: string
-          phase6_completed?: Json | null
-          phase6_description?: string
-          phase6_tasks?: Json
-          phase6_title?: string
-          service_level?: string | null
-          status?: string
-          template_id?: string | null
-          title?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "client_roadmaps_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "client_roadmaps_template_id_fkey"
-            columns: ["template_id"]
-            isOneToOne: false
-            referencedRelation: "roadmap_templates"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       client_strategies: {
         Row: {
-          calculator_data: Json | null
+          actual_savings: number | null
           client_id: string
-          created_at: string
-          documentation_complete: boolean | null
-          estimated_savings: number | null
           id: string
+          implemented_date: string | null
           notes: string | null
-          quarterly_status: Json | null
           status: string
-          strategy_id: string
+          strategy_id: number
           updated_at: string
-          user_id: string
         }
         Insert: {
-          calculator_data?: Json | null
+          actual_savings?: number | null
           client_id: string
-          created_at?: string
-          documentation_complete?: boolean | null
-          estimated_savings?: number | null
           id?: string
+          implemented_date?: string | null
           notes?: string | null
-          quarterly_status?: Json | null
           status?: string
-          strategy_id: string
+          strategy_id: number
           updated_at?: string
-          user_id: string
         }
         Update: {
-          calculator_data?: Json | null
+          actual_savings?: number | null
           client_id?: string
-          created_at?: string
-          documentation_complete?: boolean | null
-          estimated_savings?: number | null
           id?: string
+          implemented_date?: string | null
           notes?: string | null
-          quarterly_status?: Json | null
           status?: string
-          strategy_id?: string
+          strategy_id?: number
           updated_at?: string
-          user_id?: string
         }
         Relationships: [
           {
@@ -344,205 +64,39 @@ export type Database = {
       }
       clients: {
         Row: {
-          address: string | null
-          annual_income: string | null
-          business_type: string | null
-          city: string | null
-          company_name: string | null
           created_at: string
-          ein: string | null
-          email: string | null
-          entity_name: string | null
-          filing_status: string | null
-          first_name: string
-          fiscal_year_end: string | null
+          entity_type: string
           id: string
-          last_name: string
+          income_range: string | null
+          name: string
+          next_review_date: string | null
           notes: string | null
-          phone: string | null
-          service_tier: string | null
-          state: string | null
-          status: string | null
-          updated_at: string
+          package_tier: string
           user_id: string
-          zip: string | null
         }
         Insert: {
-          address?: string | null
-          annual_income?: string | null
-          business_type?: string | null
-          city?: string | null
-          company_name?: string | null
           created_at?: string
-          ein?: string | null
-          email?: string | null
-          entity_name?: string | null
-          filing_status?: string | null
-          first_name: string
-          fiscal_year_end?: string | null
+          entity_type?: string
           id?: string
-          last_name: string
+          income_range?: string | null
+          name: string
+          next_review_date?: string | null
           notes?: string | null
-          phone?: string | null
-          service_tier?: string | null
-          state?: string | null
-          status?: string | null
-          updated_at?: string
+          package_tier?: string
           user_id: string
-          zip?: string | null
         }
         Update: {
-          address?: string | null
-          annual_income?: string | null
-          business_type?: string | null
-          city?: string | null
-          company_name?: string | null
           created_at?: string
-          ein?: string | null
-          email?: string | null
-          entity_name?: string | null
-          filing_status?: string | null
-          first_name?: string
-          fiscal_year_end?: string | null
+          entity_type?: string
           id?: string
-          last_name?: string
+          income_range?: string | null
+          name?: string
+          next_review_date?: string | null
           notes?: string | null
-          phone?: string | null
-          service_tier?: string | null
-          state?: string | null
-          status?: string | null
-          updated_at?: string
+          package_tier?: string
           user_id?: string
-          zip?: string | null
         }
         Relationships: []
-      }
-      meetings: {
-        Row: {
-          client_id: string
-          created_at: string
-          current_salary: number | null
-          federal_estimated_due: number | null
-          federal_estimated_paid: number | null
-          general_notes: string | null
-          id: string
-          meeting_date: string
-          next_quarter_priorities: string | null
-          quarter: number
-          recommended_salary: number | null
-          retirement_contribution_401k: number | null
-          retirement_contribution_cash_balance: number | null
-          retirement_contribution_hsa: number | null
-          retirement_contribution_profit_sharing: number | null
-          state_estimated_due: number | null
-          state_estimated_paid: number | null
-          tax_year: number
-          updated_at: string
-          user_id: string
-          ytd_cogs: number | null
-          ytd_distributions: number | null
-          ytd_gross_revenue: number | null
-          ytd_net_income: number | null
-          ytd_operating_expenses: number | null
-        }
-        Insert: {
-          client_id: string
-          created_at?: string
-          current_salary?: number | null
-          federal_estimated_due?: number | null
-          federal_estimated_paid?: number | null
-          general_notes?: string | null
-          id?: string
-          meeting_date?: string
-          next_quarter_priorities?: string | null
-          quarter: number
-          recommended_salary?: number | null
-          retirement_contribution_401k?: number | null
-          retirement_contribution_cash_balance?: number | null
-          retirement_contribution_hsa?: number | null
-          retirement_contribution_profit_sharing?: number | null
-          state_estimated_due?: number | null
-          state_estimated_paid?: number | null
-          tax_year: number
-          updated_at?: string
-          user_id: string
-          ytd_cogs?: number | null
-          ytd_distributions?: number | null
-          ytd_gross_revenue?: number | null
-          ytd_net_income?: number | null
-          ytd_operating_expenses?: number | null
-        }
-        Update: {
-          client_id?: string
-          created_at?: string
-          current_salary?: number | null
-          federal_estimated_due?: number | null
-          federal_estimated_paid?: number | null
-          general_notes?: string | null
-          id?: string
-          meeting_date?: string
-          next_quarter_priorities?: string | null
-          quarter?: number
-          recommended_salary?: number | null
-          retirement_contribution_401k?: number | null
-          retirement_contribution_cash_balance?: number | null
-          retirement_contribution_hsa?: number | null
-          retirement_contribution_profit_sharing?: number | null
-          state_estimated_due?: number | null
-          state_estimated_paid?: number | null
-          tax_year?: number
-          updated_at?: string
-          user_id?: string
-          ytd_cogs?: number | null
-          ytd_distributions?: number | null
-          ytd_gross_revenue?: number | null
-          ytd_net_income?: number | null
-          ytd_operating_expenses?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "meetings_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      phase_status: {
-        Row: {
-          client_id: string
-          created_at: string
-          id: string
-          phase: number
-          status: string | null
-          updated_at: string
-        }
-        Insert: {
-          client_id: string
-          created_at?: string
-          id?: string
-          phase: number
-          status?: string | null
-          updated_at?: string
-        }
-        Update: {
-          client_id?: string
-          created_at?: string
-          id?: string
-          phase?: number
-          status?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "phase_status_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       profiles: {
         Row: {
@@ -571,187 +125,38 @@ export type Database = {
         }
         Relationships: []
       }
-      roadmap_templates: {
-        Row: {
-          created_at: string
-          description: string | null
-          estimated_savings_max: number
-          estimated_savings_min: number
-          id: string
-          name: string
-          phase1_description: string
-          phase1_tasks: Json
-          phase1_title: string
-          phase2_description: string
-          phase2_tasks: Json
-          phase2_title: string
-          phase3_description: string
-          phase3_tasks: Json
-          phase3_title: string
-          phase4_description: string
-          phase4_tasks: Json
-          phase4_title: string
-          phase5_description: string
-          phase5_tasks: Json
-          phase5_title: string
-          phase6_description: string
-          phase6_tasks: Json
-          phase6_title: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          description?: string | null
-          estimated_savings_max?: number
-          estimated_savings_min?: number
-          id?: string
-          name: string
-          phase1_description?: string
-          phase1_tasks?: Json
-          phase1_title?: string
-          phase2_description?: string
-          phase2_tasks?: Json
-          phase2_title?: string
-          phase3_description?: string
-          phase3_tasks?: Json
-          phase3_title?: string
-          phase4_description?: string
-          phase4_tasks?: Json
-          phase4_title?: string
-          phase5_description?: string
-          phase5_tasks?: Json
-          phase5_title?: string
-          phase6_description?: string
-          phase6_tasks?: Json
-          phase6_title?: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          description?: string | null
-          estimated_savings_max?: number
-          estimated_savings_min?: number
-          id?: string
-          name?: string
-          phase1_description?: string
-          phase1_tasks?: Json
-          phase1_title?: string
-          phase2_description?: string
-          phase2_tasks?: Json
-          phase2_title?: string
-          phase3_description?: string
-          phase3_tasks?: Json
-          phase3_title?: string
-          phase4_description?: string
-          phase4_tasks?: Json
-          phase4_title?: string
-          phase5_description?: string
-          phase5_tasks?: Json
-          phase5_title?: string
-          phase6_description?: string
-          phase6_tasks?: Json
-          phase6_title?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       strategies: {
         Row: {
-          calculator_type: string | null
-          category: string
-          created_at: string
           description: string | null
-          has_calculator: boolean | null
-          id: string
+          id: number
+          irc_citation: string | null
           name: string
-          phase: number
-          strategy_number: number
+          phase: string
+          phase_name: string
+          typical_savings_high: number | null
+          typical_savings_low: number | null
         }
         Insert: {
-          calculator_type?: string | null
-          category: string
-          created_at?: string
           description?: string | null
-          has_calculator?: boolean | null
-          id?: string
+          id: number
+          irc_citation?: string | null
           name: string
-          phase: number
-          strategy_number: number
+          phase: string
+          phase_name: string
+          typical_savings_high?: number | null
+          typical_savings_low?: number | null
         }
         Update: {
-          calculator_type?: string | null
-          category?: string
-          created_at?: string
           description?: string | null
-          has_calculator?: boolean | null
-          id?: string
+          id?: number
+          irc_citation?: string | null
           name?: string
-          phase?: number
-          strategy_number?: number
+          phase?: string
+          phase_name?: string
+          typical_savings_high?: number | null
+          typical_savings_low?: number | null
         }
         Relationships: []
-      }
-      strategy_tracking: {
-        Row: {
-          created_at: string
-          doc1_complete: boolean | null
-          doc2_complete: boolean | null
-          doc3_complete: boolean | null
-          estimated_savings: number | null
-          id: string
-          meeting_id: string
-          notes: string | null
-          q1_active: boolean | null
-          q2_active: boolean | null
-          q3_active: boolean | null
-          q4_active: boolean | null
-          strategy_number: number
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          doc1_complete?: boolean | null
-          doc2_complete?: boolean | null
-          doc3_complete?: boolean | null
-          estimated_savings?: number | null
-          id?: string
-          meeting_id: string
-          notes?: string | null
-          q1_active?: boolean | null
-          q2_active?: boolean | null
-          q3_active?: boolean | null
-          q4_active?: boolean | null
-          strategy_number: number
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          doc1_complete?: boolean | null
-          doc2_complete?: boolean | null
-          doc3_complete?: boolean | null
-          estimated_savings?: number | null
-          id?: string
-          meeting_id?: string
-          notes?: string | null
-          q1_active?: boolean | null
-          q2_active?: boolean | null
-          q3_active?: boolean | null
-          q4_active?: boolean | null
-          strategy_number?: number
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "strategy_tracking_meeting_id_fkey"
-            columns: ["meeting_id"]
-            isOneToOne: false
-            referencedRelation: "meetings"
-            referencedColumns: ["id"]
-          },
-        ]
       }
     }
     Views: {
