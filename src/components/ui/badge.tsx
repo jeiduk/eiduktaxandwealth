@@ -12,6 +12,16 @@ const badgeVariants = cva(
         secondary: "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
         destructive: "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
         outline: "text-foreground",
+        // Status badges
+        complete: "border-transparent bg-emerald-100 text-emerald-700",
+        inProgress: "border-transparent bg-amber-100 text-amber-700",
+        notStarted: "border-transparent bg-slate-100 text-slate-600",
+        notApplicable: "border-red-500 bg-transparent text-red-600",
+        // Package tier badges
+        premium: "border-transparent bg-amber-500 text-white",
+        tierComplete: "border-transparent bg-blue-600 text-white",
+        foundation: "border-transparent bg-emerald-600 text-white",
+        essentials: "border-transparent bg-slate-500 text-white",
       },
     },
     defaultVariants: {

@@ -116,6 +116,11 @@
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Playfair Display', Georgia, serif;
   }
+
+  /* Tabular figures for stats */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
 }
 
 /* Custom Utilities */
