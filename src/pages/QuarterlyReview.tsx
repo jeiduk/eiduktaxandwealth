@@ -11,6 +11,7 @@ interface Client {
   id: string;
   name: string;
   package_tier: string;
+  tax_rate: number | null;
 }
 
 interface Strategy {
@@ -26,7 +27,7 @@ interface ClientStrategy {
   id: string;
   strategy_id: number;
   status: string;
-  actual_savings: number | null;
+  deduction_amount: number | null;
   updated_at: string;
 }
 
@@ -78,7 +79,7 @@ const QuarterlyReview = () => {
 
       try {
         const [clientRes, strategiesRes, clientStrategiesRes] = await Promise.all([
-          supabase.from("clients").select("id, name, package_tier").eq("id", id).maybeSingle(),
+          supabase.from("clients").select("id, name, package_tier, tax_rate").eq("id", id).maybeSingle(),
           supabase.from("strategies").select("*").order("id"),
           supabase.from("client_strategies").select("*").eq("client_id", id),
         ]);
@@ -111,18 +112,20 @@ const QuarterlyReview = () => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [navigate, id]);
 
-  // Calculate stats
+  // Calculate stats with tax rate
   const stats = useMemo(() => {
     const completed = clientStrategies.filter((cs) => cs.status === "complete").length;
     const total = TIER_STRATEGY_COUNTS[client?.package_tier || "Essentials"];
-    const totalSavings = clientStrategies
+    const totalDeductions = clientStrategies
       .filter((cs) => cs.status === "complete")
-      .reduce((sum, cs) => sum + (cs.actual_savings || 0), 0);
+      .reduce((sum, cs) => sum + (cs.deduction_amount || 0), 0);
+    const taxRate = client?.tax_rate || 0.37;
+    const totalSavings = Math.round(totalDeductions * taxRate);
     const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
     const annualFee = TIER_ANNUAL_FEE[client?.package_tier || "Essentials"];
     const roi = annualFee > 0 ? (totalSavings / annualFee).toFixed(1) : "0";
 
-    return { completed, total, totalSavings, progress, roi };
+    return { completed, total, totalDeductions, totalSavings, progress, roi, taxRate };
   }, [clientStrategies, client]);
 
   // Get phase stats
@@ -306,13 +309,16 @@ const QuarterlyReview = () => {
 
         <div className="bg-white rounded-xl p-5 text-gray-900 print:p-3 print:border">
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 rounded-lg bg-emerald-100">
-              <DollarSign className="h-5 w-5 text-emerald-600" />
+            <div className="p-2 rounded-lg bg-blue-100">
+              <DollarSign className="h-5 w-5 text-blue-600" />
             </div>
-            <span className="text-sm text-gray-500">Est. Tax Savings</span>
+            <span className="text-sm text-gray-500">Total Deductions</span>
           </div>
-          <p className="text-3xl font-bold text-emerald-600">
-            {formatCurrency(stats.totalSavings)}
+          <p className="text-2xl font-bold text-blue-600 tabular-nums">
+            {formatCurrency(stats.totalDeductions)}
+          </p>
+          <p className="text-sm text-emerald-600 font-medium mt-1 tabular-nums">
+            Tax Savings: {formatCurrency(stats.totalSavings)}
           </p>
         </div>
 
@@ -397,7 +403,7 @@ const QuarterlyReview = () => {
                     </div>
                   </div>
                   <span className="text-sm font-semibold text-emerald-400 print:text-emerald-600">
-                    {item.actual_savings ? formatCurrency(item.actual_savings) : "—"}
+                    {item.deduction_amount ? formatCurrency(Math.round(item.deduction_amount * stats.taxRate)) : "—"}
                   </span>
                 </div>
               ))}

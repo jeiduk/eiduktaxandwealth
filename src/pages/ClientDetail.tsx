@@ -27,6 +27,7 @@ interface Client {
   next_review_date: string | null;
   notes: string | null;
   created_at: string;
+  tax_rate: number | null;
 }
 
 interface Strategy {
@@ -45,7 +46,7 @@ interface ClientStrategy {
   client_id: string;
   strategy_id: number;
   status: string;
-  actual_savings: number | null;
+  deduction_amount: number | null;
   notes: string | null;
 }
 
@@ -86,7 +87,7 @@ const ClientDetail = () => {
   const [clientStrategies, setClientStrategies] = useState<ClientStrategy[]>([]);
   const [loading, setLoading] = useState(true);
   const [activePhase, setActivePhase] = useState("1");
-  const [savingsInputs, setSavingsInputs] = useState<Record<number, string>>({});
+  const [deductionInputs, setDeductionInputs] = useState<Record<number, string>>({});
 
   useEffect(() => {
     const fetchData = async () => {
@@ -108,14 +109,14 @@ const ClientDetail = () => {
         setStrategies(strategiesRes.data || []);
         setClientStrategies(clientStrategiesRes.data || []);
 
-        // Initialize savings inputs
+        // Initialize deduction inputs
         const inputs: Record<number, string> = {};
         clientStrategiesRes.data?.forEach((cs) => {
-          if (cs.actual_savings) {
-            inputs[cs.strategy_id] = cs.actual_savings.toString();
+          if (cs.deduction_amount) {
+            inputs[cs.strategy_id] = cs.deduction_amount.toString();
           }
         });
-        setSavingsInputs(inputs);
+        setDeductionInputs(inputs);
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -126,16 +127,18 @@ const ClientDetail = () => {
     fetchData();
   }, [user, id]);
 
-  // Calculate stats
+  // Calculate stats with tax rate
   const stats = useMemo(() => {
     const completed = clientStrategies.filter((cs) => cs.status === "complete").length;
     const total = TIER_STRATEGY_COUNTS[client?.package_tier || "Essentials"];
-    const totalSavings = clientStrategies
+    const totalDeductions = clientStrategies
       .filter((cs) => cs.status === "complete")
-      .reduce((sum, cs) => sum + (cs.actual_savings || 0), 0);
+      .reduce((sum, cs) => sum + (cs.deduction_amount || 0), 0);
+    const taxRate = client?.tax_rate || 0.37;
+    const totalSavings = Math.round(totalDeductions * taxRate);
     const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-    return { completed, total, totalSavings, progress };
+    return { completed, total, totalDeductions, totalSavings, progress, taxRate };
   }, [clientStrategies, client]);
 
   // Get phases available for this client's tier
@@ -146,20 +149,20 @@ const ClientDetail = () => {
 
   // Get phase completion stats
   const phaseStats = useMemo(() => {
-    const stats: Record<string, { completed: number; total: number }> = {};
+    const phaseStatsMap: Record<string, { completed: number; total: number }> = {};
     
     strategies.forEach((s) => {
       const cs = clientStrategies.find((c) => c.strategy_id === s.id);
-      if (!stats[s.phase]) {
-        stats[s.phase] = { completed: 0, total: 0 };
+      if (!phaseStatsMap[s.phase]) {
+        phaseStatsMap[s.phase] = { completed: 0, total: 0 };
       }
-      stats[s.phase].total += 1;
+      phaseStatsMap[s.phase].total += 1;
       if (cs?.status === "complete") {
-        stats[s.phase].completed += 1;
+        phaseStatsMap[s.phase].completed += 1;
       }
     });
 
-    return stats;
+    return phaseStatsMap;
   }, [strategies, clientStrategies]);
 
   // Get strategies for active phase
@@ -212,10 +215,10 @@ const ClientDetail = () => {
     }
   };
 
-  const updateSavings = async (strategyId: number, value: string) => {
+  const updateDeduction = async (strategyId: number, value: string) => {
     if (!id) return;
 
-    const savings = parseInt(value) || 0;
+    const deduction = parseInt(value) || 0;
     const existingCs = getClientStrategy(strategyId);
 
     if (!existingCs) return;
@@ -223,21 +226,21 @@ const ClientDetail = () => {
     try {
       const { error } = await supabase
         .from("client_strategies")
-        .update({ actual_savings: savings })
+        .update({ deduction_amount: deduction })
         .eq("id", existingCs.id);
 
       if (error) throw error;
 
       setClientStrategies((prev) =>
         prev.map((cs) =>
-          cs.id === existingCs.id ? { ...cs, actual_savings: savings } : cs
+          cs.id === existingCs.id ? { ...cs, deduction_amount: deduction } : cs
         )
       );
 
-      toast({ title: "Savings updated" });
+      toast({ title: "Deduction updated" });
     } catch (error) {
-      console.error("Error updating savings:", error);
-      toast({ title: "Error", description: "Failed to update savings", variant: "destructive" });
+      console.error("Error updating deduction:", error);
+      toast({ title: "Error", description: "Failed to update deduction", variant: "destructive" });
     }
   };
 
@@ -274,6 +277,10 @@ const ClientDetail = () => {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amount);
+  };
+
+  const formatPercent = (rate: number) => {
+    return `${Math.round(rate * 100)}%`;
   };
 
   const getInitials = (name: string) => {
@@ -338,6 +345,9 @@ const ClientDetail = () => {
                 <Badge variant="outline" className={getTierColor(client.package_tier)}>
                   {client.package_tier}
                 </Badge>
+                <Badge variant="outline" className="bg-slate-100 text-slate-600">
+                  {formatPercent(stats.taxRate)} Tax Rate
+                </Badge>
               </div>
             </div>
           </div>
@@ -345,15 +355,15 @@ const ClientDetail = () => {
           {/* Right side - Stats */}
           <div className="flex flex-wrap items-center gap-6">
             <div className="text-center">
-              <p className="text-3xl font-bold text-primary">{stats.progress}%</p>
+              <p className="text-3xl font-bold text-primary tabular-nums">{stats.progress}%</p>
               <p className="text-sm text-muted-foreground">Progress</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold">{stats.completed}/{stats.total}</p>
+              <p className="text-2xl font-bold tabular-nums">{stats.completed}/{stats.total}</p>
               <p className="text-sm text-muted-foreground">Strategies</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-emerald-600">{formatCurrency(stats.totalSavings)}</p>
+              <p className="text-2xl font-bold text-emerald-600 tabular-nums">{formatCurrency(stats.totalSavings)}</p>
               <p className="text-sm text-muted-foreground">Est. Savings</p>
             </div>
             <Button 
@@ -413,6 +423,8 @@ const ClientDetail = () => {
               const status = cs?.status || "not_started";
               const statusConfig = getStatusConfig(status);
               const phase = PHASES.find((p) => p.id === strategy.phase);
+              const deduction = cs?.deduction_amount || 0;
+              const taxSavings = Math.round(deduction * stats.taxRate);
 
               return (
                 <Card
@@ -485,23 +497,30 @@ const ClientDetail = () => {
                       </SelectContent>
                     </Select>
 
-                    {/* Savings input (only for complete status) */}
+                    {/* Deduction input (only for complete status) */}
                     {status === "complete" && (
-                      <div className="flex items-center gap-2">
-                        <DollarSign className="h-4 w-4 text-muted-foreground" />
-                        <Input
-                          type="number"
-                          placeholder="Actual savings"
-                          value={savingsInputs[strategy.id] || ""}
-                          onChange={(e) =>
-                            setSavingsInputs((prev) => ({
-                              ...prev,
-                              [strategy.id]: e.target.value,
-                            }))
-                          }
-                          onBlur={(e) => updateSavings(strategy.id, e.target.value)}
-                          className="h-8 text-sm"
-                        />
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <DollarSign className="h-4 w-4 text-muted-foreground" />
+                          <Input
+                            type="number"
+                            placeholder="Deduction Amount"
+                            value={deductionInputs[strategy.id] || ""}
+                            onChange={(e) =>
+                              setDeductionInputs((prev) => ({
+                                ...prev,
+                                [strategy.id]: e.target.value,
+                              }))
+                            }
+                            onBlur={(e) => updateDeduction(strategy.id, e.target.value)}
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        {deduction > 0 && (
+                          <p className="text-sm text-emerald-600 font-medium pl-6">
+                            Tax Savings: {formatCurrency(taxSavings)}
+                          </p>
+                        )}
                       </div>
                     )}
                   </CardContent>
