@@ -1,25 +1,49 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   LayoutDashboard, 
   Users, 
   Settings,
   LogOut,
   Menu,
-  X
+  X,
+  Calendar,
+  Calculator,
+  FileText,
+  BookOpen,
+  ExternalLink
 } from 'lucide-react';
-import { useState } from 'react';
 
 interface DashboardLayoutProps {
   children: ReactNode;
 }
 
-const navItems = [
+interface NavItem {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  showBadge?: boolean;
+  external?: boolean;
+}
+
+const mainNavItems: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/clients', label: 'Clients', icon: Users },
+  { href: '/clients', label: 'Clients', icon: Users, showBadge: true },
+  { href: '/calendar', label: 'Calendar', icon: Calendar },
+];
+
+const toolsNavItems: NavItem[] = [
+  { href: 'https://tools.eiduktaxandwealth.com', label: 'Calculators', icon: Calculator, external: true },
+  { href: '/templates', label: 'Templates', icon: FileText },
+  { href: '/strategies', label: 'Strategy Library', icon: BookOpen },
+];
+
+const settingsNavItems: NavItem[] = [
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
@@ -28,82 +52,163 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [clientCount, setClientCount] = useState(0);
+
+  useEffect(() => {
+    const fetchClientCount = async () => {
+      if (!user) return;
+      const { count } = await supabase
+        .from('clients')
+        .select('*', { count: 'exact', head: true });
+      setClientCount(count || 0);
+    };
+    fetchClientCount();
+  }, [user]);
 
   const handleSignOut = async () => {
     await signOut();
     navigate('/auth');
   };
 
-  return (
-    <div className="min-h-screen bg-background">
-      {/* Desktop Sidebar */}
-      <aside className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
-        <div className="flex flex-col flex-grow gradient-header overflow-y-auto">
-          <div className="flex items-center justify-center h-20 px-4 border-b border-sidebar-border">
-            <Link to="/dashboard" className="text-center">
-              <p className="text-eiduk-gold font-display text-xs tracking-[0.2em] uppercase">
-                Eiduk Tax & Wealth
-              </p>
-              <p className="text-sidebar-foreground font-display text-lg font-semibold mt-1">
-                Advisor Portal
-              </p>
-            </Link>
-          </div>
-          
-          <nav className="flex-1 px-4 py-6 space-y-2">
-            {navItems.map((item) => {
-              const isActive = location.pathname === item.href || 
-                (item.href !== '/dashboard' && location.pathname.startsWith(item.href));
-              return (
-                <Link
-                  key={item.href}
-                  to={item.href}
-                  className={cn(
-                    'flex items-center gap-3 px-4 py-3 rounded-button text-sm font-medium transition-all',
-                    isActive
-                      ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                      : 'text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'
-                  )}
-                >
-                  <item.icon className="h-5 w-5" />
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
+  const isActive = (href: string) => {
+    if (href === '/dashboard') return location.pathname === href;
+    return location.pathname.startsWith(href);
+  };
 
-          <div className="p-4 border-t border-sidebar-border">
-            <div className="flex items-center gap-3 px-4 py-2 mb-4">
-              <div className="w-8 h-8 rounded-full bg-eiduk-gold flex items-center justify-center text-primary font-semibold text-sm">
-                {user?.email?.[0].toUpperCase() || 'A'}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-sidebar-foreground truncate">
-                  {user?.email}
-                </p>
-              </div>
+  const NavItemComponent = ({ item, onClick }: { item: NavItem; onClick?: () => void }) => {
+    const active = isActive(item.href);
+    
+    if (item.external) {
+      return (
+        <a
+          href={item.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={onClick}
+          className={cn(
+            'flex items-center justify-between gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all',
+            'text-white/70 hover:bg-white/10 hover:text-white'
+          )}
+        >
+          <div className="flex items-center gap-3">
+            <item.icon className="h-5 w-5" />
+            {item.label}
+          </div>
+          <ExternalLink className="h-3.5 w-3.5 opacity-50" />
+        </a>
+      );
+    }
+
+    return (
+      <Link
+        to={item.href}
+        onClick={onClick}
+        className={cn(
+          'flex items-center justify-between gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all',
+          active
+            ? 'bg-blue-600 text-white'
+            : 'text-white/70 hover:bg-white/10 hover:text-white'
+        )}
+      >
+        <div className="flex items-center gap-3">
+          <item.icon className="h-5 w-5" />
+          {item.label}
+        </div>
+        {item.showBadge && clientCount > 0 && (
+          <Badge className="bg-amber-500 text-white text-xs px-1.5 py-0.5 h-5 min-w-[20px] flex items-center justify-center">
+            {clientCount}
+          </Badge>
+        )}
+      </Link>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-background flex">
+      {/* Desktop Sidebar */}
+      <aside className="hidden lg:flex lg:flex-col lg:w-[260px] lg:fixed lg:inset-y-0 bg-gradient-to-b from-[#1e3a5f] to-[#152d4a]">
+        {/* Header */}
+        <div className="p-6 border-b border-white/10">
+          <Link to="/dashboard" className="block">
+            <h1 className="font-display text-xl font-semibold text-white">
+              Eiduk Tax & Wealth
+            </h1>
+            <p className="text-amber-400 text-xs mt-1 tracking-wide">
+              Pay Less. Keep More. Build Wealth.
+            </p>
+          </Link>
+        </div>
+        
+        {/* Navigation */}
+        <nav className="flex-1 px-4 py-6 space-y-6 overflow-y-auto">
+          {/* Main Navigation */}
+          <div className="space-y-1">
+            {mainNavItems.map((item) => (
+              <NavItemComponent key={item.href} item={item} />
+            ))}
+          </div>
+
+          {/* Tools Section */}
+          <div>
+            <p className="px-4 text-xs font-medium text-white/40 uppercase tracking-wider mb-2">
+              Tools
+            </p>
+            <div className="space-y-1">
+              {toolsNavItems.map((item) => (
+                <NavItemComponent key={item.href} item={item} />
+              ))}
+            </div>
+          </div>
+
+          {/* Settings Section */}
+          <div>
+            <p className="px-4 text-xs font-medium text-white/40 uppercase tracking-wider mb-2">
+              Settings
+            </p>
+            <div className="space-y-1">
+              {settingsNavItems.map((item) => (
+                <NavItemComponent key={item.href} item={item} />
+              ))}
+            </div>
+          </div>
+        </nav>
+
+        {/* Footer - User Info */}
+        <div className="p-4 border-t border-white/10">
+          <div className="flex items-center gap-3 px-2 py-2">
+            <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center text-white font-semibold text-sm">
+              JE
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-white truncate">
+                John Eiduk
+              </p>
+              <p className="text-xs text-white/50 truncate">
+                CPA, CFP®, MSCTA
+              </p>
             </div>
             <Button 
               variant="ghost" 
-              className="w-full justify-start text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+              size="icon"
+              className="text-white/50 hover:text-white hover:bg-white/10"
               onClick={handleSignOut}
+              title="Sign Out"
             >
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
+              <LogOut className="h-4 w-4" />
             </Button>
           </div>
         </div>
       </aside>
 
       {/* Mobile Header */}
-      <div className="lg:hidden gradient-header">
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-[#1e3a5f] to-[#152d4a]">
         <div className="flex items-center justify-between h-16 px-4">
-          <Link to="/dashboard" className="text-sidebar-foreground font-display font-semibold">
-            Eiduk Advisor Portal
+          <Link to="/dashboard" className="font-display font-semibold text-white">
+            Eiduk Tax & Wealth
           </Link>
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="text-sidebar-foreground p-2"
+            className="text-white p-2"
           >
             {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
@@ -111,40 +216,44 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="border-t border-sidebar-border px-4 py-4 space-y-2">
-            {navItems.map((item) => {
-              const isActive = location.pathname === item.href;
-              return (
-                <Link
-                  key={item.href}
-                  to={item.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={cn(
-                    'flex items-center gap-3 px-4 py-3 rounded-button text-sm font-medium transition-all',
-                    isActive
-                      ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                      : 'text-sidebar-foreground/80'
-                  )}
-                >
-                  <item.icon className="h-5 w-5" />
-                  {item.label}
-                </Link>
-              );
-            })}
-            <Button 
-              variant="ghost" 
-              className="w-full justify-start text-sidebar-foreground/80"
-              onClick={handleSignOut}
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
-            </Button>
+          <div className="absolute top-16 left-0 right-0 bg-gradient-to-b from-[#1e3a5f] to-[#152d4a] border-t border-white/10 px-4 py-4 space-y-4 max-h-[calc(100vh-4rem)] overflow-y-auto">
+            <div className="space-y-1">
+              {mainNavItems.map((item) => (
+                <NavItemComponent key={item.href} item={item} onClick={() => setMobileMenuOpen(false)} />
+              ))}
+            </div>
+            
+            <div className="pt-2 border-t border-white/10">
+              <p className="px-4 text-xs font-medium text-white/40 uppercase tracking-wider mb-2">
+                Tools
+              </p>
+              {toolsNavItems.map((item) => (
+                <NavItemComponent key={item.href} item={item} onClick={() => setMobileMenuOpen(false)} />
+              ))}
+            </div>
+
+            <div className="pt-2 border-t border-white/10">
+              {settingsNavItems.map((item) => (
+                <NavItemComponent key={item.href} item={item} onClick={() => setMobileMenuOpen(false)} />
+              ))}
+            </div>
+
+            <div className="pt-4 border-t border-white/10">
+              <Button 
+                variant="ghost" 
+                className="w-full justify-start text-white/70 hover:text-white hover:bg-white/10"
+                onClick={handleSignOut}
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign Out
+              </Button>
+            </div>
           </div>
         )}
       </div>
 
       {/* Main Content */}
-      <main className="lg:pl-64">
+      <main className="flex-1 lg:ml-[260px] pt-16 lg:pt-0">
         <div className="p-6 lg:p-8">
           {children}
         </div>
