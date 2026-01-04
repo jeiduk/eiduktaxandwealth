@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useBackfillStrategies } from "@/hooks/useBackfillStrategies";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -56,6 +57,9 @@ const Dashboard = () => {
   });
   const [upcomingReviews, setUpcomingReviews] = useState<ClientReview[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Run backfill for existing clients without strategies
+  useBackfillStrategies(user?.id);
 
   useEffect(() => {
     if (user) {
