@@ -356,7 +356,7 @@ const Clients = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Tax Rate</Label>
+                  <Label>Marginal Tax Rate</Label>
                   <Select
                     value={formData.tax_rate}
                     onValueChange={(value) => setFormData({ ...formData, tax_rate: value })}
@@ -365,13 +365,17 @@ const Clients = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="0.24">24%</SelectItem>
-                      <SelectItem value="0.32">32%</SelectItem>
-                      <SelectItem value="0.35">35%</SelectItem>
-                      <SelectItem value="0.37">37%</SelectItem>
+                      <SelectItem value="0.22">22% - Single $44k-$95k / MFJ $89k-$190k</SelectItem>
+                      <SelectItem value="0.24">24% - Single $95k-$201k / MFJ $190k-$384k</SelectItem>
+                      <SelectItem value="0.32">32% - Single $201k-$384k / MFJ $384k-$487k</SelectItem>
+                      <SelectItem value="0.35">35% - Single $384k-$487k / MFJ $487k-$731k</SelectItem>
+                      <SelectItem value="0.37">37% - Single $487k+ / MFJ $731k+</SelectItem>
                       <SelectItem value="custom">Custom</SelectItem>
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Combined federal + state marginal rate on business income
+                  </p>
                   {formData.tax_rate === "custom" && (
                     <Input
                       type="number"

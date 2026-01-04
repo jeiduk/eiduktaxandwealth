@@ -404,7 +404,7 @@ const ClientDetail = () => {
                   {client.package_tier}
                 </Badge>
                 <Badge variant="outline" className="bg-slate-100 text-slate-600">
-                  {formatPercent(stats.taxRate)} Tax Rate
+                  {formatPercent(stats.taxRate)} Marginal Rate
                 </Badge>
               </div>
             </div>
