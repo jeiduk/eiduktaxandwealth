@@ -396,10 +396,9 @@ const ClientDetail = () => {
           </div>
         </div>
 
-        {/* Main Tabs - Strategies vs Onboarding */}
+        {/* Main Tabs - Onboarding vs Strategies */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
-            <TabsTrigger value="strategies">Strategies</TabsTrigger>
             {showOnboarding && (
               <TabsTrigger value="onboarding" className="gap-2">
                 <Rocket className="h-4 w-4" />
@@ -409,6 +408,7 @@ const ClientDetail = () => {
                 </Badge>
               </TabsTrigger>
             )}
+            <TabsTrigger value="strategies">Strategies</TabsTrigger>
           </TabsList>
 
           <TabsContent value="strategies" className="mt-6 space-y-6">
