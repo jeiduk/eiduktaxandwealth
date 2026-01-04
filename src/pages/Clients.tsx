@@ -431,11 +431,11 @@ const Clients = () => {
         {/* Filter Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
-            <TabsTrigger value="All">All</TabsTrigger>
-            <TabsTrigger value="Premium">Premium</TabsTrigger>
-            <TabsTrigger value="Complete">Complete</TabsTrigger>
-            <TabsTrigger value="Foundation">Foundation</TabsTrigger>
-            <TabsTrigger value="Essentials">Essentials</TabsTrigger>
+            <TabsTrigger value="All">All ({clients.length})</TabsTrigger>
+            <TabsTrigger value="Essentials">Essentials ({clients.filter(c => c.package_tier === 'Essentials').length})</TabsTrigger>
+            <TabsTrigger value="Foundation">Foundation ({clients.filter(c => c.package_tier === 'Foundation').length})</TabsTrigger>
+            <TabsTrigger value="Complete">Complete ({clients.filter(c => c.package_tier === 'Complete').length})</TabsTrigger>
+            <TabsTrigger value="Premium">Premium ({clients.filter(c => c.package_tier === 'Premium').length})</TabsTrigger>
           </TabsList>
         </Tabs>
 
