@@ -55,24 +55,24 @@ interface ClientStrategy {
   notes: string | null;
 }
 
-// Phase configuration
+// Phase configuration - phase IDs match database values (P1, P2, etc.)
 const PHASES = [
-  { id: "1", name: "Foundation", color: "#1e40af", strategies: 6 },
-  { id: "2", name: "Core Deductions", color: "#059669", strategies: 7 },
-  { id: "3", name: "Retirement & Benefits", color: "#7c3aed", strategies: 10 },
-  { id: "4", name: "Credits & Multistate", color: "#ea580c", strategies: 7 },
-  { id: "5", name: "Real Estate & PAL", color: "#0891b2", strategies: 8 },
-  { id: "6", name: "Acquisitions & Leverage", color: "#dc2626", strategies: 11 },
-  { id: "7", name: "Exit & Wealth Transfer", color: "#ca8a04", strategies: 10 },
-  { id: "8", name: "Charitable", color: "#9333ea", strategies: 11 },
+  { id: "P1", name: "Foundation", color: "#1e40af", strategies: 6 },
+  { id: "P2", name: "Core Deductions", color: "#059669", strategies: 7 },
+  { id: "P3", name: "Retirement & Benefits", color: "#7c3aed", strategies: 10 },
+  { id: "P4", name: "Credits & Multistate", color: "#ea580c", strategies: 7 },
+  { id: "P5", name: "Real Estate & PAL", color: "#0891b2", strategies: 8 },
+  { id: "P6", name: "Acquisitions & Leverage", color: "#dc2626", strategies: 11 },
+  { id: "P7", name: "Exit & Wealth Transfer", color: "#ca8a04", strategies: 10 },
+  { id: "P8", name: "Charitable", color: "#9333ea", strategies: 11 },
 ];
 
-// Package tier to max phase
+// Package tier to max phase number
 const TIER_MAX_PHASE: Record<string, number> = {
   Essentials: 0,
-  Foundation: 2,
-  Complete: 4,
-  Premium: 7,
+  Foundation: 2,  // P1-P2
+  Complete: 4,    // P1-P4
+  Premium: 7,     // P1-P7
 };
 
 const TIER_STRATEGY_COUNTS: Record<string, number> = {
@@ -92,7 +92,7 @@ const ClientDetail = () => {
   const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [clientStrategies, setClientStrategies] = useState<ClientStrategy[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activePhase, setActivePhase] = useState("1");
+  const [activePhase, setActivePhase] = useState("P1");
   const [deductionInputs, setDeductionInputs] = useState<Record<number, string>>({});
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "overview");
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -175,7 +175,9 @@ const ClientDetail = () => {
   // Get phases available for this client (tier phases + any additional phases with assigned strategies)
   const availablePhases = useMemo(() => {
     const maxPhase = TIER_MAX_PHASE[client?.package_tier || "Essentials"];
-    const tierPhases = PHASES.filter((p) => parseInt(p.id) <= maxPhase);
+    // Extract phase number from "P1", "P2", etc.
+    const getPhaseNum = (phaseId: string) => parseInt(phaseId.replace("P", ""));
+    const tierPhases = PHASES.filter((p) => getPhaseNum(p.id) <= maxPhase);
     
     // Also include phases that have assigned strategies (for manually added ones)
     const phasesWithStrategies = new Set<string>();
@@ -185,7 +187,7 @@ const ClientDetail = () => {
     });
     
     const additionalPhases = PHASES.filter(
-      (p) => phasesWithStrategies.has(p.id) && parseInt(p.id) > maxPhase
+      (p) => phasesWithStrategies.has(p.id) && getPhaseNum(p.id) > maxPhase
     );
     
     return [...tierPhases, ...additionalPhases];
@@ -498,7 +500,7 @@ const ClientDetail = () => {
                         )}
                         style={isActive ? { backgroundColor: phase.color } : undefined}
                       >
-                        <span>P{phase.id}</span>
+                        <span>{phase.id}</span>
                         <span className="hidden sm:inline">{phase.name}</span>
                         <span className={cn(
                           "text-xs px-1.5 py-0.5 rounded",
