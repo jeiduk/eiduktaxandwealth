@@ -117,6 +117,13 @@ const ClientDetail = () => {
         if (strategiesRes.error) throw strategiesRes.error;
         if (clientStrategiesRes.error) throw clientStrategiesRes.error;
 
+        console.log("Fetched data:", {
+          client: clientRes.data?.name,
+          strategiesCount: strategiesRes.data?.length,
+          clientStrategiesCount: clientStrategiesRes.data?.length,
+          clientStrategies: clientStrategiesRes.data,
+        });
+
         setClient(clientRes.data);
         setStrategies(strategiesRes.data || []);
         setClientStrategies(clientStrategiesRes.data || []);
@@ -165,24 +172,40 @@ const ClientDetail = () => {
     return { completed, total, totalDeductions, totalSavings, progress, taxRate };
   }, [clientStrategies, client]);
 
-  // Get phases available for this client's tier
+  // Get phases available for this client (tier phases + any additional phases with assigned strategies)
   const availablePhases = useMemo(() => {
     const maxPhase = TIER_MAX_PHASE[client?.package_tier || "Essentials"];
-    return PHASES.filter((p) => parseInt(p.id) <= maxPhase);
-  }, [client]);
+    const tierPhases = PHASES.filter((p) => parseInt(p.id) <= maxPhase);
+    
+    // Also include phases that have assigned strategies (for manually added ones)
+    const phasesWithStrategies = new Set<string>();
+    clientStrategies.forEach((cs) => {
+      const strategy = strategies.find((s) => s.id === cs.strategy_id);
+      if (strategy) phasesWithStrategies.add(strategy.phase);
+    });
+    
+    const additionalPhases = PHASES.filter(
+      (p) => phasesWithStrategies.has(p.id) && parseInt(p.id) > maxPhase
+    );
+    
+    return [...tierPhases, ...additionalPhases];
+  }, [client, clientStrategies, strategies]);
 
-  // Get phase completion stats
+  // Get phase completion stats (only for assigned strategies)
   const phaseStats = useMemo(() => {
     const phaseStatsMap: Record<string, { completed: number; total: number }> = {};
     
-    strategies.forEach((s) => {
-      const cs = clientStrategies.find((c) => c.strategy_id === s.id);
-      if (!phaseStatsMap[s.phase]) {
-        phaseStatsMap[s.phase] = { completed: 0, total: 0 };
+    // Only count assigned strategies
+    clientStrategies.forEach((cs) => {
+      const strategy = strategies.find((s) => s.id === cs.strategy_id);
+      if (!strategy) return;
+      
+      if (!phaseStatsMap[strategy.phase]) {
+        phaseStatsMap[strategy.phase] = { completed: 0, total: 0 };
       }
-      phaseStatsMap[s.phase].total += 1;
-      if (cs?.status === "complete") {
-        phaseStatsMap[s.phase].completed += 1;
+      phaseStatsMap[strategy.phase].total += 1;
+      if (cs.status === "complete") {
+        phaseStatsMap[strategy.phase].completed += 1;
       }
     });
 
@@ -225,19 +248,9 @@ const ClientDetail = () => {
     }
   };
 
-  const handleStrategyAdded = (strategyId: number) => {
-    // Refetch to get the new record with proper ID
-    supabase
-      .from("client_strategies")
-      .select("*")
-      .eq("client_id", id)
-      .eq("strategy_id", strategyId)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) {
-          setClientStrategies((prev) => [...prev, data]);
-        }
-      });
+  const handleStrategyAdded = (newClientStrategy: ClientStrategy) => {
+    console.log("Adding strategy to state:", newClientStrategy);
+    setClientStrategies((prev) => [...prev, newClientStrategy]);
   };
 
   const updateStatus = async (strategyId: number, newStatus: string) => {
