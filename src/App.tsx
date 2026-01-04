@@ -12,6 +12,7 @@ import ClientNew from "./pages/ClientNew";
 import ClientDetail from "./pages/ClientDetail";
 import QuarterlyReview from "./pages/QuarterlyReview";
 import Settings from "./pages/Settings";
+import Strategies from "./pages/Strategies";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 
@@ -55,6 +56,11 @@ const App = () => (
             <Route path="/settings" element={
               <ProtectedRoute>
                 <Settings />
+              </ProtectedRoute>
+            } />
+            <Route path="/strategies" element={
+              <ProtectedRoute>
+                <Strategies />
               </ProtectedRoute>
             } />
             <Route path="*" element={<NotFound />} />
