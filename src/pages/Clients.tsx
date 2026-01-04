@@ -195,6 +195,29 @@ const Clients = () => {
         }
       }
 
+      // Create client_onboarding records for all onboarding tasks
+      if (newClient) {
+        const { data: onboardingTasks, error: tasksError } = await supabase
+          .from("onboarding_tasks")
+          .select("id");
+
+        if (tasksError) throw tasksError;
+
+        if (onboardingTasks && onboardingTasks.length > 0) {
+          const onboardingRecords = onboardingTasks.map((t) => ({
+            client_id: newClient.id,
+            task_id: t.id,
+            status: "pending",
+          }));
+
+          const { error: onboardingError } = await supabase
+            .from("client_onboarding")
+            .insert(onboardingRecords);
+
+          if (onboardingError) throw onboardingError;
+        }
+      }
+
       toast({
         title: "Client created",
         description: `${formData.name} has been added with ${range ? range.end - range.start + 1 : 0} strategies.`,
