@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Search, Plus, TrendingUp, Users, BookOpen, Check, X } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Search, Plus, TrendingUp, Users, BookOpen, Check, X, ChevronDown, ChevronRight } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -62,6 +63,12 @@ export default function Strategies() {
   const [detailModal, setDetailModal] = useState<{ open: boolean; strategy: Strategy | null }>({ open: false, strategy: null });
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
   const [clientSearch, setClientSearch] = useState('');
+  const [expandedPhases, setExpandedPhases] = useState<Record<string, boolean>>(() => {
+    // Default all phases to expanded
+    const expanded: Record<string, boolean> = {};
+    PHASES.forEach(p => { expanded[p.id] = true; });
+    return expanded;
+  });
 
   // Fetch all strategies
   const { data: strategies = [], isLoading: strategiesLoading } = useQuery({
@@ -421,36 +428,52 @@ export default function Strategies() {
             </CardContent>
           </Card>
         ) : activePhase === 'all' && groupedStrategies ? (
-          // Grouped by phase view
-          <div className="space-y-8">
+          // Grouped by phase view with collapsible sections
+          <div className="space-y-4">
             {PHASES.map(phase => {
               const phaseStrategies = groupedStrategies[phase.id];
               if (!phaseStrategies || phaseStrategies.length === 0) return null;
+              const isExpanded = expandedPhases[phase.id] ?? true;
               
               return (
-                <div key={phase.id}>
-                  <div 
-                    className="py-3 px-5 rounded-lg mb-4 flex items-center justify-between"
-                    style={{ backgroundColor: phase.color }}
-                  >
-                    <span className="text-white font-bold text-lg">
-                      {phase.id}: {phase.name}
-                    </span>
-                    <span className="text-white/90 text-sm">
-                      Strategies #{phase.strategyStart}-{phase.strategyEnd} | {phaseStrategies.length} strategies
-                    </span>
-                  </div>
+                <Collapsible 
+                  key={phase.id}
+                  open={isExpanded}
+                  onOpenChange={(open) => setExpandedPhases(prev => ({ ...prev, [phase.id]: open }))}
+                >
+                  <CollapsibleTrigger asChild>
+                    <button
+                      className="w-full py-3 px-5 rounded-lg flex items-center justify-between cursor-pointer hover:opacity-90 transition-opacity"
+                      style={{ backgroundColor: phase.color }}
+                    >
+                      <div className="flex items-center gap-2">
+                        {isExpanded ? (
+                          <ChevronDown className="h-5 w-5 text-white" />
+                        ) : (
+                          <ChevronRight className="h-5 w-5 text-white" />
+                        )}
+                        <span className="text-white font-bold text-lg">
+                          {phase.id}: {phase.name}
+                        </span>
+                      </div>
+                      <span className="text-white/90 text-sm">
+                        Strategies #{phase.strategyStart}-{phase.strategyEnd} | {phaseStrategies.length} strategies
+                      </span>
+                    </button>
+                  </CollapsibleTrigger>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {phaseStrategies.map(strategy => (
-                      <StrategyCard
-                        key={strategy.id}
-                        strategy={strategy}
-                        onClick={() => setDetailModal({ open: true, strategy })}
-                      />
-                    ))}
-                  </div>
-                </div>
+                  <CollapsibleContent className="pt-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {phaseStrategies.map(strategy => (
+                        <StrategyCard
+                          key={strategy.id}
+                          strategy={strategy}
+                          onClick={() => setDetailModal({ open: true, strategy })}
+                        />
+                      ))}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
               );
             })}
           </div>
