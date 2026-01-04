@@ -18,6 +18,14 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft } from "lucide-react";
 
+// Strategy ID ranges by tier
+const TIER_STRATEGY_RANGES: Record<string, { start: number; end: number } | null> = {
+  Essentials: null,
+  Foundation: { start: 1, end: 13 },
+  Complete: { start: 1, end: 30 },
+  Premium: { start: 1, end: 59 },
+};
+
 const ClientNew = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -30,6 +38,8 @@ const ClientNew = () => {
     income_range: "",
     next_review_date: "",
     notes: "",
+    tax_rate: "0.37",
+    custom_tax_rate: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -38,23 +48,72 @@ const ClientNew = () => {
 
     setLoading(true);
     try {
-      const { error } = await supabase.from("clients").insert({
-        user_id: user.id,
-        name: formData.name,
-        entity_type: formData.entity_type,
-        package_tier: formData.package_tier,
-        income_range: formData.income_range || null,
-        next_review_date: formData.next_review_date || null,
-        notes: formData.notes || null,
-      });
+      const taxRate = formData.tax_rate === "custom" 
+        ? parseFloat(formData.custom_tax_rate) / 100 
+        : parseFloat(formData.tax_rate);
 
-      if (error) throw error;
+      // Insert client
+      const { data: newClient, error: clientError } = await supabase
+        .from("clients")
+        .insert({
+          user_id: user.id,
+          name: formData.name,
+          entity_type: formData.entity_type,
+          package_tier: formData.package_tier,
+          income_range: formData.income_range || null,
+          next_review_date: formData.next_review_date || null,
+          notes: formData.notes || null,
+          tax_rate: taxRate,
+        })
+        .select()
+        .single();
+
+      if (clientError) throw clientError;
+
+      // Create client_strategies based on package tier
+      const range = TIER_STRATEGY_RANGES[formData.package_tier];
+      if (range && newClient) {
+        const { data: strategies, error: strategiesError } = await supabase
+          .from("strategies")
+          .select("id")
+          .gte("id", range.start)
+          .lte("id", range.end);
+
+        if (strategiesError) throw strategiesError;
+
+        if (strategies && strategies.length > 0) {
+          const clientStrategies = strategies.map((s) => ({
+            client_id: newClient.id,
+            strategy_id: s.id,
+            status: "not_started",
+          }));
+
+          await supabase.from("client_strategies").insert(clientStrategies);
+        }
+      }
+
+      // Create client_onboarding records
+      if (newClient) {
+        const { data: onboardingTasks, error: tasksError } = await supabase
+          .from("onboarding_tasks")
+          .select("id");
+
+        if (!tasksError && onboardingTasks && onboardingTasks.length > 0) {
+          const onboardingRecords = onboardingTasks.map((t) => ({
+            client_id: newClient.id,
+            task_id: t.id,
+            status: "pending",
+          }));
+
+          await supabase.from("client_onboarding").insert(onboardingRecords);
+        }
+      }
 
       toast({
         title: "Client created",
-        description: `${formData.name} has been added to your portfolio.`,
+        description: `${formData.name} has been added with ${range ? range.end - range.start + 1 : 0} strategies.`,
       });
-      navigate("/clients");
+      navigate(`/clients/${newClient.id}`);
     } catch (error) {
       console.error("Error creating client:", error);
       toast({
@@ -115,6 +174,7 @@ const ClientNew = () => {
                   <SelectContent>
                     <SelectItem value="S-Corp">S-Corp</SelectItem>
                     <SelectItem value="LLC">LLC</SelectItem>
+                    <SelectItem value="Sole Prop">Sole Prop</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -130,12 +190,43 @@ const ClientNew = () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Essentials">Essentials</SelectItem>
-                    <SelectItem value="Foundation">Foundation</SelectItem>
-                    <SelectItem value="Complete">Complete</SelectItem>
-                    <SelectItem value="Premium">Premium</SelectItem>
+                    <SelectItem value="Essentials">Essentials (0 strategies)</SelectItem>
+                    <SelectItem value="Foundation">Foundation (13 strategies)</SelectItem>
+                    <SelectItem value="Complete">Complete (30 strategies)</SelectItem>
+                    <SelectItem value="Premium">Premium (59 strategies)</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              {/* Tax Rate */}
+              <div className="space-y-2">
+                <Label>Tax Rate</Label>
+                <Select
+                  value={formData.tax_rate}
+                  onValueChange={(value) => setFormData({ ...formData, tax_rate: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0.24">24%</SelectItem>
+                    <SelectItem value="0.32">32%</SelectItem>
+                    <SelectItem value="0.35">35%</SelectItem>
+                    <SelectItem value="0.37">37%</SelectItem>
+                    <SelectItem value="custom">Custom</SelectItem>
+                  </SelectContent>
+                </Select>
+                {formData.tax_rate === "custom" && (
+                  <Input
+                    type="number"
+                    placeholder="Enter rate (0-50)"
+                    min="0"
+                    max="50"
+                    value={formData.custom_tax_rate}
+                    onChange={(e) => setFormData({ ...formData, custom_tax_rate: e.target.value })}
+                    className="mt-2"
+                  />
+                )}
               </div>
 
               {/* Income Range */}
@@ -149,11 +240,10 @@ const ClientNew = () => {
                     <SelectValue placeholder="Select income range" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Under $100k">Under $100k</SelectItem>
-                    <SelectItem value="$100k-$300k">$100k-$300k</SelectItem>
+                    <SelectItem value="$100k-$150k">$100k-$150k</SelectItem>
+                    <SelectItem value="$150k-$300k">$150k-$300k</SelectItem>
                     <SelectItem value="$300k-$600k">$300k-$600k</SelectItem>
-                    <SelectItem value="$600k-$1M">$600k-$1M</SelectItem>
-                    <SelectItem value="Over $1M">Over $1M</SelectItem>
+                    <SelectItem value="$600k-$1M+">$600k-$1M+</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -194,7 +284,7 @@ const ClientNew = () => {
                 <Button
                   type="submit"
                   disabled={loading || !formData.name}
-                  className="flex-1 bg-eiduk-blue hover:bg-eiduk-light-blue"
+                  className="flex-1 bg-primary hover:bg-primary/90"
                 >
                   {loading ? "Creating..." : "Create Client"}
                 </Button>

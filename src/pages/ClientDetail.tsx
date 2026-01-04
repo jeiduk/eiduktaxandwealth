@@ -19,6 +19,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { OnboardingTab } from "@/components/client/OnboardingTab";
+import { OverviewTab } from "@/components/client/OverviewTab";
 import { differenceInDays } from "date-fns";
 
 interface Client {
@@ -92,7 +93,7 @@ const ClientDetail = () => {
   const [loading, setLoading] = useState(true);
   const [activePhase, setActivePhase] = useState("1");
   const [deductionInputs, setDeductionInputs] = useState<Record<number, string>>({});
-  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "strategies");
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "overview");
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingComplete, setOnboardingComplete] = useState(0);
   const [onboardingTotal, setOnboardingTotal] = useState(0);
@@ -396,9 +397,10 @@ const ClientDetail = () => {
           </div>
         </div>
 
-        {/* Main Tabs - Onboarding vs Strategies */}
+        {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
             {showOnboarding && (
               <TabsTrigger value="onboarding" className="gap-2">
                 <Rocket className="h-4 w-4" />
@@ -410,6 +412,14 @@ const ClientDetail = () => {
             )}
             <TabsTrigger value="strategies">Strategies</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="overview" className="mt-6">
+            <OverviewTab 
+              client={client} 
+              stats={stats} 
+              onClientUpdate={(updates) => setClient(prev => prev ? { ...prev, ...updates } : null)}
+            />
+          </TabsContent>
 
           <TabsContent value="strategies" className="mt-6 space-y-6">
             {/* Phase Tabs */}
