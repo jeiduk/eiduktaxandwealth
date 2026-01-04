@@ -41,14 +41,14 @@ interface AddStrategyModalProps {
 }
 
 const PHASES = [
-  { id: "1", name: "Foundation", color: "#1e40af" },
-  { id: "2", name: "Core Deductions", color: "#059669" },
-  { id: "3", name: "Retirement & Benefits", color: "#7c3aed" },
-  { id: "4", name: "Credits & Multistate", color: "#ea580c" },
-  { id: "5", name: "Real Estate & PAL", color: "#0891b2" },
-  { id: "6", name: "Acquisitions & Leverage", color: "#dc2626" },
-  { id: "7", name: "Exit & Wealth Transfer", color: "#ca8a04" },
-  { id: "8", name: "Charitable", color: "#9333ea" },
+  { id: "P1", name: "Foundation", color: "#1e40af" },
+  { id: "P2", name: "Core Deductions", color: "#059669" },
+  { id: "P3", name: "Retirement & Benefits", color: "#7c3aed" },
+  { id: "P4", name: "Credits & Multistate", color: "#ea580c" },
+  { id: "P5", name: "Real Estate & PAL", color: "#0891b2" },
+  { id: "P6", name: "Acquisitions & Leverage", color: "#dc2626" },
+  { id: "P7", name: "Exit & Wealth Transfer", color: "#ca8a04" },
+  { id: "P8", name: "Charitable", color: "#9333ea" },
 ];
 
 const TIER_MAX_STRATEGY: Record<string, number> = {
@@ -131,7 +131,12 @@ export const AddStrategyModal = ({
     grouped: Record<string, Strategy[]>,
     label?: string
   ) => {
-    const phaseIds = Object.keys(grouped).sort((a, b) => parseInt(a) - parseInt(b));
+    // Sort by phase number (extract number from "P1", "P2", etc.)
+    const phaseIds = Object.keys(grouped).sort((a, b) => {
+      const numA = parseInt(a.replace("P", ""));
+      const numB = parseInt(b.replace("P", ""));
+      return numA - numB;
+    });
     if (phaseIds.length === 0) return null;
 
     return (
@@ -151,7 +156,7 @@ export const AddStrategyModal = ({
                   style={{ backgroundColor: phase?.color }}
                 />
                 <span className="text-sm font-medium">
-                  P{phaseId}: {phase?.name}
+                  {phaseId}: {phase?.name}
                 </span>
                 <Badge variant="secondary" className="text-xs">
                   {strategies.length} available
