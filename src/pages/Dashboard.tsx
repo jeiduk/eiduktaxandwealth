@@ -39,13 +39,6 @@ interface ClientReview {
   isOverdue: boolean;
 }
 
-// Strategy counts per tier
-const TIER_STRATEGY_COUNTS: Record<string, number> = {
-  Essentials: 0,
-  Foundation: 13,
-  Complete: 30,
-  Premium: 59,
-};
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -81,13 +74,15 @@ const Dashboard = () => {
 
       if (clientsError) throw clientsError;
 
-      // Fetch all completed strategies with deduction amounts
-      const { data: completedStrategies, error: strategiesError } = await supabase
+      // Fetch all client strategies (to get total assigned count)
+      const { data: allClientStrategies, error: strategiesError } = await supabase
         .from("client_strategies")
-        .select("client_id, deduction_amount, status")
-        .eq("status", "complete");
+        .select("client_id, deduction_amount, status");
 
       if (strategiesError) throw strategiesError;
+
+      // Filter to completed strategies for savings calculation
+      const completedStrategies = allClientStrategies?.filter(s => s.status === "complete") || [];
 
       // Calculate stats - tax savings = sum of (deductions × client tax rate)
       const activeClients = clients?.length || 0;
@@ -125,13 +120,17 @@ const Dashboard = () => {
           return reviewDate <= thirtyDaysFromNow;
         })
         .map(c => {
-          const clientStrategies = completedStrategies?.filter(
+          // Get all strategies for this client (for total count)
+          const allClientStrategiesForClient = allClientStrategies?.filter(
             s => s.client_id === c.id
           ) || [];
+          const completedClientStrategies = allClientStrategiesForClient.filter(
+            s => s.status === "complete"
+          );
           
           const reviewDate = new Date(c.next_review_date);
           const isOverdue = reviewDate < today;
-          const totalDeductions = clientStrategies.reduce(
+          const totalDeductions = completedClientStrategies.reduce(
             (sum, s) => sum + (s.deduction_amount || 0), 
             0
           );
@@ -142,8 +141,8 @@ const Dashboard = () => {
             name: c.name,
             package_tier: c.package_tier,
             next_review_date: c.next_review_date,
-            completedStrategies: clientStrategies.length,
-            totalStrategies: TIER_STRATEGY_COUNTS[c.package_tier] || 0,
+            completedStrategies: completedClientStrategies.length,
+            totalStrategies: allClientStrategiesForClient.length, // Use actual assigned count
             totalSavings: Math.round(totalDeductions * taxRate),
             isOverdue,
           };

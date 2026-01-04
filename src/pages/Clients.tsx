@@ -49,13 +49,7 @@ interface ClientWithStats {
   total_savings: number;
 }
 
-// Strategy counts by tier (matching the reference data)
-const TIER_STRATEGY_COUNTS: Record<string, number> = {
-  Essentials: 0,
-  Foundation: 13,
-  Complete: 30,
-  Premium: 59,
-};
+// Strategy ID ranges by tier (for auto-assignment on new clients)
 
 // Strategy ID ranges by tier
 const TIER_STRATEGY_RANGES: Record<string, { start: number; end: number } | null> = {
@@ -118,12 +112,11 @@ const Clients = () => {
 
       const enrichedClients: ClientWithStats[] = (clientsData || []).map((client) => {
         const clientStats = deductionsMap.get(client.id) || { completed: 0, total: 0, deductions: 0 };
-        const expectedTotal = TIER_STRATEGY_COUNTS[client.package_tier] || 0;
         const taxRate = client.tax_rate || 0.37;
         return {
           ...client,
           completed_strategies: clientStats.completed,
-          total_strategies: expectedTotal,
+          total_strategies: clientStats.total, // Use actual assigned count, not tier-based
           total_savings: Math.round(clientStats.deductions * taxRate),
         };
       });

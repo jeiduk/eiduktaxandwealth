@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Check, Clock, Circle, X, DollarSign, Rocket, Plus, Trash2 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { ArrowLeft, Check, Clock, Circle, X, DollarSign, Rocket, Plus, Trash2, Target } from "lucide-react";
 import { AddStrategyModal } from "@/components/client/AddStrategyModal";
 import {
   Select,
@@ -66,21 +67,6 @@ const PHASES = [
   { id: "P7", name: "Exit & Wealth Transfer", color: "#ca8a04", strategies: 10 },
   { id: "P8", name: "Charitable", color: "#9333ea", strategies: 11 },
 ];
-
-// Package tier to max phase number
-const TIER_MAX_PHASE: Record<string, number> = {
-  Essentials: 0,
-  Foundation: 2,  // P1-P2
-  Complete: 4,    // P1-P4
-  Premium: 7,     // P1-P7
-};
-
-const TIER_STRATEGY_COUNTS: Record<string, number> = {
-  Essentials: 0,
-  Foundation: 13,
-  Complete: 30,
-  Premium: 59,
-};
 
 const ClientDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -158,10 +144,10 @@ const ClientDetail = () => {
     fetchData();
   }, [user, id]);
 
-  // Calculate stats with tax rate
+  // Calculate stats with tax rate - use actual assigned strategies count
   const stats = useMemo(() => {
     const completed = clientStrategies.filter((cs) => cs.status === "complete").length;
-    const total = TIER_STRATEGY_COUNTS[client?.package_tier || "Essentials"];
+    const total = clientStrategies.length; // Dynamic count based on actual assigned
     const totalDeductions = clientStrategies
       .filter((cs) => cs.status === "complete")
       .reduce((sum, cs) => sum + (cs.deduction_amount || 0), 0);
@@ -172,26 +158,17 @@ const ClientDetail = () => {
     return { completed, total, totalDeductions, totalSavings, progress, taxRate };
   }, [clientStrategies, client]);
 
-  // Get phases available for this client (tier phases + any additional phases with assigned strategies)
+  // Get phases that have assigned strategies - only show phases with at least 1 strategy
   const availablePhases = useMemo(() => {
-    const maxPhase = TIER_MAX_PHASE[client?.package_tier || "Essentials"];
-    // Extract phase number from "P1", "P2", etc.
-    const getPhaseNum = (phaseId: string) => parseInt(phaseId.replace("P", ""));
-    const tierPhases = PHASES.filter((p) => getPhaseNum(p.id) <= maxPhase);
-    
-    // Also include phases that have assigned strategies (for manually added ones)
     const phasesWithStrategies = new Set<string>();
     clientStrategies.forEach((cs) => {
       const strategy = strategies.find((s) => s.id === cs.strategy_id);
       if (strategy) phasesWithStrategies.add(strategy.phase);
     });
     
-    const additionalPhases = PHASES.filter(
-      (p) => phasesWithStrategies.has(p.id) && getPhaseNum(p.id) > maxPhase
-    );
-    
-    return [...tierPhases, ...additionalPhases];
-  }, [client, clientStrategies, strategies]);
+    // Only return phases that have assigned strategies
+    return PHASES.filter((p) => phasesWithStrategies.has(p.id));
+  }, [clientStrategies, strategies]);
 
   // Get phase completion stats (only for assigned strategies)
   const phaseStats = useMemo(() => {
@@ -481,60 +458,91 @@ const ClientDetail = () => {
           </TabsContent>
 
           <TabsContent value="strategies" className="mt-6 space-y-6">
-            {/* Phase Tabs */}
-            {availablePhases.length > 0 && (
-              <div className="overflow-x-auto pb-2">
-                <div className="flex gap-2 min-w-max">
-                  {availablePhases.map((phase) => {
-                    const pStats = phaseStats[phase.id] || { completed: 0, total: 0 };
-                    const isActive = activePhase === phase.id;
-                    return (
-                      <button
-                        key={phase.id}
-                        onClick={() => setActivePhase(phase.id)}
-                        className={cn(
-                          "px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 whitespace-nowrap",
-                          isActive
-                            ? "text-white shadow-md"
-                            : "bg-muted hover:bg-muted/80 text-foreground"
-                        )}
-                        style={isActive ? { backgroundColor: phase.color } : undefined}
-                      >
-                        <span>{phase.id}</span>
-                        <span className="hidden sm:inline">{phase.name}</span>
-                        <span className={cn(
-                          "text-xs px-1.5 py-0.5 rounded",
-                          isActive ? "bg-white/20" : "bg-background"
-                        )}>
-                          {pStats.completed}/{pStats.total}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Add Strategy Button */}
-            <div className="flex justify-end">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setAddStrategyOpen(true)}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Strategy
-              </Button>
-            </div>
-
-            {/* Strategy Cards Grid */}
-            {phaseStrategies.length === 0 ? (
+            {/* Empty state when no strategies assigned */}
+            {clientStrategies.length === 0 ? (
               <Card>
                 <CardContent className="py-12 text-center">
-                  <p className="text-muted-foreground">No strategies assigned in this phase</p>
+                  <Target className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-semibold mb-2">No strategies assigned</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Add strategies to start tracking tax savings for this client.
+                  </p>
+                  <Button onClick={() => setAddStrategyOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Strategy
+                  </Button>
                 </CardContent>
               </Card>
             ) : (
+              <>
+                {/* Progress Header */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Strategy Progress</p>
+                      <p className="text-xl font-bold">
+                        {stats.completed} of {stats.total} strategies complete
+                      </p>
+                    </div>
+                    <div className="w-32">
+                      <Progress value={stats.progress} className="h-2" />
+                    </div>
+                    <span className="text-sm font-medium text-muted-foreground">
+                      {stats.progress}%
+                    </span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setAddStrategyOpen(true)}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Strategy
+                  </Button>
+                </div>
+
+                {/* Phase Tabs */}
+                {availablePhases.length > 0 && (
+                  <div className="overflow-x-auto pb-2">
+                    <div className="flex gap-2 min-w-max">
+                      {availablePhases.map((phase) => {
+                        const pStats = phaseStats[phase.id] || { completed: 0, total: 0 };
+                        const isActive = activePhase === phase.id;
+                        return (
+                          <button
+                            key={phase.id}
+                            onClick={() => setActivePhase(phase.id)}
+                            className={cn(
+                              "px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 whitespace-nowrap",
+                              isActive
+                                ? "text-white shadow-md"
+                                : "bg-muted hover:bg-muted/80 text-foreground"
+                            )}
+                            style={isActive ? { backgroundColor: phase.color } : undefined}
+                          >
+                            <span>{phase.id}</span>
+                            <span className="hidden sm:inline">{phase.name}</span>
+                            <span className={cn(
+                              "text-xs px-1.5 py-0.5 rounded",
+                              isActive ? "bg-white/20" : "bg-background"
+                            )}>
+                              {pStats.total}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Strategy Cards Grid */}
+                {phaseStrategies.length === 0 ? (
+                  <Card>
+                    <CardContent className="py-12 text-center">
+                      <p className="text-muted-foreground">No strategies assigned in this phase</p>
+                    </CardContent>
+                  </Card>
+                ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {phaseStrategies.map((strategy) => {
               const cs = getClientStrategy(strategy.id);
@@ -654,7 +662,9 @@ const ClientDetail = () => {
               );
             })}
             </div>
-          )}
+                )}
+              </>
+            )}
           </TabsContent>
 
           {showOnboarding && (
