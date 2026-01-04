@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Building2, Eye } from "lucide-react";
+import { Plus, Search, Building2, Eye, Mail } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
@@ -510,12 +510,25 @@ const Clients = () => {
                           : "—"}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Link to={`/clients/${client.id}`}>
-                          <Button variant="ghost" size="sm">
-                            <Eye className="h-4 w-4 mr-1" />
-                            View
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              const url = `https://tools.eiduktaxandwealth.com/welcome-packet.html?client=${encodeURIComponent(client.name)}`;
+                              window.open(url, "_blank");
+                            }}
+                          >
+                            <Mail className="h-4 w-4 mr-1" />
+                            Welcome
                           </Button>
-                        </Link>
+                          <Link to={`/clients/${client.id}`}>
+                            <Button variant="ghost" size="sm">
+                              <Eye className="h-4 w-4 mr-1" />
+                              View
+                            </Button>
+                          </Link>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );

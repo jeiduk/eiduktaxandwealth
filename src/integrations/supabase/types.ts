@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      client_onboarding: {
+        Row: {
+          client_id: string
+          completed_date: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          status: string
+          task_id: number
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          completed_date?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          status?: string
+          task_id: number
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          completed_date?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          status?: string
+          task_id?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_onboarding_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_onboarding_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "onboarding_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_strategies: {
         Row: {
           client_id: string
@@ -98,6 +146,39 @@ export type Database = {
           package_tier?: string
           tax_rate?: number | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      onboarding_tasks: {
+        Row: {
+          default_deadline_days: number
+          description: string | null
+          id: number
+          owner: string
+          phase: string
+          sort_order: number
+          strategy_ref: string | null
+          task_name: string
+        }
+        Insert: {
+          default_deadline_days?: number
+          description?: string | null
+          id?: number
+          owner?: string
+          phase: string
+          sort_order?: number
+          strategy_ref?: string | null
+          task_name: string
+        }
+        Update: {
+          default_deadline_days?: number
+          description?: string | null
+          id?: number
+          owner?: string
+          phase?: string
+          sort_order?: number
+          strategy_ref?: string | null
+          task_name?: string
         }
         Relationships: []
       }

@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { OnboardingProgressCard } from "@/components/dashboard/OnboardingProgressCard";
 import { 
   Users, 
   TrendingUp, 
@@ -272,6 +273,9 @@ const Dashboard = () => {
             </Link>
           </Button>
         </div>
+
+        {/* Onboarding Progress Card */}
+        <OnboardingProgressCard />
 
         {/* Upcoming Reviews */}
         <Card>
