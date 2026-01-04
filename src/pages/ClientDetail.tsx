@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -7,7 +7,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Check, Clock, Circle, X, DollarSign } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ArrowLeft, Check, Clock, Circle, X, DollarSign, Rocket } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -17,6 +18,8 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { OnboardingTab } from "@/components/client/OnboardingTab";
+import { differenceInDays } from "date-fns";
 
 interface Client {
   id: string;
@@ -79,6 +82,7 @@ const TIER_STRATEGY_COUNTS: Record<string, number> = {
 
 const ClientDetail = () => {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -88,17 +92,22 @@ const ClientDetail = () => {
   const [loading, setLoading] = useState(true);
   const [activePhase, setActivePhase] = useState("1");
   const [deductionInputs, setDeductionInputs] = useState<Record<number, string>>({});
-
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "strategies");
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingComplete, setOnboardingComplete] = useState(0);
+  const [onboardingTotal, setOnboardingTotal] = useState(0);
   useEffect(() => {
     const fetchData = async () => {
       if (!user || !id) return;
 
       try {
-        // Fetch client, strategies, and client_strategies in parallel
-        const [clientRes, strategiesRes, clientStrategiesRes] = await Promise.all([
+        // Fetch client, strategies, client_strategies, and onboarding data in parallel
+        const [clientRes, strategiesRes, clientStrategiesRes, onboardingTasksRes, clientOnboardingRes] = await Promise.all([
           supabase.from("clients").select("*").eq("id", id).maybeSingle(),
           supabase.from("strategies").select("*").order("id"),
           supabase.from("client_strategies").select("*").eq("client_id", id),
+          supabase.from("onboarding_tasks").select("*", { count: "exact", head: true }),
+          supabase.from("client_onboarding").select("*").eq("client_id", id),
         ]);
 
         if (clientRes.error) throw clientRes.error;
@@ -108,6 +117,18 @@ const ClientDetail = () => {
         setClient(clientRes.data);
         setStrategies(strategiesRes.data || []);
         setClientStrategies(clientStrategiesRes.data || []);
+
+        // Check if onboarding should be shown
+        if (clientRes.data) {
+          const daysSinceCreation = differenceInDays(new Date(), new Date(clientRes.data.created_at));
+          const totalTasks = onboardingTasksRes.count || 0;
+          const completedTasks = clientOnboardingRes.data?.filter((o) => o.status === "complete").length || 0;
+          const hasIncomplete = completedTasks < totalTasks;
+          
+          setOnboardingTotal(totalTasks);
+          setOnboardingComplete(completedTasks);
+          setShowOnboarding(daysSinceCreation <= 90 || hasIncomplete);
+        }
 
         // Initialize deduction inputs
         const inputs: Record<number, string> = {};
@@ -375,49 +396,65 @@ const ClientDetail = () => {
           </div>
         </div>
 
-        {/* Phase Tabs */}
-        {availablePhases.length > 0 && (
-          <div className="overflow-x-auto pb-2">
-            <div className="flex gap-2 min-w-max">
-              {availablePhases.map((phase) => {
-                const pStats = phaseStats[phase.id] || { completed: 0, total: 0 };
-                const isActive = activePhase === phase.id;
-                return (
-                  <button
-                    key={phase.id}
-                    onClick={() => setActivePhase(phase.id)}
-                    className={cn(
-                      "px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 whitespace-nowrap",
-                      isActive
-                        ? "text-white shadow-md"
-                        : "bg-muted hover:bg-muted/80 text-foreground"
-                    )}
-                    style={isActive ? { backgroundColor: phase.color } : undefined}
-                  >
-                    <span>P{phase.id}</span>
-                    <span className="hidden sm:inline">{phase.name}</span>
-                    <span className={cn(
-                      "text-xs px-1.5 py-0.5 rounded",
-                      isActive ? "bg-white/20" : "bg-background"
-                    )}>
-                      {pStats.completed}/{pStats.total}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
+        {/* Main Tabs - Strategies vs Onboarding */}
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList>
+            <TabsTrigger value="strategies">Strategies</TabsTrigger>
+            {showOnboarding && (
+              <TabsTrigger value="onboarding" className="gap-2">
+                <Rocket className="h-4 w-4" />
+                Onboarding
+                <Badge variant="secondary" className="ml-1">
+                  {onboardingComplete}/{onboardingTotal}
+                </Badge>
+              </TabsTrigger>
+            )}
+          </TabsList>
 
-        {/* Strategy Cards Grid */}
-        {phaseStrategies.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <p className="text-muted-foreground">No strategies in this phase</p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <TabsContent value="strategies" className="mt-6 space-y-6">
+            {/* Phase Tabs */}
+            {availablePhases.length > 0 && (
+              <div className="overflow-x-auto pb-2">
+                <div className="flex gap-2 min-w-max">
+                  {availablePhases.map((phase) => {
+                    const pStats = phaseStats[phase.id] || { completed: 0, total: 0 };
+                    const isActive = activePhase === phase.id;
+                    return (
+                      <button
+                        key={phase.id}
+                        onClick={() => setActivePhase(phase.id)}
+                        className={cn(
+                          "px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 whitespace-nowrap",
+                          isActive
+                            ? "text-white shadow-md"
+                            : "bg-muted hover:bg-muted/80 text-foreground"
+                        )}
+                        style={isActive ? { backgroundColor: phase.color } : undefined}
+                      >
+                        <span>P{phase.id}</span>
+                        <span className="hidden sm:inline">{phase.name}</span>
+                        <span className={cn(
+                          "text-xs px-1.5 py-0.5 rounded",
+                          isActive ? "bg-white/20" : "bg-background"
+                        )}>
+                          {pStats.completed}/{pStats.total}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Strategy Cards Grid */}
+            {phaseStrategies.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <p className="text-muted-foreground">No strategies in this phase</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {phaseStrategies.map((strategy) => {
               const cs = getClientStrategy(strategy.id);
               const status = cs?.status || "not_started";
@@ -527,8 +564,16 @@ const ClientDetail = () => {
                 </Card>
               );
             })}
-          </div>
-        )}
+            </div>
+          )}
+          </TabsContent>
+
+          {showOnboarding && (
+            <TabsContent value="onboarding" className="mt-6">
+              <OnboardingTab clientId={id!} clientCreatedAt={client.created_at} />
+            </TabsContent>
+          )}
+        </Tabs>
       </div>
     </DashboardLayout>
   );
