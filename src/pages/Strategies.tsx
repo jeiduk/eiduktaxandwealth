@@ -13,19 +13,18 @@ import { cn } from '@/lib/utils';
 
 // Phase configuration with colors, descriptions, and strategy ranges
 const PHASES = [
-  { id: '1', name: 'Foundation', shortName: 'Foundation', color: '#1E40AF', description: 'S-Corp Optimization & Core Setup', strategyStart: 1, strategyEnd: 6 },
-  { id: '2', name: 'Core Deductions', shortName: 'Core', color: '#059669', description: 'Depreciation, Deductions & QBI', strategyStart: 7, strategyEnd: 13 },
-  { id: '3', name: 'Retirement & Benefits', shortName: 'Retirement', color: '#7C3AED', description: 'Tax-Advantaged Wealth Building', strategyStart: 14, strategyEnd: 23 },
-  { id: '4', name: 'Credits & Multistate', shortName: 'Credits', color: '#EA580C', description: 'Tax Credits & State Optimization', strategyStart: 24, strategyEnd: 30 },
-  { id: '5', name: 'Real Estate & PAL', shortName: 'Real Estate', color: '#0891B2', description: 'Real Estate Tax Strategies', strategyStart: 31, strategyEnd: 38 },
-  { id: '6', name: 'Acquisitions & Leverage', shortName: 'Acquisitions', color: '#DC2626', description: 'Advanced Asset & Investment Strategies', strategyStart: 39, strategyEnd: 49 },
-  { id: '7', name: 'Exit & Wealth Transfer', shortName: 'Exit', color: '#CA8A04', description: 'Business Exit & Legacy Planning', strategyStart: 50, strategyEnd: 59 },
-  { id: '8', name: 'Charitable & Philanthropic', shortName: 'Charitable', color: '#9333EA', description: 'Charitable Planning & Giving', strategyStart: 60, strategyEnd: 70 },
+  { id: 'P1', name: 'Foundation', shortName: 'Foundation', color: '#1E40AF', description: 'S-Corp Optimization & Core Setup', strategyStart: 1, strategyEnd: 6 },
+  { id: 'P2', name: 'Core Deductions', shortName: 'Core', color: '#059669', description: 'Depreciation, Deductions & QBI', strategyStart: 7, strategyEnd: 13 },
+  { id: 'P3', name: 'Retirement & Benefits', shortName: 'Retirement', color: '#7C3AED', description: 'Tax-Advantaged Wealth Building', strategyStart: 14, strategyEnd: 23 },
+  { id: 'P4', name: 'Credits & Multistate', shortName: 'Credits', color: '#EA580C', description: 'Tax Credits & State Optimization', strategyStart: 24, strategyEnd: 30 },
+  { id: 'P5', name: 'Real Estate & PAL', shortName: 'Real Estate', color: '#0891B2', description: 'Real Estate Tax Strategies', strategyStart: 31, strategyEnd: 38 },
+  { id: 'P6', name: 'Acquisitions & Leverage', shortName: 'Acquisitions', color: '#DC2626', description: 'Advanced Asset & Investment Strategies', strategyStart: 39, strategyEnd: 49 },
+  { id: 'P7', name: 'Exit & Wealth Transfer', shortName: 'Exit', color: '#CA8A04', description: 'Business Exit & Legacy Planning', strategyStart: 50, strategyEnd: 59 },
+  { id: 'P8', name: 'Charitable & Philanthropic', shortName: 'Charitable', color: '#9333EA', description: 'Charitable Planning & Giving', strategyStart: 60, strategyEnd: 70 },
 ];
 
 const getPhaseConfig = (phase: string) => {
-  const phaseNum = phase.replace('P', '');
-  return PHASES.find(p => p.id === phaseNum);
+  return PHASES.find(p => p.id === phase);
 };
 
 const getPhaseColor = (phase: string) => {
@@ -392,7 +391,7 @@ export default function Strategies() {
                 onClick={() => setActivePhase(phase.id)}
                 style={isActive ? { backgroundColor: phase.color, borderColor: phase.color } : {}}
               >
-                P{phase.id}: {phase.shortName} ({count})
+                {phase.id}: {phase.shortName} ({count})
               </Button>
             );
           })}
@@ -403,7 +402,7 @@ export default function Strategies() {
           <Card className="border-l-4" style={{ borderLeftColor: getPhaseColor(activePhase) }}>
             <CardContent className="p-4">
               <h2 className="font-semibold text-lg">
-                P{activePhase}: {getPhaseConfig(activePhase)?.name}
+                {activePhase}: {getPhaseConfig(activePhase)?.name}
               </h2>
               <p className="text-muted-foreground">
                 {getPhaseConfig(activePhase)?.description} (Strategies #{getPhaseConfig(activePhase)?.strategyStart}-{getPhaseConfig(activePhase)?.strategyEnd})
@@ -435,7 +434,7 @@ export default function Strategies() {
                     style={{ backgroundColor: phase.color }}
                   >
                     <span className="text-white font-bold text-lg">
-                      P{phase.id}: {phase.name}
+                      {phase.id}: {phase.name}
                     </span>
                     <span className="text-white/90 text-sm">
                       Strategies #{phase.strategyStart}-{phase.strategyEnd} | {phaseStrategies.length} strategies
