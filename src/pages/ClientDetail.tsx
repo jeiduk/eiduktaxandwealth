@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Check, Clock, Circle, X, DollarSign, Rocket } from "lucide-react";
+import { ArrowLeft, Check, Clock, Circle, X, DollarSign, Rocket, Plus, Trash2 } from "lucide-react";
+import { AddStrategyModal } from "@/components/client/AddStrategyModal";
 import {
   Select,
   SelectContent,
@@ -97,6 +98,7 @@ const ClientDetail = () => {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingComplete, setOnboardingComplete] = useState(0);
   const [onboardingTotal, setOnboardingTotal] = useState(0);
+  const [addStrategyOpen, setAddStrategyOpen] = useState(false);
   useEffect(() => {
     const fetchData = async () => {
       if (!user || !id) return;
@@ -187,13 +189,55 @@ const ClientDetail = () => {
     return phaseStatsMap;
   }, [strategies, clientStrategies]);
 
-  // Get strategies for active phase
+  // Get strategies for active phase (only assigned ones)
   const phaseStrategies = useMemo(() => {
-    return strategies.filter((s) => s.phase === activePhase);
-  }, [strategies, activePhase]);
+    const assignedIds = clientStrategies.map((cs) => cs.strategy_id);
+    return strategies.filter(
+      (s) => s.phase === activePhase && assignedIds.includes(s.id)
+    );
+  }, [strategies, activePhase, clientStrategies]);
 
   const getClientStrategy = (strategyId: number) => {
     return clientStrategies.find((cs) => cs.strategy_id === strategyId);
+  };
+
+  const removeStrategy = async (strategyId: number) => {
+    const cs = getClientStrategy(strategyId);
+    if (!cs) return;
+
+    try {
+      const { error } = await supabase
+        .from("client_strategies")
+        .delete()
+        .eq("id", cs.id);
+
+      if (error) throw error;
+
+      setClientStrategies((prev) => prev.filter((c) => c.id !== cs.id));
+      toast({ title: "Strategy removed" });
+    } catch (error) {
+      console.error("Error removing strategy:", error);
+      toast({
+        title: "Error",
+        description: "Failed to remove strategy",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleStrategyAdded = (strategyId: number) => {
+    // Refetch to get the new record with proper ID
+    supabase
+      .from("client_strategies")
+      .select("*")
+      .eq("client_id", id)
+      .eq("strategy_id", strategyId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          setClientStrategies((prev) => [...prev, data]);
+        }
+      });
   };
 
   const updateStatus = async (strategyId: number, newStatus: string) => {
@@ -456,11 +500,23 @@ const ClientDetail = () => {
               </div>
             )}
 
+            {/* Add Strategy Button */}
+            <div className="flex justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setAddStrategyOpen(true)}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Strategy
+              </Button>
+            </div>
+
             {/* Strategy Cards Grid */}
             {phaseStrategies.length === 0 ? (
               <Card>
                 <CardContent className="py-12 text-center">
-                  <p className="text-muted-foreground">No strategies in this phase</p>
+                  <p className="text-muted-foreground">No strategies assigned in this phase</p>
                 </CardContent>
               </Card>
             ) : (
@@ -482,7 +538,7 @@ const ClientDetail = () => {
                   <CardContent className="p-4 space-y-3">
                     {/* Strategy header */}
                     <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span
                             className="text-sm font-bold"
@@ -498,6 +554,14 @@ const ClientDetail = () => {
                           <p className="text-xs text-blue-600 mt-0.5">{strategy.irc_citation}</p>
                         )}
                       </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
+                        onClick={() => removeStrategy(strategy.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
 
                     {/* Status dropdown */}
@@ -584,6 +648,17 @@ const ClientDetail = () => {
             </TabsContent>
           )}
         </Tabs>
+
+        {/* Add Strategy Modal */}
+        <AddStrategyModal
+          open={addStrategyOpen}
+          onOpenChange={setAddStrategyOpen}
+          clientId={id!}
+          packageTier={client.package_tier}
+          allStrategies={strategies}
+          assignedStrategyIds={clientStrategies.map((cs) => cs.strategy_id)}
+          onStrategyAdded={handleStrategyAdded}
+        />
       </div>
     </DashboardLayout>
   );
