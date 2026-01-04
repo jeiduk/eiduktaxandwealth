@@ -11,26 +11,25 @@ import { Search, Plus, TrendingUp, Users, BookOpen, Check, X } from 'lucide-reac
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
-// Phase configuration with colors
+// Phase configuration with colors, descriptions, and strategy ranges
 const PHASES = [
-  { id: '1', name: 'Foundation', color: '#1E40AF' },
-  { id: '2', name: 'Core Deductions', color: '#059669' },
-  { id: '3', name: 'Retirement & Benefits', color: '#7C3AED' },
-  { id: '4', name: 'Credits & Multistate', color: '#EA580C' },
-  { id: '5', name: 'Real Estate & PAL', color: '#0891B2' },
-  { id: '6', name: 'Acquisitions & Leverage', color: '#DC2626' },
-  { id: '7', name: 'Exit & Wealth Transfer', color: '#CA8A04' },
-  { id: '8', name: 'Charitable & Philanthropic', color: '#9333EA' },
+  { id: '1', name: 'Foundation', shortName: 'Foundation', color: '#1E40AF', description: 'S-Corp Optimization & Core Setup', strategyStart: 1, strategyEnd: 6 },
+  { id: '2', name: 'Core Deductions', shortName: 'Core', color: '#059669', description: 'Depreciation, Deductions & QBI', strategyStart: 7, strategyEnd: 13 },
+  { id: '3', name: 'Retirement & Benefits', shortName: 'Retirement', color: '#7C3AED', description: 'Tax-Advantaged Wealth Building', strategyStart: 14, strategyEnd: 23 },
+  { id: '4', name: 'Credits & Multistate', shortName: 'Credits', color: '#EA580C', description: 'Tax Credits & State Optimization', strategyStart: 24, strategyEnd: 30 },
+  { id: '5', name: 'Real Estate & PAL', shortName: 'Real Estate', color: '#0891B2', description: 'Real Estate Tax Strategies', strategyStart: 31, strategyEnd: 38 },
+  { id: '6', name: 'Acquisitions & Leverage', shortName: 'Acquisitions', color: '#DC2626', description: 'Advanced Asset & Investment Strategies', strategyStart: 39, strategyEnd: 49 },
+  { id: '7', name: 'Exit & Wealth Transfer', shortName: 'Exit', color: '#CA8A04', description: 'Business Exit & Legacy Planning', strategyStart: 50, strategyEnd: 59 },
+  { id: '8', name: 'Charitable & Philanthropic', shortName: 'Charitable', color: '#9333EA', description: 'Charitable Planning & Giving', strategyStart: 60, strategyEnd: 70 },
 ];
 
-const getPhaseColor = (phase: string) => {
+const getPhaseConfig = (phase: string) => {
   const phaseNum = phase.replace('P', '');
-  return PHASES.find(p => p.id === phaseNum)?.color || '#6B7280';
+  return PHASES.find(p => p.id === phaseNum);
 };
 
-const getPhaseName = (phase: string) => {
-  const phaseNum = phase.replace('P', '');
-  return PHASES.find(p => p.id === phaseNum)?.name || 'Unknown';
+const getPhaseColor = (phase: string) => {
+  return getPhaseConfig(phase)?.color || '#6B7280';
 };
 
 interface Strategy {
@@ -160,6 +159,15 @@ export default function Strategies() {
     });
     return groups;
   }, [filteredStrategies, activePhase]);
+
+  // Calculate phase counts
+  const phaseCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    strategies.forEach(strategy => {
+      counts[strategy.phase] = (counts[strategy.phase] || 0) + 1;
+    });
+    return counts;
+  }, [strategies]);
 
   // Calculate stats
   const stats = useMemo(() => {
@@ -371,20 +379,38 @@ export default function Strategies() {
             size="sm"
             onClick={() => setActivePhase('all')}
           >
-            All
+            All ({strategies.length})
           </Button>
-          {PHASES.map(phase => (
-            <Button
-              key={phase.id}
-              variant={activePhase === phase.id ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setActivePhase(phase.id)}
-              style={activePhase === phase.id ? { backgroundColor: phase.color } : {}}
-            >
-              P{phase.id}
-            </Button>
-          ))}
+          {PHASES.map(phase => {
+            const count = phaseCounts[phase.id] || 0;
+            const isActive = activePhase === phase.id;
+            return (
+              <Button
+                key={phase.id}
+                variant={isActive ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActivePhase(phase.id)}
+                style={isActive ? { backgroundColor: phase.color, borderColor: phase.color } : {}}
+              >
+                P{phase.id}: {phase.shortName} ({count})
+              </Button>
+            );
+          })}
         </div>
+
+        {/* Phase Description (when specific phase selected) */}
+        {activePhase !== 'all' && (
+          <Card className="border-l-4" style={{ borderLeftColor: getPhaseColor(activePhase) }}>
+            <CardContent className="p-4">
+              <h2 className="font-semibold text-lg">
+                P{activePhase}: {getPhaseConfig(activePhase)?.name}
+              </h2>
+              <p className="text-muted-foreground">
+                {getPhaseConfig(activePhase)?.description} (Strategies #{getPhaseConfig(activePhase)?.strategyStart}-{getPhaseConfig(activePhase)?.strategyEnd})
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Strategies Grid */}
         {filteredStrategies.length === 0 ? (
@@ -405,14 +431,15 @@ export default function Strategies() {
               return (
                 <div key={phase.id}>
                   <div 
-                    className="p-3 rounded-lg mb-4 flex items-center gap-2"
+                    className="py-3 px-5 rounded-lg mb-4 flex items-center justify-between"
                     style={{ backgroundColor: phase.color }}
                   >
-                    <span className="text-white font-bold">P{phase.id}</span>
-                    <span className="text-white/90">{phase.name}</span>
-                    <Badge variant="secondary" className="ml-auto bg-white/20 text-white">
-                      {phaseStrategies.length} strategies
-                    </Badge>
+                    <span className="text-white font-bold text-lg">
+                      P{phase.id}: {phase.name}
+                    </span>
+                    <span className="text-white/90 text-sm">
+                      Strategies #{phase.strategyStart}-{phase.strategyEnd} | {phaseStrategies.length} strategies
+                    </span>
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
