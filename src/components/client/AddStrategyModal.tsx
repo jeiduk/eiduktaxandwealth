@@ -21,6 +21,15 @@ interface Strategy {
   irc_citation: string | null;
 }
 
+interface ClientStrategy {
+  id: string;
+  client_id: string;
+  strategy_id: number;
+  status: string;
+  deduction_amount: number | null;
+  notes: string | null;
+}
+
 interface AddStrategyModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -28,7 +37,7 @@ interface AddStrategyModalProps {
   packageTier: string;
   allStrategies: Strategy[];
   assignedStrategyIds: number[];
-  onStrategyAdded: (strategyId: number) => void;
+  onStrategyAdded: (newClientStrategy: ClientStrategy) => void;
 }
 
 const PHASES = [
@@ -91,15 +100,20 @@ export const AddStrategyModal = ({
   const handleAdd = async (strategyId: number) => {
     setAdding(strategyId);
     try {
-      const { error } = await supabase.from("client_strategies").insert({
-        client_id: clientId,
-        strategy_id: strategyId,
-        status: "not_started",
-      });
+      const { data, error } = await supabase
+        .from("client_strategies")
+        .insert({
+          client_id: clientId,
+          strategy_id: strategyId,
+          status: "not_started",
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
-      onStrategyAdded(strategyId);
+      console.log("Strategy added:", data);
+      onStrategyAdded(data);
       toast({ title: "Strategy added" });
     } catch (error) {
       console.error("Error adding strategy:", error);
