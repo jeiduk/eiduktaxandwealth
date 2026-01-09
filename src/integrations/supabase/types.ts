@@ -557,34 +557,76 @@ export type Database = {
       }
       strategies: {
         Row: {
+          client_overview: string | null
+          created_at: string | null
           description: string | null
+          forms_required: string | null
           id: number
+          implementation: string | null
           irc_citation: string | null
+          irc_sections: string | null
+          irs_scrutiny: boolean | null
           name: string
+          parent_strategy: number | null
           phase: string
           phase_name: string
+          risk_level: string | null
+          savings_high: number | null
+          savings_low: number | null
+          strategy_number: string | null
+          tier: string | null
           typical_savings_high: number | null
           typical_savings_low: number | null
+          updated_at: string | null
+          what_it_is: string | null
         }
         Insert: {
+          client_overview?: string | null
+          created_at?: string | null
           description?: string | null
+          forms_required?: string | null
           id: number
+          implementation?: string | null
           irc_citation?: string | null
+          irc_sections?: string | null
+          irs_scrutiny?: boolean | null
           name: string
+          parent_strategy?: number | null
           phase: string
           phase_name: string
+          risk_level?: string | null
+          savings_high?: number | null
+          savings_low?: number | null
+          strategy_number?: string | null
+          tier?: string | null
           typical_savings_high?: number | null
           typical_savings_low?: number | null
+          updated_at?: string | null
+          what_it_is?: string | null
         }
         Update: {
+          client_overview?: string | null
+          created_at?: string | null
           description?: string | null
+          forms_required?: string | null
           id?: number
+          implementation?: string | null
           irc_citation?: string | null
+          irc_sections?: string | null
+          irs_scrutiny?: boolean | null
           name?: string
+          parent_strategy?: number | null
           phase?: string
           phase_name?: string
+          risk_level?: string | null
+          savings_high?: number | null
+          savings_low?: number | null
+          strategy_number?: string | null
+          tier?: string | null
           typical_savings_high?: number | null
           typical_savings_low?: number | null
+          updated_at?: string | null
+          what_it_is?: string | null
         }
         Relationships: []
       }
