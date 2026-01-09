@@ -37,10 +37,21 @@ interface Strategy {
   name: string;
   phase: string;
   phase_name: string;
+  strategy_number: string | null;
   irc_citation: string | null;
+  irc_sections: string | null;
   description: string | null;
+  what_it_is: string | null;
+  client_overview: string | null;
+  implementation: string | null;
+  forms_required: string | null;
+  risk_level: string | null;
+  irs_scrutiny: boolean | null;
+  tier: string | null;
   typical_savings_low: number | null;
   typical_savings_high: number | null;
+  savings_low: number | null;
+  savings_high: number | null;
 }
 
 interface Client {
@@ -259,29 +270,34 @@ export default function Strategies() {
               className="text-white text-xs font-bold"
               style={{ backgroundColor: phaseColor }}
             >
-              #{strategy.id}
+              #{strategy.strategy_number || strategy.id}
             </Badge>
+            {strategy.risk_level && (
+              <Badge variant={strategy.risk_level === 'High' ? 'destructive' : strategy.risk_level === 'Low' ? 'secondary' : 'outline'} className="text-xs">
+                {strategy.risk_level}
+              </Badge>
+            )}
           </div>
           
           <h3 className="font-semibold text-foreground mb-1 line-clamp-2 group-hover:text-primary transition-colors">
             {strategy.name}
           </h3>
           
-          {strategy.irc_citation && (
+          {(strategy.irc_sections || strategy.irc_citation) && (
             <p className="text-xs font-mono text-muted-foreground mb-2">
-              {strategy.irc_citation}
+              {strategy.irc_sections || strategy.irc_citation}
             </p>
           )}
           
-          {strategy.description && (
+          {(strategy.what_it_is || strategy.description) && (
             <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-              {strategy.description}
+              {strategy.what_it_is || strategy.description}
             </p>
           )}
           
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-success">
-              {formatCurrency(strategy.typical_savings_low)} - {formatCurrency(strategy.typical_savings_high)}
+              {formatCurrency(strategy.savings_low || strategy.typical_savings_low)} - {formatCurrency(strategy.savings_high || strategy.typical_savings_high)}
             </span>
             
             <Button
@@ -592,11 +608,17 @@ export default function Strategies() {
                 className="text-white"
                 style={{ backgroundColor: detailModal.strategy ? getPhaseColor(detailModal.strategy.phase) : undefined }}
               >
-                #{detailModal.strategy?.id}
+                #{detailModal.strategy?.strategy_number || detailModal.strategy?.id}
               </Badge>
               <Badge variant="outline">
-                P{detailModal.strategy?.phase} {detailModal.strategy?.phase_name}
+                Phase {detailModal.strategy?.phase}: {detailModal.strategy?.phase_name}
               </Badge>
+              {detailModal.strategy?.tier && (
+                <Badge variant="secondary">{detailModal.strategy.tier}</Badge>
+              )}
+              {detailModal.strategy?.irs_scrutiny && (
+                <Badge variant="destructive">IRS Scrutiny</Badge>
+              )}
             </div>
             <DialogTitle className="text-xl mt-2">
               {detailModal.strategy?.name}
@@ -604,29 +626,76 @@ export default function Strategies() {
           </DialogHeader>
           
           {detailModal.strategy && (
-            <div className="space-y-4">
-              {detailModal.strategy.irc_citation && (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">IRC Citation</p>
-                  <p className="font-mono text-sm">{detailModal.strategy.irc_citation}</p>
-                </div>
-              )}
-              
-              {detailModal.strategy.description && (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Description</p>
-                  <p className="text-sm">{detailModal.strategy.description}</p>
-                </div>
-              )}
-              
-              <div>
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+              {/* Savings Range */}
+              <div className="bg-success/10 rounded-lg p-4">
                 <p className="text-sm font-medium text-muted-foreground">Typical Savings Range</p>
-                <p className="text-lg font-semibold text-success">
-                  {formatCurrency(detailModal.strategy.typical_savings_low)} - {formatCurrency(detailModal.strategy.typical_savings_high)}
+                <p className="text-2xl font-bold text-success">
+                  {formatCurrency(detailModal.strategy.savings_low || detailModal.strategy.typical_savings_low)} - {formatCurrency(detailModal.strategy.savings_high || detailModal.strategy.typical_savings_high)}
                 </p>
               </div>
+
+              {/* Risk Level */}
+              {detailModal.strategy.risk_level && (
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium text-muted-foreground">Risk Level:</p>
+                  <Badge variant={detailModal.strategy.risk_level === 'High' ? 'destructive' : detailModal.strategy.risk_level === 'Low' ? 'secondary' : 'outline'}>
+                    {detailModal.strategy.risk_level}
+                  </Badge>
+                </div>
+              )}
+
+              {/* IRC Sections */}
+              {(detailModal.strategy.irc_sections || detailModal.strategy.irc_citation) && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">IRC Sections</p>
+                  <p className="font-mono text-sm">{detailModal.strategy.irc_sections || detailModal.strategy.irc_citation}</p>
+                </div>
+              )}
+
+              {/* What It Is */}
+              {detailModal.strategy.what_it_is && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">What It Is</p>
+                  <p className="text-sm">{detailModal.strategy.what_it_is}</p>
+                </div>
+              )}
+
+              {/* Client Overview */}
+              {detailModal.strategy.client_overview && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Client Overview</p>
+                  <p className="text-sm">{detailModal.strategy.client_overview}</p>
+                </div>
+              )}
+
+              {/* Implementation Steps */}
+              {detailModal.strategy.implementation && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Implementation</p>
+                  <div className="text-sm space-y-1 mt-1">
+                    {detailModal.strategy.implementation.split(' | ').map((step, idx) => (
+                      <div key={idx} className="flex gap-2">
+                        <span className="text-primary font-medium">{idx + 1}.</span>
+                        <span>{step.replace(/^\d+\.\s*/, '')}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Forms Required */}
+              {detailModal.strategy.forms_required && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Forms Required</p>
+                  <p className="text-sm font-mono bg-muted px-2 py-1 rounded inline-block">
+                    {detailModal.strategy.forms_required}
+                  </p>
+                </div>
+              )}
               
-              <div>
+              {/* Clients Using This Strategy */}
+              <div className="border-t pt-4">
                 <p className="text-sm font-medium text-muted-foreground mb-2">
                   Clients Using This Strategy ({getClientsWithStrategy(detailModal.strategy.id).length})
                 </p>
