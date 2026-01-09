@@ -14,6 +14,7 @@ import QuarterlyReview from "./pages/QuarterlyReview";
 import QuarterlyReviewForm from "./pages/QuarterlyReviewForm";
 import Settings from "./pages/Settings";
 import Strategies from "./pages/Strategies";
+import ReasonableComp from "./pages/ReasonableComp";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 
@@ -67,6 +68,11 @@ const App = () => (
             <Route path="/strategies" element={
               <ProtectedRoute>
                 <Strategies />
+              </ProtectedRoute>
+            } />
+            <Route path="/reasonable-comp" element={
+              <ProtectedRoute>
+                <ReasonableComp />
               </ProtectedRoute>
             } />
             <Route path="*" element={<NotFound />} />
