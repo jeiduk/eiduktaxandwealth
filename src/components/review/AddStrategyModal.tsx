@@ -6,10 +6,11 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Search, Plus, Check } from "lucide-react";
+import { Search, Plus, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Phase configuration
@@ -38,7 +39,7 @@ interface AddStrategyModalProps {
   onClose: () => void;
   strategies: Strategy[];
   addedStrategyIds: number[];
-  onAddStrategy: (strategyId: number) => void;
+  onAddStrategies: (strategyIds: number[]) => void;
 }
 
 export const AddStrategyModal = ({
@@ -46,10 +47,11 @@ export const AddStrategyModal = ({
   onClose,
   strategies,
   addedStrategyIds,
-  onAddStrategy,
+  onAddStrategies,
 }: AddStrategyModalProps) => {
   const [search, setSearch] = useState("");
   const [selectedPhase, setSelectedPhase] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
   const filteredStrategies = useMemo(() => {
     return strategies.filter((s) => {
@@ -70,11 +72,33 @@ export const AddStrategyModal = ({
     return p?.color || "#1E40AF";
   };
 
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleAddSelected = () => {
+    if (selectedIds.length > 0) {
+      onAddStrategies(selectedIds);
+      setSelectedIds([]);
+      setSearch("");
+      setSelectedPhase(null);
+    }
+  };
+
+  const handleClose = () => {
+    setSelectedIds([]);
+    setSearch("");
+    setSelectedPhase(null);
+    onClose();
+  };
+
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+    <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
       <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Add Strategy</DialogTitle>
+          <DialogTitle>Add Strategies</DialogTitle>
         </DialogHeader>
 
         {/* Search */}
@@ -117,68 +141,92 @@ export const AddStrategyModal = ({
           ))}
         </div>
 
+        {/* Selected count */}
+        {selectedIds.length > 0 && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-primary/10 rounded-md">
+            <span className="text-sm font-medium">
+              {selectedIds.length} strateg{selectedIds.length === 1 ? "y" : "ies"} selected
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedIds([])}
+              className="h-6 px-2 text-xs"
+            >
+              Clear
+            </Button>
+          </div>
+        )}
+
         {/* Strategy List */}
         <ScrollArea className="flex-1 -mx-6 px-6">
           <div className="space-y-2 pb-4">
             {filteredStrategies.map((strategy) => {
               const isAdded = addedStrategyIds.includes(strategy.id);
+              const isSelected = selectedIds.includes(strategy.id);
               const phaseColor = getPhaseColor(strategy.phase);
 
               return (
                 <div
                   key={strategy.id}
+                  onClick={() => !isAdded && toggleSelect(strategy.id)}
                   className={cn(
-                    "p-3 rounded-lg border flex items-start justify-between gap-3",
-                    isAdded ? "bg-slate-50 border-slate-200" : "bg-white border-slate-200 hover:border-slate-300"
+                    "p-3 rounded-lg border flex items-start justify-between gap-3 transition-colors",
+                    isAdded
+                      ? "bg-slate-50 border-slate-200 opacity-60 cursor-not-allowed"
+                      : isSelected
+                      ? "bg-primary/5 border-primary cursor-pointer"
+                      : "bg-white border-slate-200 hover:border-slate-300 cursor-pointer"
                   )}
                 >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-sm">
-                        #{strategy.id}: {strategy.name}
-                      </span>
-                      <Badge
-                        variant="secondary"
-                        className="text-xs"
-                        style={{
-                          backgroundColor: `${phaseColor}15`,
-                          color: phaseColor,
-                        }}
-                      >
-                        {strategy.phase} {strategy.phase_name}
-                      </Badge>
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    {/* Checkbox indicator */}
+                    <div
+                      className={cn(
+                        "w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 mt-0.5",
+                        isAdded
+                          ? "border-slate-300 bg-slate-100"
+                          : isSelected
+                          ? "border-primary bg-primary"
+                          : "border-slate-300"
+                      )}
+                    >
+                      {(isAdded || isSelected) && (
+                        <Check className={cn("h-3 w-3", isAdded ? "text-slate-400" : "text-white")} />
+                      )}
                     </div>
-                    {strategy.irc_citation && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {strategy.irc_citation}
-                      </p>
-                    )}
-                    {strategy.description && (
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
-                        {strategy.description}
-                      </p>
-                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium text-sm">
+                          #{strategy.id}: {strategy.name}
+                        </span>
+                        <Badge
+                          variant="secondary"
+                          className="text-xs"
+                          style={{
+                            backgroundColor: `${phaseColor}15`,
+                            color: phaseColor,
+                          }}
+                        >
+                          {strategy.phase} {strategy.phase_name}
+                        </Badge>
+                      </div>
+                      {strategy.irc_citation && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {strategy.irc_citation}
+                        </p>
+                      )}
+                      {strategy.description && (
+                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                          {strategy.description}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  {isAdded ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled
-                      className="h-8 text-emerald-600"
-                    >
-                      <Check className="h-4 w-4 mr-1" />
-                      Added
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onAddStrategy(strategy.id)}
-                      className="h-8"
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      Add
-                    </Button>
+                  {isAdded && (
+                    <span className="text-xs text-muted-foreground flex-shrink-0">
+                      Already added
+                    </span>
                   )}
                 </div>
               );
@@ -191,6 +239,20 @@ export const AddStrategyModal = ({
             )}
           </div>
         </ScrollArea>
+
+        {/* Footer with Add button */}
+        <DialogFooter className="border-t pt-4">
+          <Button variant="outline" onClick={handleClose}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleAddSelected}
+            disabled={selectedIds.length === 0}
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            Add {selectedIds.length > 0 ? `${selectedIds.length} Strateg${selectedIds.length === 1 ? "y" : "ies"}` : "Selected"}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
