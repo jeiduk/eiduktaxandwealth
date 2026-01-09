@@ -168,9 +168,11 @@ export type Database = {
         Row: {
           created_at: string
           entity_type: string
+          first_name: string | null
           id: string
           income_range: string | null
           industry: string | null
+          last_name: string | null
           name: string
           next_review_date: string | null
           notes: string | null
@@ -182,9 +184,11 @@ export type Database = {
         Insert: {
           created_at?: string
           entity_type?: string
+          first_name?: string | null
           id?: string
           income_range?: string | null
           industry?: string | null
+          last_name?: string | null
           name: string
           next_review_date?: string | null
           notes?: string | null
@@ -196,9 +200,11 @@ export type Database = {
         Update: {
           created_at?: string
           entity_type?: string
+          first_name?: string | null
           id?: string
           income_range?: string | null
           industry?: string | null
+          last_name?: string | null
           name?: string
           next_review_date?: string | null
           notes?: string | null

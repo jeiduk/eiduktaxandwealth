@@ -109,7 +109,7 @@ export default function ReasonableComp() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('clients')
-        .select('id, name')
+        .select('id, name, first_name, last_name, industry')
         .order('name', { ascending: true });
       if (error) throw error;
       return data || [];
@@ -128,6 +128,26 @@ export default function ReasonableComp() {
 
   // Get selected client name for display
   const selectedClient = clients.find(c => c.id === clientId);
+
+  // Auto-populate fields when client is selected
+  const handleClientChange = (newClientId: string) => {
+    if (newClientId === "none") {
+      updateData({ clientId: undefined });
+      return;
+    }
+    
+    const client = clients.find(c => c.id === newClientId);
+    if (client) {
+      const ownerFullName = [client.first_name, client.last_name].filter(Boolean).join(' ');
+      updateData({
+        clientId: newClientId,
+        businessName: client.name || businessName,
+        ownerName: ownerFullName || ownerName,
+        industry: client.industry || industry,
+      });
+      toast.success(`Populated fields from ${client.name}`);
+    }
+  };
 
   // Calculated values
   const totalAllocation = Object.values(allocations).reduce((a: number, b: number) => a + b, 0);
@@ -359,7 +379,7 @@ export default function ReasonableComp() {
                 </div>
                 <Select 
                   value={clientId || "none"} 
-                  onValueChange={(val) => updateData({ clientId: val === "none" ? undefined : val })}
+                  onValueChange={handleClientChange}
                 >
                   <SelectTrigger className="bg-white">
                     <SelectValue placeholder="Select a client to link..." />
@@ -373,7 +393,7 @@ export default function ReasonableComp() {
                 </Select>
                 {selectedClient && (
                   <p className="text-xs text-muted-foreground mt-2">
-                    This defense file will be saved to {selectedClient.name}'s records.
+                    This defense file will be saved to {selectedClient.name}'s records. Business name and owner info were auto-populated.
                   </p>
                 )}
               </div>
