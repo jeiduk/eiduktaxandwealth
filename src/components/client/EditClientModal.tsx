@@ -42,6 +42,12 @@ interface Client {
   notes: string | null;
   tax_rate: number | null;
   created_at: string;
+  industry: string | null;
+}
+
+interface IndustryBenchmark {
+  industry: string;
+  display_name: string;
 }
 
 interface EditClientModalProps {
@@ -71,6 +77,7 @@ export function EditClientModal({
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [industries, setIndustries] = useState<IndustryBenchmark[]>([]);
   const [formData, setFormData] = useState({
     name: client.name,
     entity_type: client.entity_type,
@@ -80,8 +87,13 @@ export function EditClientModal({
     notes: client.notes || "",
     tax_rate: String(client.tax_rate || 0.37),
     custom_tax_rate: "",
+    industry: client.industry || "",
   });
   const [showCustomRate, setShowCustomRate] = useState(false);
+
+  useEffect(() => {
+    fetchIndustries();
+  }, []);
 
   useEffect(() => {
     const rate = client.tax_rate || 0.37;
@@ -94,14 +106,24 @@ export function EditClientModal({
         ...prev,
         tax_rate: "custom",
         custom_tax_rate: String(Math.round(rate * 100)),
+        industry: client.industry || "",
       }));
     } else {
       setFormData((prev) => ({
         ...prev,
         tax_rate: String(rate),
+        industry: client.industry || "",
       }));
     }
   }, [client]);
+
+  const fetchIndustries = async () => {
+    const { data } = await supabase
+      .from("industry_benchmarks")
+      .select("industry, display_name")
+      .order("display_name");
+    if (data) setIndustries(data);
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -119,6 +141,7 @@ export function EditClientModal({
         next_review_date: formData.next_review_date || null,
         notes: formData.notes || null,
         tax_rate: taxRate,
+        industry: formData.industry || null,
       };
 
       const { error } = await supabase
@@ -239,6 +262,25 @@ export function EditClientModal({
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Industry</Label>
+              <Select
+                value={formData.industry}
+                onValueChange={(value) => setFormData({ ...formData, industry: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select industry..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {industries.map((ind) => (
+                    <SelectItem key={ind.industry} value={ind.industry}>
+                      {ind.display_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="grid grid-cols-2 gap-4">

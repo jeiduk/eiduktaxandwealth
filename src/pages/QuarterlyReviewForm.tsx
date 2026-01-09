@@ -104,6 +104,16 @@ interface Client {
   entity_type: string;
   tax_rate: number | null;
   phase_status: PhaseStatus | null;
+  industry: string | null;
+}
+
+interface IndustryBenchmark {
+  industry: string;
+  display_name: string;
+  profit_target: number;
+  owner_pay_target: number;
+  tax_target: number;
+  opex_target: number;
 }
 
 interface ClientStrategy {
@@ -155,6 +165,7 @@ const QuarterlyReviewForm = () => {
   const [client, setClient] = useState<Client | null>(null);
   const [clientStrategies, setClientStrategies] = useState<ClientStrategy[]>([]);
   const [allStrategies, setAllStrategies] = useState<Strategy[]>([]);
+  const [industryBenchmark, setIndustryBenchmark] = useState<IndustryBenchmark | null>(null);
   const [showCustomTaxRate, setShowCustomTaxRate] = useState(false);
   const [customTaxRate, setCustomTaxRate] = useState("");
   const [showAddStrategyModal, setShowAddStrategyModal] = useState(false);
@@ -176,11 +187,25 @@ const QuarterlyReviewForm = () => {
 
       const { data: clientData, error: clientError } = await supabase
         .from("clients")
-        .select("id, name, entity_type, tax_rate, phase_status")
+        .select("id, name, entity_type, tax_rate, phase_status, industry")
         .eq("id", reviewData.client_id)
         .single();
 
       if (clientError) throw clientError;
+
+      // Fetch industry benchmark if client has an industry
+      let benchmark: IndustryBenchmark | null = null;
+      if (clientData.industry) {
+        const { data: benchmarkData } = await supabase
+          .from("industry_benchmarks")
+          .select("industry, display_name, profit_target, owner_pay_target, tax_target, opex_target")
+          .eq("industry", clientData.industry)
+          .single();
+        if (benchmarkData) {
+          benchmark = benchmarkData;
+        }
+      }
+      setIndustryBenchmark(benchmark);
 
       // Fetch client strategies
       const { data: strategiesData } = await supabase
@@ -1024,6 +1049,7 @@ const QuarterlyReviewForm = () => {
                         tax: review.profit_first_tax_target ?? 15,
                         opEx: review.profit_first_opex_target ?? 25,
                       }}
+                      industryBenchmark={industryBenchmark}
                       onTargetChange={(target, value) => {
                         const fieldMap = {
                           profit: 'profit_first_profit_target',
@@ -1034,6 +1060,25 @@ const QuarterlyReviewForm = () => {
                         const field = fieldMap[target];
                         updateField(field, value);
                         saveReview({ [field]: value });
+                      }}
+                      onResetToDefaults={async () => {
+                        const benchmark = industryBenchmark || {
+                          profit_target: 10,
+                          owner_pay_target: 50,
+                          tax_target: 15,
+                          opex_target: 25,
+                        };
+                        const updates = {
+                          profit_first_profit_target: benchmark.profit_target,
+                          profit_first_owner_target: benchmark.owner_pay_target,
+                          profit_first_tax_target: benchmark.tax_target,
+                          profit_first_opex_target: benchmark.opex_target,
+                        };
+                        Object.entries(updates).forEach(([key, value]) => {
+                          updateField(key as keyof QuarterlyReview, value);
+                        });
+                        await saveReview(updates);
+                        toast({ title: "Reset to industry defaults" });
                       }}
                     />
                   </div>

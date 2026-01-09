@@ -170,6 +170,7 @@ export type Database = {
           entity_type: string
           id: string
           income_range: string | null
+          industry: string | null
           name: string
           next_review_date: string | null
           notes: string | null
@@ -183,6 +184,7 @@ export type Database = {
           entity_type?: string
           id?: string
           income_range?: string | null
+          industry?: string | null
           name: string
           next_review_date?: string | null
           notes?: string | null
@@ -196,6 +198,7 @@ export type Database = {
           entity_type?: string
           id?: string
           income_range?: string | null
+          industry?: string | null
           name?: string
           next_review_date?: string | null
           notes?: string | null
@@ -203,6 +206,39 @@ export type Database = {
           phase_status?: Json | null
           tax_rate?: number | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      industry_benchmarks: {
+        Row: {
+          display_name: string
+          id: string
+          industry: string
+          notes: string | null
+          opex_target: number
+          owner_pay_target: number
+          profit_target: number
+          tax_target: number
+        }
+        Insert: {
+          display_name: string
+          id?: string
+          industry: string
+          notes?: string | null
+          opex_target: number
+          owner_pay_target: number
+          profit_target: number
+          tax_target: number
+        }
+        Update: {
+          display_name?: string
+          id?: string
+          industry?: string
+          notes?: string | null
+          opex_target?: number
+          owner_pay_target?: number
+          profit_target?: number
+          tax_target?: number
         }
         Relationships: []
       }

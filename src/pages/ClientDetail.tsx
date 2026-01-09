@@ -36,6 +36,7 @@ interface Client {
   notes: string | null;
   created_at: string;
   tax_rate: number | null;
+  industry: string | null;
 }
 
 interface Strategy {
@@ -735,7 +736,7 @@ const ClientDetail = () => {
 
           {/* Reviews Tab */}
           <TabsContent value="reviews" className="mt-6">
-            <ReviewsTab clientId={id!} clientName={client.name} />
+            <ReviewsTab clientId={id!} clientName={client.name} clientIndustry={client.industry} />
           </TabsContent>
 
           {/* Documents Tab - Placeholder */}
