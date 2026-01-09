@@ -117,7 +117,7 @@ export const AddStrategyModal = ({
   return (
     <>
       <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
-        <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+        <DialogContent className="max-w-2xl h-[80vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Add Strategies</DialogTitle>
           </DialogHeader>
@@ -190,8 +190,8 @@ export const AddStrategyModal = ({
           )}
 
           {/* Strategy List */}
-          <ScrollArea className="flex-1 -mx-6 px-6">
-            <div className="space-y-2 pb-4">
+          <ScrollArea className="flex-1 min-h-0 -mx-6 px-6">
+            <div className="space-y-2 pb-4 pr-2">
               {filteredStrategies.map((strategy) => {
                 const isAdded = addedStrategyIds.includes(strategy.id);
                 const isSelected = selectedIds.includes(strategy.id);
