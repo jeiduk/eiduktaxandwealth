@@ -1532,7 +1532,7 @@ const QuarterlyReviewForm = () => {
           </div>
 
           {/* Footer */}
-          <Footer />
+          <Footer advisorName={review.advisor_name} />
         </div>
       </div>
     </div>

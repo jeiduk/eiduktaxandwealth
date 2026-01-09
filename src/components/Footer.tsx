@@ -1,6 +1,10 @@
 import React from 'react';
 
-const Footer = () => {
+interface FooterProps {
+  advisorName?: string | null;
+}
+
+const Footer = ({ advisorName }: FooterProps) => {
   return (
     <footer className="bg-eiduk-navy text-white py-8 mt-auto">
       <div className="container mx-auto px-4 text-center">
@@ -11,7 +15,7 @@ const Footer = () => {
         
         {/* Credentials */}
         <p className="text-white/80 text-sm mb-4">
-          John Eiduk, CPA, CFP®
+          {advisorName || "John Eiduk, CPA, CFP®"}
         </p>
         
         {/* Contact Info */}
@@ -27,12 +31,12 @@ const Footer = () => {
           <div className="flex items-center gap-2">
             <span className="text-white/60">Website</span>
             <a 
-              href="https://eiduktaxandwealth.com" 
+              href="https://www.eiduktaxandwealth.com" 
               target="_blank" 
               rel="noopener noreferrer"
               className="font-semibold hover:text-eiduk-gold transition-colors"
             >
-              eiduktaxandwealth.com
+              www.eiduktaxandwealth.com
             </a>
           </div>
         </div>
