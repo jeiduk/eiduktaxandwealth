@@ -32,9 +32,13 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { ArrowLeft, CalendarIcon, Save, Printer, Trash2, Check, Loader2, Plus } from "lucide-react";
+import { ArrowLeft, CalendarIcon, Save, Printer, Trash2, Check, Loader2, Plus, CheckCircle, RotateCcw } from "lucide-react";
 import { StrategyCard } from "@/components/review/StrategyCard";
 import { AddStrategyModal } from "@/components/review/AddStrategyModal";
+import { ActionItemsSection } from "@/components/review/ActionItemsSection";
+import { YearEndOpportunities } from "@/components/review/YearEndOpportunities";
+import { NextMeetingSection } from "@/components/review/NextMeetingSection";
+import { SignatureSection } from "@/components/review/SignatureSection";
 
 // Phase configuration
 const PHASES = [
@@ -77,6 +81,10 @@ interface QuarterlyReview {
   compliance_estimates: boolean | null;
   compliance_books: boolean | null;
   compliance_notes: string | null;
+  next_meeting_date: string | null;
+  next_meeting_time: string | null;
+  client_signature: boolean | null;
+  advisor_signature: boolean | null;
 }
 
 interface Client {
@@ -490,6 +498,57 @@ const QuarterlyReviewForm = () => {
     [clientStrategies]
   );
 
+  const handleCompleteReview = async () => {
+    // Validation
+    if (!review.quarter) {
+      toast({ title: "Validation Error", description: "Please select a quarter", variant: "destructive" });
+      return;
+    }
+    if (!review.meeting_date) {
+      toast({ title: "Validation Error", description: "Please set a meeting date", variant: "destructive" });
+      return;
+    }
+    if (clientStrategies.length === 0) {
+      toast({ title: "Validation Error", description: "Please add at least one strategy", variant: "destructive" });
+      return;
+    }
+    if (!review.client_signature) {
+      toast({ title: "Validation Error", description: "Client signature is required", variant: "destructive" });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("quarterly_reviews")
+        .update({ status: "completed", advisor_signature: true, updated_at: new Date().toISOString() })
+        .eq("id", review.id);
+
+      if (error) throw error;
+
+      setReview((prev) => prev ? { ...prev, status: "completed", advisor_signature: true } : null);
+      toast({ title: "Review completed!", description: "The quarterly review has been finalized." });
+    } catch (error) {
+      console.error("Error completing review:", error);
+      toast({ title: "Error", description: "Failed to complete review", variant: "destructive" });
+    }
+  };
+
+  const handleReopenReview = async () => {
+    try {
+      const { error } = await supabase
+        .from("quarterly_reviews")
+        .update({ status: "in-progress", updated_at: new Date().toISOString() })
+        .eq("id", review.id);
+
+      if (error) throw error;
+
+      setReview((prev) => prev ? { ...prev, status: "in-progress" } : null);
+      toast({ title: "Review reopened", description: "You can now edit this review." });
+    } catch (error) {
+      console.error("Error reopening review:", error);
+      toast({ title: "Error", description: "Failed to reopen review", variant: "destructive" });
+    }
+  };
   if (loading) {
     return (
       <div className="min-h-screen bg-[#FAF8F5] flex items-center justify-center">
@@ -522,6 +581,16 @@ const QuarterlyReviewForm = () => {
       {/* Main container */}
       <div className="max-w-[1200px] mx-auto px-4 pb-8">
         <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+          {/* Completion Banner */}
+          {review.status === "completed" && (
+            <div className="bg-emerald-50 border-b border-emerald-200 px-6 py-3 flex items-center justify-center gap-2 print:hidden">
+              <CheckCircle className="h-5 w-5 text-emerald-600" />
+              <span className="text-emerald-800 font-medium">
+                This review was completed on {review.meeting_date ? format(new Date(review.meeting_date), "MMMM d, yyyy") : "N/A"}
+              </span>
+            </div>
+          )}
+
           {/* Header */}
           <div className="gradient-header px-8 py-10 text-center relative overflow-hidden">
             <div className="absolute inset-0 opacity-10">
@@ -1167,6 +1236,72 @@ const QuarterlyReviewForm = () => {
                   </div>
                 </AccordionContent>
               </AccordionItem>
+
+              {/* Section 7: Year-End Optimization Opportunities */}
+              <AccordionItem value="section-7" className="border rounded-lg px-4">
+                <AccordionTrigger className="hover:no-underline">
+                  <span className="text-lg font-semibold">7. Year-End Optimization Opportunities</span>
+                </AccordionTrigger>
+                <AccordionContent className="pt-4 pb-6">
+                  <p className="text-muted-foreground mb-6">
+                    Strategies to consider implementing before year-end for maximum tax benefit.
+                  </p>
+                  <YearEndOpportunities
+                    allStrategies={allStrategies}
+                    addedStrategyIds={addedStrategyIds}
+                    phaseStatus={client?.phase_status ?? null}
+                    onConsider={(strategyId) => handleAddStrategies([strategyId])}
+                  />
+                </AccordionContent>
+              </AccordionItem>
+
+              {/* Section 8: Action Items */}
+              <AccordionItem value="section-8" className="border rounded-lg px-4">
+                <AccordionTrigger className="hover:no-underline">
+                  <span className="text-lg font-semibold">8. Action Items</span>
+                </AccordionTrigger>
+                <AccordionContent className="pt-4 pb-6">
+                  <ActionItemsSection reviewId={review.id} />
+
+                  {/* Next Meeting */}
+                  <div className="mt-6">
+                    <NextMeetingSection
+                      nextMeetingDate={review.next_meeting_date}
+                      nextMeetingTime={review.next_meeting_time}
+                      onDateChange={(date) => {
+                        updateField("next_meeting_date", date);
+                        handleBlur("next_meeting_date", date);
+                      }}
+                      onTimeChange={(time) => {
+                        updateField("next_meeting_time", time);
+                        handleBlur("next_meeting_time", time);
+                      }}
+                    />
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              {/* Section 9: Review Acknowledgment */}
+              <AccordionItem value="section-9" className="border rounded-lg px-4">
+                <AccordionTrigger className="hover:no-underline">
+                  <span className="text-lg font-semibold">9. Review Acknowledgment</span>
+                </AccordionTrigger>
+                <AccordionContent className="pt-4 pb-6">
+                  <SignatureSection
+                    clientSignature={review.client_signature ?? false}
+                    advisorSignature={review.advisor_signature ?? false}
+                    advisorName={review.advisor_name ?? "John Eiduk, CPA, CFP®"}
+                    onClientSignatureChange={(checked) => {
+                      updateField("client_signature", checked);
+                      handleBlur("client_signature", checked);
+                    }}
+                    onAdvisorSignatureChange={(checked) => {
+                      updateField("advisor_signature", checked);
+                      handleBlur("advisor_signature", checked);
+                    }}
+                  />
+                </AccordionContent>
+              </AccordionItem>
             </Accordion>
           </div>
 
@@ -1190,26 +1325,25 @@ const QuarterlyReviewForm = () => {
               <Printer className="h-4 w-4 mr-2" />
               Print to PDF
             </Button>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" className="border-destructive text-destructive hover:bg-destructive/10">
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Clear Form
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will clear all form data. This action cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleClearForm}>Clear Form</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            {review.status === "completed" ? (
+              <Button 
+                onClick={handleReopenReview} 
+                variant="outline" 
+                className="border-amber-500 text-amber-600 hover:bg-amber-50"
+              >
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Reopen Review
+              </Button>
+            ) : (
+              <Button 
+                onClick={handleCompleteReview} 
+                variant="default" 
+                className="bg-eiduk-gold hover:bg-eiduk-gold/90 text-white"
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Complete Review
+              </Button>
+            )}
           </div>
 
           {/* Footer */}

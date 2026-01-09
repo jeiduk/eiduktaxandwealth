@@ -295,3 +295,39 @@
   font-size: 11px;
   line-height: 1.4;
 }
+
+/* Print media query */
+@media print {
+  .print\\:hidden,
+  .no-print {
+    display: none !important;
+  }
+  
+  .print-only {
+    display: block !important;
+  }
+  
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  
+  input, select, textarea {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  
+  .gradient-header {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  
+  /* Footer on each page */
+  @page {
+    margin: 0.5in;
+    @bottom-center {
+      content: "Eiduk Tax & Wealth • (704) 469-6777 • eiduk.com";
+    }
+  }
+}
