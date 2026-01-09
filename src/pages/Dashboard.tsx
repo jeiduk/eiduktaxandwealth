@@ -55,8 +55,8 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [creatingReview, setCreatingReview] = useState<string | null>(null);
 
-  // Run backfill for existing clients without strategies
-  useBackfillStrategies(user?.id);
+  // Disabled backfill - strategies should persist as advisor adds/removes them
+  // useBackfillStrategies(user?.id);
 
   useEffect(() => {
     if (user) {
