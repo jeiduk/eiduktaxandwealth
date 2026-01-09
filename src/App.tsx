@@ -11,6 +11,7 @@ import Clients from "./pages/Clients";
 import ClientNew from "./pages/ClientNew";
 import ClientDetail from "./pages/ClientDetail";
 import QuarterlyReview from "./pages/QuarterlyReview";
+import QuarterlyReviewForm from "./pages/QuarterlyReviewForm";
 import Settings from "./pages/Settings";
 import Strategies from "./pages/Strategies";
 import NotFound from "./pages/NotFound";
@@ -51,6 +52,11 @@ const App = () => (
             <Route path="/clients/:id/review" element={
               <ProtectedRoute>
                 <QuarterlyReview />
+              </ProtectedRoute>
+            } />
+            <Route path="/reviews/:id" element={
+              <ProtectedRoute>
+                <QuarterlyReviewForm />
               </ProtectedRoute>
             } />
             <Route path="/settings" element={

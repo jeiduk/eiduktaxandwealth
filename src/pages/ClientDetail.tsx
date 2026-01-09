@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Check, Clock, Circle, X, DollarSign, Rocket, Plus, Trash2, Target } from "lucide-react";
+import { ArrowLeft, Check, Clock, Circle, X, DollarSign, Rocket, Plus, Trash2, Target, Loader2 } from "lucide-react";
 import { AddStrategyModal } from "@/components/client/AddStrategyModal";
 import {
   Select,
@@ -85,6 +85,43 @@ const ClientDetail = () => {
   const [onboardingComplete, setOnboardingComplete] = useState(0);
   const [onboardingTotal, setOnboardingTotal] = useState(0);
   const [addStrategyOpen, setAddStrategyOpen] = useState(false);
+  const [creatingReview, setCreatingReview] = useState(false);
+
+  const getCurrentQuarter = () => {
+    const now = new Date();
+    const quarter = Math.ceil((now.getMonth() + 1) / 3);
+    return `Q${quarter} ${now.getFullYear()}`;
+  };
+
+  const createReviewAndNavigate = async () => {
+    if (!id) return;
+    setCreatingReview(true);
+    try {
+      const { data, error } = await supabase
+        .from("quarterly_reviews")
+        .insert({
+          client_id: id,
+          quarter: getCurrentQuarter(),
+          status: "in-progress",
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      navigate(`/reviews/${data.id}`);
+    } catch (error) {
+      console.error("Error creating review:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create quarterly review",
+        variant: "destructive",
+      });
+    } finally {
+      setCreatingReview(false);
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       if (!user || !id) return;
@@ -426,8 +463,12 @@ const ClientDetail = () => {
             </div>
             <Button 
               variant="gold"
-              onClick={() => navigate(`/clients/${id}/review`)}
+              onClick={createReviewAndNavigate}
+              disabled={creatingReview}
             >
+              {creatingReview ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : null}
               Start Quarterly Review
             </Button>
           </div>

@@ -209,6 +209,107 @@ export type Database = {
         }
         Relationships: []
       }
+      quarterly_reviews: {
+        Row: {
+          advisor_name: string | null
+          advisor_signature: boolean | null
+          client_id: string
+          client_signature: boolean | null
+          compliance_books: boolean | null
+          compliance_estimates: boolean | null
+          compliance_notes: string | null
+          compliance_payroll: boolean | null
+          created_at: string
+          draw_goal: number | null
+          draw_ytd: number | null
+          employees_current: number | null
+          employees_goal: number | null
+          hurdle_1: string | null
+          hurdle_2: string | null
+          hurdle_3: string | null
+          id: string
+          meeting_date: string | null
+          next_meeting_date: string | null
+          next_meeting_time: string | null
+          profit_goal: number | null
+          profit_ytd: number | null
+          quarter: string
+          revenue_goal: number | null
+          revenue_ytd: number | null
+          status: string
+          tax_rate_override: number | null
+          updated_at: string
+        }
+        Insert: {
+          advisor_name?: string | null
+          advisor_signature?: boolean | null
+          client_id: string
+          client_signature?: boolean | null
+          compliance_books?: boolean | null
+          compliance_estimates?: boolean | null
+          compliance_notes?: string | null
+          compliance_payroll?: boolean | null
+          created_at?: string
+          draw_goal?: number | null
+          draw_ytd?: number | null
+          employees_current?: number | null
+          employees_goal?: number | null
+          hurdle_1?: string | null
+          hurdle_2?: string | null
+          hurdle_3?: string | null
+          id?: string
+          meeting_date?: string | null
+          next_meeting_date?: string | null
+          next_meeting_time?: string | null
+          profit_goal?: number | null
+          profit_ytd?: number | null
+          quarter: string
+          revenue_goal?: number | null
+          revenue_ytd?: number | null
+          status?: string
+          tax_rate_override?: number | null
+          updated_at?: string
+        }
+        Update: {
+          advisor_name?: string | null
+          advisor_signature?: boolean | null
+          client_id?: string
+          client_signature?: boolean | null
+          compliance_books?: boolean | null
+          compliance_estimates?: boolean | null
+          compliance_notes?: string | null
+          compliance_payroll?: boolean | null
+          created_at?: string
+          draw_goal?: number | null
+          draw_ytd?: number | null
+          employees_current?: number | null
+          employees_goal?: number | null
+          hurdle_1?: string | null
+          hurdle_2?: string | null
+          hurdle_3?: string | null
+          id?: string
+          meeting_date?: string | null
+          next_meeting_date?: string | null
+          next_meeting_time?: string | null
+          profit_goal?: number | null
+          profit_ytd?: number | null
+          quarter?: string
+          revenue_goal?: number | null
+          revenue_ytd?: number | null
+          status?: string
+          tax_rate_override?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quarterly_reviews_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       strategies: {
         Row: {
           description: string | null
