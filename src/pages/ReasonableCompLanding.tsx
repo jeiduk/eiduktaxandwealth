@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { FileText, Scale, Shield, ArrowRight, Building2, User, Clock, BarChart3, ClipboardCheck, CheckCircle, ChevronDown, Phone } from "lucide-react";
+import { FileText, Scale, Shield, ArrowRight, Building2, User, Clock, BarChart3, ClipboardCheck, CheckCircle, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
@@ -95,6 +95,12 @@ export default function ReasonableCompLanding() {
               <span className="font-semibold text-foreground">John Eiduk, CPA, CFP®</span>
               <span>847-917-8981</span>
             </div>
+            <Link to="/dashboard">
+              <Button variant="outline" size="sm">
+                <LayoutDashboard className="w-4 h-4 mr-2" />
+                Dashboard
+              </Button>
+            </Link>
             <Link to="/reasonable-comp">
               <Button className="bg-eiduk-blue hover:bg-eiduk-navy">
                 Go to App
