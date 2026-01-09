@@ -69,8 +69,10 @@ export type Database = {
           id: string
           implemented_date: string | null
           notes: string | null
+          review_id: string | null
           status: string
           strategy_id: number
+          tax_savings: number | null
           updated_at: string
         }
         Insert: {
@@ -79,8 +81,10 @@ export type Database = {
           id?: string
           implemented_date?: string | null
           notes?: string | null
+          review_id?: string | null
           status?: string
           strategy_id: number
+          tax_savings?: number | null
           updated_at?: string
         }
         Update: {
@@ -89,8 +93,10 @@ export type Database = {
           id?: string
           implemented_date?: string | null
           notes?: string | null
+          review_id?: string | null
           status?: string
           strategy_id?: number
+          tax_savings?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -99,6 +105,13 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_strategies_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "quarterly_reviews"
             referencedColumns: ["id"]
           },
           {
@@ -120,6 +133,7 @@ export type Database = {
           next_review_date: string | null
           notes: string | null
           package_tier: string
+          phase_status: Json | null
           tax_rate: number | null
           user_id: string
         }
@@ -132,6 +146,7 @@ export type Database = {
           next_review_date?: string | null
           notes?: string | null
           package_tier?: string
+          phase_status?: Json | null
           tax_rate?: number | null
           user_id: string
         }
@@ -144,6 +159,7 @@ export type Database = {
           next_review_date?: string | null
           notes?: string | null
           package_tier?: string
+          phase_status?: Json | null
           tax_rate?: number | null
           user_id?: string
         }
