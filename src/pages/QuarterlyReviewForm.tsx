@@ -473,29 +473,25 @@ const QuarterlyReviewForm = () => {
   const handleDeleteStrategy = async (id: string) => {
     console.log("Deleting strategy with id:", id);
     
-    // Optimistically update UI first
-    setClientStrategies((prev) => prev.filter((cs) => cs.id !== id));
-    
     try {
-      const { error, count } = await supabase
+      const { error } = await supabase
         .from("client_strategies")
         .delete()
-        .eq("id", id)
-        .select();
+        .eq("id", id);
 
-      console.log("Delete result - error:", error, "affected rows:", count);
+      console.log("Delete completed, error:", error);
       
-      if (error) throw error;
+      if (error) {
+        console.error("Delete error:", error);
+        toast({ title: "Error", description: "Failed to remove strategy", variant: "destructive" });
+        return;
+      }
 
+      // Update local state after successful delete
+      setClientStrategies((prev) => prev.filter((cs) => cs.id !== id));
       toast({ title: "Strategy removed" });
     } catch (error) {
       console.error("Error deleting strategy:", error);
-      // Refetch on error to restore state
-      const { data } = await supabase
-        .from("client_strategies")
-        .select("id, strategy_id, status, tax_savings, deduction_amount, notes")
-        .eq("client_id", client?.id);
-      if (data) setClientStrategies(data as ClientStrategy[]);
       toast({ title: "Error", description: "Failed to remove strategy", variant: "destructive" });
     }
   };
