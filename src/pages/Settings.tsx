@@ -8,13 +8,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { Database, CheckCircle, AlertCircle, Loader2, User, Lock, Bell } from "lucide-react";
+import { Database, CheckCircle, AlertCircle, Loader2, User, Bell, Upload } from "lucide-react";
+import { StrategyImportModal } from "@/components/settings/StrategyImportModal";
 
 const Settings = () => {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
   const [strategyCount, setStrategyCount] = useState<number | null>(null);
   const [seeding, setSeeding] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState({
     full_name: "",
@@ -231,30 +233,45 @@ const Settings = () => {
               </div>
             </div>
 
-            <Button
-              onClick={handleSeedStrategies}
-              disabled={seeding || strategyCount === 70}
-              className="bg-eiduk-blue hover:bg-eiduk-light-blue"
-            >
-              {seeding ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Seeding...
-                </>
-              ) : strategyCount === 70 ? (
-                <>
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Already Seeded
-                </>
-              ) : (
-                <>
-                  <Database className="h-4 w-4 mr-2" />
-                  Seed 70 Strategies
-                </>
-              )}
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={handleSeedStrategies}
+                disabled={seeding || strategyCount === 70}
+                className="bg-eiduk-blue hover:bg-eiduk-light-blue"
+              >
+                {seeding ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Seeding...
+                  </>
+                ) : strategyCount === 70 ? (
+                  <>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Already Seeded
+                  </>
+                ) : (
+                  <>
+                    <Database className="h-4 w-4 mr-2" />
+                    Seed 70 Strategies
+                  </>
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setImportModalOpen(true)}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Import / Update from CSV
+              </Button>
+            </div>
           </CardContent>
         </Card>
+
+        <StrategyImportModal
+          open={importModalOpen}
+          onOpenChange={setImportModalOpen}
+          onImportComplete={fetchData}
+        />
 
         {/* Sign Out */}
         <Separator />
