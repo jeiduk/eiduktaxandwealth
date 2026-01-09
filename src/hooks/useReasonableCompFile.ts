@@ -6,6 +6,7 @@ import { Json } from '@/integrations/supabase/types';
 
 export interface ReasonableCompData {
   id?: string;
+  clientId?: string;
   // Step 1: Business Info
   businessName: string;
   taxYear: string;
@@ -46,6 +47,7 @@ export interface ReasonableCompData {
 }
 
 const defaultData: ReasonableCompData = {
+  clientId: undefined,
   businessName: '',
   taxYear: '2026',
   industry: '',
@@ -79,7 +81,7 @@ const defaultData: ReasonableCompData = {
   lockTimestamp: '',
 };
 
-export function useReasonableCompFile(fileId?: string) {
+export function useReasonableCompFile(fileId?: string, clientId?: string) {
   const { user } = useAuth();
   const [data, setData] = useState<ReasonableCompData>(defaultData);
   const [currentFileId, setCurrentFileId] = useState<string | undefined>(fileId);
@@ -109,6 +111,7 @@ export function useReasonableCompFile(fileId?: string) {
           if (file) {
             setData({
               id: file.id,
+              clientId: file.client_id || undefined,
               businessName: file.business_name || '',
               taxYear: file.fiscal_year_end || '2026',
               industry: file.industry || '',
@@ -159,6 +162,7 @@ export function useReasonableCompFile(fileId?: string) {
             const file = files[0];
             setData({
               id: file.id,
+              clientId: file.client_id || undefined,
               businessName: file.business_name || '',
               taxYear: file.fiscal_year_end || '2026',
               industry: file.industry || '',
@@ -215,6 +219,7 @@ export function useReasonableCompFile(fileId?: string) {
     try {
       const fileData = {
         user_id: user.id,
+        client_id: data.clientId || null,
         business_name: data.businessName,
         fiscal_year_end: data.taxYear,
         industry: data.industry,

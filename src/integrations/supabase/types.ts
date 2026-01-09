@@ -429,6 +429,7 @@ export type Database = {
           annual_revenue: string | null
           business_name: string | null
           certifications: string | null
+          client_id: string | null
           comp_data_sources: Json | null
           created_at: string
           current_benefits: number | null
@@ -466,6 +467,7 @@ export type Database = {
           annual_revenue?: string | null
           business_name?: string | null
           certifications?: string | null
+          client_id?: string | null
           comp_data_sources?: Json | null
           created_at?: string
           current_benefits?: number | null
@@ -503,6 +505,7 @@ export type Database = {
           annual_revenue?: string | null
           business_name?: string | null
           certifications?: string | null
+          client_id?: string | null
           comp_data_sources?: Json | null
           created_at?: string
           current_benefits?: number | null
@@ -536,7 +539,15 @@ export type Database = {
           years_in_industry?: string | null
           years_with_company?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "reasonable_comp_files_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       strategies: {
         Row: {
