@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Building2, User, Clock, DollarSign, Scale, BarChart3, ChevronRight, ArrowLeft, ArrowRight, Shield, Lock, Check, AlertTriangle, Info, FileText, Printer, Mail, Save, LayoutDashboard, Home, Loader2 } from "lucide-react";
+import { Building2, User, Clock, DollarSign, Scale, BarChart3, ChevronRight, ArrowLeft, ArrowRight, Shield, Lock, Check, AlertTriangle, Info, FileText, Printer, Mail, Save, LayoutDashboard, Home, Loader2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,8 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useReasonableCompFile } from "@/hooks/useReasonableCompFile";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 
 // Step Configuration
 const steps = [
@@ -91,8 +93,9 @@ export default function ReasonableComp() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const fileId = searchParams.get('id') || undefined;
+  const clientIdParam = searchParams.get('clientId') || undefined;
   const { user } = useAuth();
-  const { data, updateData, save, loading, saving, currentFileId } = useReasonableCompFile(fileId);
+  const { data, updateData, save, loading, saving, currentFileId } = useReasonableCompFile(fileId, clientIdParam);
   const [currentStep, setCurrentStep] = useState(1);
   
   // Local state for UI-only fields not persisted
@@ -100,14 +103,31 @@ export default function ReasonableComp() {
   const [localMetroArea, setLocalMetroArea] = useState("");
   const [lockTimestamp, setLockTimestamp] = useState("");
 
+  // Fetch clients for linking
+  const { data: clients = [] } = useQuery({
+    queryKey: ['clients-list'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('id, name')
+        .order('name', { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user,
+  });
+
   // Destructure data from hook for convenience
   const {
-    businessName, taxYear, industry, naicsCode, state, grossRevenue, employeeCount,
+    clientId, businessName, taxYear, industry, naicsCode, state, grossRevenue, employeeCount,
     ownerName, roleTitle, yearsExperience, hoursPerWeek, weeksPerYear, credentials,
     allocations, proficiency, selectedFactors, finalWage, advisorName, justification,
     clientAckChecked, advisorAckChecked, clientSigName, advisorSigName,
     clientTimestamp, advisorTimestamp, clientConfirmed, advisorConfirmed, documentLocked
   } = data;
+
+  // Get selected client name for display
+  const selectedClient = clients.find(c => c.id === clientId);
 
   // Calculated values
   const totalAllocation = Object.values(allocations).reduce((a: number, b: number) => a + b, 0);
@@ -331,6 +351,33 @@ export default function ReasonableComp() {
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
+              {/* Client Selector */}
+              <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                <div className="flex items-center gap-2 mb-3">
+                  <Users className="w-4 h-4 text-eiduk-blue" />
+                  <Label className="text-sm font-medium">Link to Client (optional)</Label>
+                </div>
+                <Select 
+                  value={clientId || "none"} 
+                  onValueChange={(val) => updateData({ clientId: val === "none" ? undefined : val })}
+                >
+                  <SelectTrigger className="bg-white">
+                    <SelectValue placeholder="Select a client to link..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No client linked</SelectItem>
+                    {clients.map(client => (
+                      <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedClient && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    This defense file will be saved to {selectedClient.name}'s records.
+                  </p>
+                )}
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Business Name <span className="text-red-500">*</span></Label>
