@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -26,11 +26,17 @@ const TIER_STRATEGY_RANGES: Record<string, { start: number; end: number } | null
   Premium: { start: 1, end: 59 },
 };
 
+interface IndustryBenchmark {
+  industry: string;
+  display_name: string;
+}
+
 const ClientNew = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [industries, setIndustries] = useState<IndustryBenchmark[]>([]);
   const [formData, setFormData] = useState({
     name: "",
     entity_type: "S-Corp",
@@ -40,7 +46,20 @@ const ClientNew = () => {
     notes: "",
     tax_rate: "0.37",
     custom_tax_rate: "",
+    industry: "",
   });
+
+  useEffect(() => {
+    fetchIndustries();
+  }, []);
+
+  const fetchIndustries = async () => {
+    const { data } = await supabase
+      .from("industry_benchmarks")
+      .select("industry, display_name")
+      .order("display_name");
+    if (data) setIndustries(data);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,6 +83,7 @@ const ClientNew = () => {
           next_review_date: formData.next_review_date || null,
           notes: formData.notes || null,
           tax_rate: taxRate,
+          industry: formData.industry || null,
         })
         .select()
         .single();
@@ -175,6 +195,26 @@ const ClientNew = () => {
                     <SelectItem value="S-Corp">S-Corp</SelectItem>
                     <SelectItem value="LLC">LLC</SelectItem>
                     <SelectItem value="Sole Prop">Sole Prop</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Industry */}
+              <div className="space-y-2">
+                <Label>Industry</Label>
+                <Select
+                  value={formData.industry}
+                  onValueChange={(value) => setFormData({ ...formData, industry: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select industry..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {industries.map((ind) => (
+                      <SelectItem key={ind.industry} value={ind.industry}>
+                        {ind.display_name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

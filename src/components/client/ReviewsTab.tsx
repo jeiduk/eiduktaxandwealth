@@ -27,9 +27,10 @@ interface QuarterlyReview {
 interface ReviewsTabProps {
   clientId: string;
   clientName: string;
+  clientIndustry?: string | null;
 }
 
-export function ReviewsTab({ clientId, clientName }: ReviewsTabProps) {
+export function ReviewsTab({ clientId, clientName, clientIndustry }: ReviewsTabProps) {
   const navigate = useNavigate();
   const [reviews, setReviews] = useState<QuarterlyReview[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,12 +78,32 @@ export function ReviewsTab({ clientId, clientName }: ReviewsTabProps) {
   const handleCreateReview = async () => {
     setCreating(true);
     try {
+      // Get industry benchmarks if client has an industry
+      let profitFirstTargets = {};
+      if (clientIndustry) {
+        const { data: benchmark } = await supabase
+          .from("industry_benchmarks")
+          .select("profit_target, owner_pay_target, tax_target, opex_target")
+          .eq("industry", clientIndustry)
+          .single();
+
+        if (benchmark) {
+          profitFirstTargets = {
+            profit_first_profit_target: benchmark.profit_target,
+            profit_first_owner_target: benchmark.owner_pay_target,
+            profit_first_tax_target: benchmark.tax_target,
+            profit_first_opex_target: benchmark.opex_target,
+          };
+        }
+      }
+
       const { data, error } = await supabase
         .from("quarterly_reviews")
         .insert({
           client_id: clientId,
           quarter: getCurrentQuarter(),
           status: "in-progress",
+          ...profitFirstTargets,
         })
         .select()
         .single();
