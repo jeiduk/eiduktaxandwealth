@@ -39,6 +39,8 @@ const ClientNew = () => {
   const [industries, setIndustries] = useState<IndustryBenchmark[]>([]);
   const [formData, setFormData] = useState({
     name: "",
+    first_name: "",
+    last_name: "",
     entity_type: "S-Corp",
     package_tier: "Foundation",
     income_range: "",
@@ -77,6 +79,8 @@ const ClientNew = () => {
         .insert({
           user_id: user.id,
           name: formData.name,
+          first_name: formData.first_name || null,
+          last_name: formData.last_name || null,
           entity_type: formData.entity_type,
           package_tier: formData.package_tier,
           income_range: formData.income_range || null,
@@ -179,6 +183,28 @@ const ClientNew = () => {
                   placeholder="Enter client or business name"
                   required
                 />
+              </div>
+
+              {/* Owner First & Last Name */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="first_name">Owner First Name</Label>
+                  <Input
+                    id="first_name"
+                    value={formData.first_name}
+                    onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                    placeholder="First name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="last_name">Owner Last Name</Label>
+                  <Input
+                    id="last_name"
+                    value={formData.last_name}
+                    onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                    placeholder="Last name"
+                  />
+                </div>
               </div>
 
               {/* Entity Type */}

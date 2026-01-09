@@ -35,6 +35,8 @@ import { Loader2, Trash2 } from "lucide-react";
 interface Client {
   id: string;
   name: string;
+  first_name?: string | null;
+  last_name?: string | null;
   entity_type: string;
   package_tier: string;
   income_range: string | null;
@@ -80,6 +82,8 @@ export function EditClientModal({
   const [industries, setIndustries] = useState<IndustryBenchmark[]>([]);
   const [formData, setFormData] = useState({
     name: client.name,
+    first_name: client.first_name || "",
+    last_name: client.last_name || "",
     entity_type: client.entity_type,
     package_tier: client.package_tier,
     income_range: client.income_range || "",
@@ -135,6 +139,8 @@ export function EditClientModal({
 
       const updates = {
         name: formData.name,
+        first_name: formData.first_name || null,
+        last_name: formData.last_name || null,
         entity_type: formData.entity_type,
         package_tier: formData.package_tier,
         income_range: formData.income_range || null,
@@ -216,13 +222,34 @@ export function EditClientModal({
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Client Name *</Label>
+              <Label htmlFor="name">Business/Client Name *</Label>
               <Input
                 id="name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
               />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="first_name">Owner First Name</Label>
+                <Input
+                  id="first_name"
+                  value={formData.first_name}
+                  onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                  placeholder="First name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="last_name">Owner Last Name</Label>
+                <Input
+                  id="last_name"
+                  value={formData.last_name}
+                  onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                  placeholder="Last name"
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
