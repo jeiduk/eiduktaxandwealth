@@ -424,6 +424,120 @@ export type Database = {
           },
         ]
       }
+      reasonable_comp_files: {
+        Row: {
+          annual_revenue: string | null
+          business_name: string | null
+          certifications: string | null
+          comp_data_sources: Json | null
+          created_at: string
+          current_benefits: number | null
+          current_bonus: number | null
+          current_other: number | null
+          current_retirement: number | null
+          current_salary: number | null
+          date_incorporated: string | null
+          defense_notes: string | null
+          education: string | null
+          ein: string | null
+          entity_type: string | null
+          fiscal_year_end: string | null
+          id: string
+          industry: string | null
+          industry_naics: string | null
+          number_of_employees: string | null
+          officer_name: string | null
+          officer_title: string | null
+          ownership_percentage: number | null
+          prior_positions: string | null
+          salary_high: number | null
+          salary_low: number | null
+          salary_mid: number | null
+          state_of_incorporation: string | null
+          status: string | null
+          time_allocation: Json | null
+          unique_skills: string | null
+          updated_at: string
+          user_id: string
+          years_in_industry: string | null
+          years_with_company: string | null
+        }
+        Insert: {
+          annual_revenue?: string | null
+          business_name?: string | null
+          certifications?: string | null
+          comp_data_sources?: Json | null
+          created_at?: string
+          current_benefits?: number | null
+          current_bonus?: number | null
+          current_other?: number | null
+          current_retirement?: number | null
+          current_salary?: number | null
+          date_incorporated?: string | null
+          defense_notes?: string | null
+          education?: string | null
+          ein?: string | null
+          entity_type?: string | null
+          fiscal_year_end?: string | null
+          id?: string
+          industry?: string | null
+          industry_naics?: string | null
+          number_of_employees?: string | null
+          officer_name?: string | null
+          officer_title?: string | null
+          ownership_percentage?: number | null
+          prior_positions?: string | null
+          salary_high?: number | null
+          salary_low?: number | null
+          salary_mid?: number | null
+          state_of_incorporation?: string | null
+          status?: string | null
+          time_allocation?: Json | null
+          unique_skills?: string | null
+          updated_at?: string
+          user_id: string
+          years_in_industry?: string | null
+          years_with_company?: string | null
+        }
+        Update: {
+          annual_revenue?: string | null
+          business_name?: string | null
+          certifications?: string | null
+          comp_data_sources?: Json | null
+          created_at?: string
+          current_benefits?: number | null
+          current_bonus?: number | null
+          current_other?: number | null
+          current_retirement?: number | null
+          current_salary?: number | null
+          date_incorporated?: string | null
+          defense_notes?: string | null
+          education?: string | null
+          ein?: string | null
+          entity_type?: string | null
+          fiscal_year_end?: string | null
+          id?: string
+          industry?: string | null
+          industry_naics?: string | null
+          number_of_employees?: string | null
+          officer_name?: string | null
+          officer_title?: string | null
+          ownership_percentage?: number | null
+          prior_positions?: string | null
+          salary_high?: number | null
+          salary_low?: number | null
+          salary_mid?: number | null
+          state_of_incorporation?: string | null
+          status?: string | null
+          time_allocation?: Json | null
+          unique_skills?: string | null
+          updated_at?: string
+          user_id?: string
+          years_in_industry?: string | null
+          years_with_company?: string | null
+        }
+        Relationships: []
+      }
       strategies: {
         Row: {
           description: string | null
