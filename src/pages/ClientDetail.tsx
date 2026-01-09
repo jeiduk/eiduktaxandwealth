@@ -9,8 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Check, Clock, Circle, X, DollarSign, Rocket, Plus, Trash2, Target, Loader2 } from "lucide-react";
+import { ArrowLeft, Check, Clock, Circle, X, DollarSign, Rocket, Plus, Trash2, Target, Loader2, Edit, FileText, FolderOpen } from "lucide-react";
 import { AddStrategyModal } from "@/components/client/AddStrategyModal";
+import { ReviewsTab } from "@/components/client/ReviewsTab";
+import { EditClientModal } from "@/components/client/EditClientModal";
 import {
   Select,
   SelectContent,
@@ -86,6 +88,7 @@ const ClientDetail = () => {
   const [onboardingTotal, setOnboardingTotal] = useState(0);
   const [addStrategyOpen, setAddStrategyOpen] = useState(false);
   const [creatingReview, setCreatingReview] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
 
   const getCurrentQuarter = () => {
     const now = new Date();
@@ -462,6 +465,14 @@ const ClientDetail = () => {
               <p className="text-sm text-muted-foreground">Est. Savings</p>
             </div>
             <Button 
+              variant="outline"
+              size="sm"
+              onClick={() => setEditModalOpen(true)}
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              Edit
+            </Button>
+            <Button 
               variant="gold"
               onClick={createReviewAndNavigate}
               disabled={creatingReview}
@@ -476,7 +487,7 @@ const ClientDetail = () => {
 
         {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
+          <TabsList className="flex-wrap h-auto gap-1">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             {showOnboarding && (
               <TabsTrigger value="onboarding" className="gap-2">
@@ -488,6 +499,14 @@ const ClientDetail = () => {
               </TabsTrigger>
             )}
             <TabsTrigger value="strategies">Strategies</TabsTrigger>
+            <TabsTrigger value="reviews" className="gap-2">
+              <FileText className="h-4 w-4" />
+              Reviews
+            </TabsTrigger>
+            <TabsTrigger value="documents" className="gap-2">
+              <FolderOpen className="h-4 w-4" />
+              Documents
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="mt-6">
@@ -713,6 +732,24 @@ const ClientDetail = () => {
               <OnboardingTab clientId={id!} clientCreatedAt={client.created_at} />
             </TabsContent>
           )}
+
+          {/* Reviews Tab */}
+          <TabsContent value="reviews" className="mt-6">
+            <ReviewsTab clientId={id!} clientName={client.name} />
+          </TabsContent>
+
+          {/* Documents Tab - Placeholder */}
+          <TabsContent value="documents" className="mt-6">
+            <Card>
+              <CardContent className="py-12 text-center">
+                <FolderOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+                <h3 className="text-lg font-semibold mb-2">Coming Soon</h3>
+                <p className="text-muted-foreground">
+                  Upload and manage client documents, tax returns, and supporting files.
+                </p>
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
 
         {/* Add Strategy Modal */}
@@ -724,6 +761,15 @@ const ClientDetail = () => {
           allStrategies={strategies}
           assignedStrategyIds={clientStrategies.map((cs) => cs.strategy_id)}
           onStrategyAdded={handleStrategyAdded}
+        />
+
+        {/* Edit Client Modal */}
+        <EditClientModal
+          open={editModalOpen}
+          onClose={() => setEditModalOpen(false)}
+          client={client}
+          onClientUpdated={(updated) => setClient(updated)}
+          onClientDeleted={() => navigate("/clients")}
         />
       </div>
     </DashboardLayout>
