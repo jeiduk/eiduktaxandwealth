@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Building2, User, Clock, DollarSign, Scale, BarChart3, ChevronRight, ArrowLeft, ArrowRight, Shield, Lock, Check, AlertTriangle, Info, FileText, Printer, Mail, Save, LogOut } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Building2, User, Clock, DollarSign, Scale, BarChart3, ChevronRight, ArrowLeft, ArrowRight, Shield, Lock, Check, AlertTriangle, Info, FileText, Printer, Mail, Save, LayoutDashboard, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -85,6 +86,7 @@ const presets = {
 };
 
 export default function ReasonableComp() {
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   
   // Step 1: Business Info
@@ -221,6 +223,15 @@ export default function ReasonableComp() {
     toast.success("Defense File has been finalized!");
   };
 
+  const handleSave = () => {
+    toast.success("Defense File saved successfully!");
+  };
+
+  const handleSaveAndExit = () => {
+    toast.success("Defense File saved!");
+    navigate("/dashboard");
+  };
+
   // Calculate estimated wages
   const calculateEstimatedWages = () => {
     const wages: Record<string, number> = {};
@@ -254,6 +265,14 @@ export default function ReasonableComp() {
       <header className="sticky top-0 z-50 bg-eiduk-navy text-white py-4 px-6">
         <div className="max-w-5xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-3">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="text-white/70 hover:text-white hover:bg-white/10 mr-2"
+              onClick={() => navigate("/")}
+            >
+              <Home className="w-4 h-4" />
+            </Button>
             <div className="w-9 h-9 bg-white/15 rounded-lg flex items-center justify-center">
               <FileText className="w-5 h-5 text-eiduk-gold" />
             </div>
@@ -265,13 +284,23 @@ export default function ReasonableComp() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" className="text-white border-white/20 hover:bg-white/10">
-              <BarChart3 className="w-4 h-4 mr-2" />
-              <span className="hidden sm:inline">Reports</span>
-            </Button>
-            <Button variant="ghost" size="sm" className="text-white border-white/20 hover:bg-white/10">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="text-white border-white/20 hover:bg-white/10"
+              onClick={handleSave}
+            >
               <Save className="w-4 h-4 mr-2" />
               <span className="hidden sm:inline">Save</span>
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="text-white border-white/20 hover:bg-white/10"
+              onClick={handleSaveAndExit}
+            >
+              <LayoutDashboard className="w-4 h-4 mr-2" />
+              <span className="hidden sm:inline">Save & Exit</span>
             </Button>
           </div>
         </div>

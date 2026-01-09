@@ -38,7 +38,7 @@ const mainNavItems: NavItem[] = [
 ];
 
 const toolsNavItems: NavItem[] = [
-  { href: '/reasonable-comp', label: 'Reasonable Comp', icon: FileText },
+  { href: '/', label: 'Reasonable Comp', icon: FileText },
   { href: 'https://tools.eiduktaxandwealth.com', label: 'Calculators', icon: Calculator, external: true },
   { href: '/templates', label: 'Templates', icon: FileText },
   { href: '/strategies', label: 'Strategy Library', icon: BookOpen },
