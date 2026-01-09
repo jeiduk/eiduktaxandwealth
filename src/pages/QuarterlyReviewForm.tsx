@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Calendar } from "@/components/ui/calendar";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import {
@@ -33,6 +34,24 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ArrowLeft, CalendarIcon, Save, Printer, Trash2, Check, Loader2 } from "lucide-react";
 
+// Phase configuration
+const PHASES = [
+  { id: 1, name: "Foundation", color: "#1E40AF", strategies: 6, range: [1, 6] },
+  { id: 2, name: "Core Deductions", color: "#059669", strategies: 7, range: [7, 13] },
+  { id: 3, name: "Retirement", color: "#7C3AED", strategies: 10, range: [14, 23] },
+  { id: 4, name: "Credits", color: "#EA580C", strategies: 7, range: [24, 30] },
+  { id: 5, name: "Real Estate", color: "#0891B2", strategies: 9, range: [31, 39] },
+  { id: 6, name: "Acquisitions", color: "#DC2626", strategies: 11, range: [40, 50] },
+  { id: 7, name: "Exit", color: "#CA8A04", strategies: 10, range: [51, 60] },
+  { id: 8, name: "Charitable", color: "#9333EA", strategies: 10, range: [61, 70] },
+];
+
+const TOTAL_STRATEGIES = 70;
+
+interface PhaseStatus {
+  [key: string]: "not-started" | "in-progress" | "complete";
+}
+
 interface QuarterlyReview {
   id: string;
   client_id: string;
@@ -52,6 +71,10 @@ interface QuarterlyReview {
   hurdle_3: string | null;
   advisor_name: string | null;
   tax_rate_override: number | null;
+  compliance_payroll: boolean | null;
+  compliance_estimates: boolean | null;
+  compliance_books: boolean | null;
+  compliance_notes: string | null;
 }
 
 interface Client {
@@ -59,6 +82,15 @@ interface Client {
   name: string;
   entity_type: string;
   tax_rate: number | null;
+  phase_status: PhaseStatus | null;
+}
+
+interface ClientStrategy {
+  id: string;
+  strategy_id: number;
+  status: string;
+  tax_savings: number | null;
+  deduction_amount: number | null;
 }
 
 const TAX_RATE_OPTIONS = [
@@ -90,6 +122,7 @@ const QuarterlyReviewForm = () => {
   const [saved, setSaved] = useState(false);
   const [review, setReview] = useState<QuarterlyReview | null>(null);
   const [client, setClient] = useState<Client | null>(null);
+  const [clientStrategies, setClientStrategies] = useState<ClientStrategy[]>([]);
   const [showCustomTaxRate, setShowCustomTaxRate] = useState(false);
   const [customTaxRate, setCustomTaxRate] = useState("");
 
@@ -109,14 +142,21 @@ const QuarterlyReviewForm = () => {
 
       const { data: clientData, error: clientError } = await supabase
         .from("clients")
-        .select("id, name, entity_type, tax_rate")
+        .select("id, name, entity_type, tax_rate, phase_status")
         .eq("id", reviewData.client_id)
         .single();
 
       if (clientError) throw clientError;
 
+      // Fetch client strategies
+      const { data: strategiesData } = await supabase
+        .from("client_strategies")
+        .select("id, strategy_id, status, tax_savings, deduction_amount")
+        .eq("client_id", reviewData.client_id);
+
       setReview(reviewData);
-      setClient(clientData);
+      setClient(clientData as Client);
+      setClientStrategies(strategiesData || []);
 
       // Check if tax rate is custom
       const currentRate = reviewData.tax_rate_override ?? clientData.tax_rate ?? 0.37;
@@ -271,6 +311,87 @@ const QuarterlyReviewForm = () => {
     if (rate >= 0 && rate <= 0.5) {
       saveReview({ tax_rate_override: rate });
     }
+  };
+
+  // Phase status helpers
+  const getPhaseStatus = (phaseId: number): "not-started" | "in-progress" | "complete" => {
+    const status = client?.phase_status?.[String(phaseId)];
+    if (status === "in-progress" || status === "complete") return status;
+    return "not-started";
+  };
+
+  const cyclePhaseStatus = async (phaseId: number) => {
+    if (!client) return;
+    
+    const currentStatus = getPhaseStatus(phaseId);
+    const nextStatus = 
+      currentStatus === "not-started" ? "in-progress" :
+      currentStatus === "in-progress" ? "complete" : "not-started";
+    
+    const newPhaseStatus = {
+      ...(client.phase_status || {}),
+      [String(phaseId)]: nextStatus,
+    };
+
+    try {
+      const { error } = await supabase
+        .from("clients")
+        .update({ phase_status: newPhaseStatus })
+        .eq("id", client.id);
+
+      if (error) throw error;
+
+      setClient((prev) => prev ? { ...prev, phase_status: newPhaseStatus as PhaseStatus } : null);
+    } catch (error) {
+      console.error("Error updating phase status:", error);
+      toast({ title: "Error", description: "Failed to update phase status", variant: "destructive" });
+    }
+  };
+
+  // Calculate pathway stats
+  const pathwayStats = useMemo(() => {
+    // Find current phase (first in-progress, or first not-started, or 8 if all complete)
+    let currentPhase = 1;
+    for (let i = 1; i <= 8; i++) {
+      const status = getPhaseStatus(i);
+      if (status === "in-progress") {
+        currentPhase = i;
+        break;
+      }
+      if (status === "not-started") {
+        currentPhase = i;
+        break;
+      }
+      if (i === 8) currentPhase = 8;
+    }
+
+    // Calculate progress (count completed phase strategies)
+    let completedStrategies = 0;
+    PHASES.forEach((phase) => {
+      if (getPhaseStatus(phase.id) === "complete") {
+        completedStrategies += phase.strategies;
+      }
+    });
+    const progressPercent = Math.round((completedStrategies / TOTAL_STRATEGIES) * 100);
+
+    // Active strategies from client_strategies
+    const activeStrategies = clientStrategies.filter(
+      (cs) => cs.status === "active" || cs.status === "complete" || cs.status === "in-progress"
+    ).length;
+
+    // YTD Savings
+    const ytdSavings = clientStrategies.reduce((sum, cs) => sum + (cs.tax_savings || 0), 0);
+
+    return { currentPhase, progressPercent, activeStrategies, ytdSavings };
+  }, [client?.phase_status, clientStrategies]);
+
+  const formatCurrencyDisplay = (value: number): string => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
   };
 
   if (loading) {
@@ -461,7 +582,7 @@ const QuarterlyReviewForm = () => {
 
           {/* Accordion Sections */}
           <div className="p-6">
-            <Accordion type="multiple" defaultValue={["section-1", "section-2", "section-3"]} className="space-y-4">
+            <Accordion type="multiple" defaultValue={["section-1", "section-2", "section-3", "section-4", "section-5"]} className="space-y-4">
               {/* Section 1: How We Work Together */}
               <AccordionItem value="section-1" className="border rounded-lg px-4">
                 <AccordionTrigger className="hover:no-underline">
@@ -657,6 +778,245 @@ const QuarterlyReviewForm = () => {
                         </div>
                       );
                     })}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              {/* Section 4: The Eiduk Pathway Dashboard */}
+              <AccordionItem value="section-4" className="border rounded-lg px-4">
+                <AccordionTrigger className="hover:no-underline">
+                  <span className="text-lg font-semibold">4. The Eiduk Pathway™ Dashboard</span>
+                </AccordionTrigger>
+                <AccordionContent className="pt-4 pb-6">
+                  <p className="text-muted-foreground mb-6 text-center">
+                    70-Strategy Framework • 8 Phases • Building Wealth While Reducing Taxes
+                  </p>
+
+                  {/* Phase Badges Row */}
+                  <div className="grid grid-cols-4 md:grid-cols-8 gap-2 md:gap-4 mb-8">
+                    {PHASES.map((phase) => {
+                      const phaseStatus = getPhaseStatus(phase.id);
+                      return (
+                        <button
+                          key={phase.id}
+                          onClick={() => cyclePhaseStatus(phase.id)}
+                          className={cn(
+                            "flex flex-col items-center p-3 rounded-lg transition-all cursor-pointer border-2",
+                            phaseStatus === "not-started" && "bg-gray-100 border-gray-200 hover:bg-gray-200",
+                            phaseStatus === "in-progress" && "border-solid hover:opacity-80",
+                            phaseStatus === "complete" && "text-white hover:opacity-90"
+                          )}
+                          style={{
+                            backgroundColor:
+                              phaseStatus === "complete"
+                                ? phase.color
+                                : phaseStatus === "in-progress"
+                                ? `${phase.color}20`
+                                : undefined,
+                            borderColor:
+                              phaseStatus === "in-progress" || phaseStatus === "complete"
+                                ? phase.color
+                                : undefined,
+                          }}
+                        >
+                          <div
+                            className={cn(
+                              "w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm mb-1",
+                              phaseStatus === "not-started" && "bg-gray-300 text-gray-600",
+                              phaseStatus === "in-progress" && "text-white",
+                              phaseStatus === "complete" && "bg-white/20 text-white"
+                            )}
+                            style={{
+                              backgroundColor:
+                                phaseStatus === "in-progress" ? phase.color : undefined,
+                            }}
+                          >
+                            {phaseStatus === "complete" ? (
+                              <Check className="h-5 w-5" />
+                            ) : (
+                              `P${phase.id}`
+                            )}
+                          </div>
+                          <span
+                            className={cn(
+                              "text-xs font-medium text-center leading-tight",
+                              phaseStatus === "not-started" && "text-gray-500",
+                              phaseStatus === "in-progress" && "text-gray-700",
+                              phaseStatus === "complete" && "text-white"
+                            )}
+                          >
+                            {phase.name}
+                          </span>
+                          <span
+                            className={cn(
+                              "text-[10px] mt-1",
+                              phaseStatus === "not-started" && "text-gray-400",
+                              phaseStatus === "in-progress" && "text-gray-500",
+                              phaseStatus === "complete" && "text-white/80"
+                            )}
+                          >
+                            {phase.strategies} str
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Stats Cards Row */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {/* Current Phase */}
+                    <div className="bg-gradient-to-br from-amber-50 to-yellow-50 border border-amber-200 rounded-lg p-4 text-center">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
+                        Current Phase
+                      </p>
+                      <p
+                        className="text-3xl font-bold"
+                        style={{ color: "#C9A227" }}
+                      >
+                        P{pathwayStats.currentPhase}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {PHASES.find((p) => p.id === pathwayStats.currentPhase)?.name || "Foundation"}
+                      </p>
+                    </div>
+
+                    {/* Progress */}
+                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
+                        Progress
+                      </p>
+                      <p className="text-3xl font-bold text-slate-700">
+                        {pathwayStats.progressPercent}%
+                      </p>
+                      <Progress value={pathwayStats.progressPercent} className="h-2 mt-2" />
+                    </div>
+
+                    {/* Active Strategies */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
+                        Active Strategies
+                      </p>
+                      <p className="text-3xl font-bold text-blue-700">
+                        {pathwayStats.activeStrategies}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        of {TOTAL_STRATEGIES}
+                      </p>
+                    </div>
+
+                    {/* YTD Savings */}
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 text-center">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
+                        YTD Savings
+                      </p>
+                      <p className="text-3xl font-bold text-emerald-600">
+                        {formatCurrencyDisplay(pathwayStats.ytdSavings)}
+                      </p>
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              {/* Section 5: Quick Compliance Check */}
+              <AccordionItem value="section-5" className="border rounded-lg px-4">
+                <AccordionTrigger className="hover:no-underline">
+                  <span className="text-lg font-semibold">5. Quick Compliance Check</span>
+                </AccordionTrigger>
+                <AccordionContent className="pt-4 pb-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    {/* Payroll Current */}
+                    <label
+                      className={cn(
+                        "flex flex-col p-4 rounded-lg border-2 cursor-pointer transition-all",
+                        review.compliance_payroll
+                          ? "bg-emerald-50 border-emerald-300"
+                          : "bg-white border-slate-200 hover:border-slate-300"
+                      )}
+                    >
+                      <div className="flex items-start gap-3">
+                        <Checkbox
+                          checked={review.compliance_payroll || false}
+                          onCheckedChange={(checked) => {
+                            updateField("compliance_payroll", !!checked);
+                            saveReview({ compliance_payroll: !!checked });
+                          }}
+                          className="mt-0.5"
+                        />
+                        <div>
+                          <p className="font-semibold text-sm">Payroll Current</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            W-2 wages paid, 941 deposits made
+                          </p>
+                        </div>
+                      </div>
+                    </label>
+
+                    {/* Estimates Current */}
+                    <label
+                      className={cn(
+                        "flex flex-col p-4 rounded-lg border-2 cursor-pointer transition-all",
+                        review.compliance_estimates
+                          ? "bg-emerald-50 border-emerald-300"
+                          : "bg-white border-slate-200 hover:border-slate-300"
+                      )}
+                    >
+                      <div className="flex items-start gap-3">
+                        <Checkbox
+                          checked={review.compliance_estimates || false}
+                          onCheckedChange={(checked) => {
+                            updateField("compliance_estimates", !!checked);
+                            saveReview({ compliance_estimates: !!checked });
+                          }}
+                          className="mt-0.5"
+                        />
+                        <div>
+                          <p className="font-semibold text-sm">Estimates Current</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Federal & state quarterly est. on track
+                          </p>
+                        </div>
+                      </div>
+                    </label>
+
+                    {/* Books Reconciled */}
+                    <label
+                      className={cn(
+                        "flex flex-col p-4 rounded-lg border-2 cursor-pointer transition-all",
+                        review.compliance_books
+                          ? "bg-emerald-50 border-emerald-300"
+                          : "bg-white border-slate-200 hover:border-slate-300"
+                      )}
+                    >
+                      <div className="flex items-start gap-3">
+                        <Checkbox
+                          checked={review.compliance_books || false}
+                          onCheckedChange={(checked) => {
+                            updateField("compliance_books", !!checked);
+                            saveReview({ compliance_books: !!checked });
+                          }}
+                          className="mt-0.5"
+                        />
+                        <div>
+                          <p className="font-semibold text-sm">Books Reconciled</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Accounting current through prior month
+                          </p>
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+
+                  {/* Notes field */}
+                  <div>
+                    <Label className="text-sm font-medium">Notes / Issues</Label>
+                    <Textarea
+                      rows={2}
+                      placeholder="Any items needing attention..."
+                      value={review.compliance_notes ?? ""}
+                      onChange={(e) => updateField("compliance_notes", e.target.value)}
+                      onBlur={(e) => handleBlur("compliance_notes", e.target.value)}
+                      className="mt-1.5 bg-white resize-none"
+                    />
                   </div>
                 </AccordionContent>
               </AccordionItem>
