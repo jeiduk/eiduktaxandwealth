@@ -134,7 +134,7 @@ export const AddStrategyModal = ({
           </div>
 
           {/* Phase Filter */}
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1.5 items-center">
             <Button
               variant={selectedPhase === null ? "default" : "outline"}
               size="sm"
@@ -160,6 +160,16 @@ export const AddStrategyModal = ({
                 {phase.prefix}
               </Button>
             ))}
+            {selectedIds.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedIds([])}
+                className="h-7 text-xs text-muted-foreground hover:text-foreground ml-1"
+              >
+                Clear All
+              </Button>
+            )}
           </div>
 
           {/* Selected count */}
@@ -270,18 +280,24 @@ export const AddStrategyModal = ({
             </div>
           </ScrollArea>
 
-          {/* Footer with Add button */}
-          <DialogFooter className="border-t pt-4">
-            <Button variant="outline" onClick={handleClose}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleAddSelected}
-              disabled={selectedIds.length === 0}
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              Add {selectedIds.length > 0 ? `${selectedIds.length} Strateg${selectedIds.length === 1 ? "y" : "ies"}` : "Selected"}
-            </Button>
+          {/* Footer with Add and Done buttons */}
+          <DialogFooter className="border-t pt-4 gap-2">
+            {selectedIds.length > 0 ? (
+              <>
+                <Button variant="outline" onClick={() => setSelectedIds([])}>
+                  Cancel
+                </Button>
+                <Button onClick={handleAddSelected}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add {selectedIds.length} Strateg{selectedIds.length === 1 ? "y" : "ies"}
+                </Button>
+              </>
+            ) : (
+              <Button onClick={handleClose}>
+                <Check className="h-4 w-4 mr-1" />
+                Done
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
