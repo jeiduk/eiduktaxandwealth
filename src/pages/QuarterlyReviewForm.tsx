@@ -1304,7 +1304,6 @@ const QuarterlyReviewForm = () => {
                   <YearEndOpportunities
                     allStrategies={allStrategies}
                     clientStrategies={clientStrategies}
-                    phaseStatus={client?.phase_status ?? null}
                     onAddToConsider={() => setShowConsiderModal(true)}
                     onPromoteToImplementing={handlePromoteToImplementing}
                     onRemove={handleDeleteStrategy}
