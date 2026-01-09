@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { TablesInsert } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -78,17 +79,55 @@ export function ReviewsTab({ clientId, clientName, clientIndustry }: ReviewsTabP
   const handleCreateReview = async () => {
     setCreating(true);
     try {
-      // Get industry benchmarks if client has an industry
-      let profitFirstTargets = {};
-      if (clientIndustry) {
+      // Find the most recent review for this client to copy from
+      const { data: previousReview } = await supabase
+        .from("quarterly_reviews")
+        .select("*")
+        .eq("client_id", clientId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      // Build new review data - copy from previous if exists, otherwise use industry defaults
+      let newReviewData: TablesInsert<"quarterly_reviews"> = {
+        client_id: clientId,
+        quarter: getCurrentQuarter(),
+        status: "in-progress",
+      };
+
+      if (previousReview) {
+        // Copy relevant fields from previous review (NOT signatures, YTD values, or meeting dates)
+        newReviewData = {
+          ...newReviewData,
+          // Goals carry over
+          revenue_goal: previousReview.revenue_goal,
+          profit_goal: previousReview.profit_goal,
+          draw_goal: previousReview.draw_goal,
+          employees_goal: previousReview.employees_goal,
+          // Profit First targets carry over
+          profit_first_profit_target: previousReview.profit_first_profit_target,
+          profit_first_owner_target: previousReview.profit_first_owner_target,
+          profit_first_tax_target: previousReview.profit_first_tax_target,
+          profit_first_opex_target: previousReview.profit_first_opex_target,
+          // Other settings
+          tax_rate_override: previousReview.tax_rate_override,
+          advisor_name: previousReview.advisor_name,
+          // Hurdles carry over for continuity
+          hurdle_1: previousReview.hurdle_1,
+          hurdle_2: previousReview.hurdle_2,
+          hurdle_3: previousReview.hurdle_3,
+        };
+      } else if (clientIndustry) {
+        // No previous review - use industry benchmarks
         const { data: benchmark } = await supabase
           .from("industry_benchmarks")
           .select("profit_target, owner_pay_target, tax_target, opex_target")
           .eq("industry", clientIndustry)
-          .single();
+          .maybeSingle();
 
         if (benchmark) {
-          profitFirstTargets = {
+          newReviewData = {
+            ...newReviewData,
             profit_first_profit_target: benchmark.profit_target,
             profit_first_owner_target: benchmark.owner_pay_target,
             profit_first_tax_target: benchmark.tax_target,
@@ -97,20 +136,54 @@ export function ReviewsTab({ clientId, clientName, clientIndustry }: ReviewsTabP
         }
       }
 
-      const { data, error } = await supabase
+      const { data: newReview, error } = await supabase
         .from("quarterly_reviews")
-        .insert({
-          client_id: clientId,
-          quarter: getCurrentQuarter(),
-          status: "in-progress",
-          ...profitFirstTargets,
-        })
+        .insert(newReviewData)
         .select()
         .single();
 
       if (error) throw error;
 
-      navigate(`/reviews/${data.id}`);
+      // Copy strategies from previous review if exists
+      if (previousReview) {
+        const { data: previousStrategies } = await supabase
+          .from("client_strategies")
+          .select("strategy_id, status, notes, tax_savings, deduction_amount")
+          .eq("review_id", previousReview.id);
+
+        if (previousStrategies && previousStrategies.length > 0) {
+          const newStrategies = previousStrategies.map((s) => ({
+            client_id: clientId,
+            review_id: newReview.id,
+            strategy_id: s.strategy_id,
+            status: s.status,
+            notes: s.notes,
+            tax_savings: s.tax_savings,
+            deduction_amount: s.deduction_amount,
+          }));
+
+          await supabase.from("client_strategies").insert(newStrategies);
+        }
+
+        // Copy action items (reset completed status)
+        const { data: previousActions } = await supabase
+          .from("action_items")
+          .select("description, owner, due_date")
+          .eq("review_id", previousReview.id);
+
+        if (previousActions && previousActions.length > 0) {
+          const newActions = previousActions.map((a) => ({
+            review_id: newReview.id,
+            description: a.description,
+            owner: a.owner,
+            completed: false,
+          }));
+
+          await supabase.from("action_items").insert(newActions);
+        }
+      }
+
+      navigate(`/reviews/${newReview.id}`);
     } catch (error) {
       console.error("Error creating review:", error);
       toast({
