@@ -57,6 +57,8 @@ interface ClientStrategy {
   status: string;
   deduction_amount: number | null;
   notes: string | null;
+  tax_savings: number | null;
+  review_id: string | null;
 }
 
 // Phase configuration - phase IDs match database values (P1, P2, etc.)
@@ -90,6 +92,8 @@ const ClientDetail = () => {
   const [addStrategyOpen, setAddStrategyOpen] = useState(false);
   const [creatingReview, setCreatingReview] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [latestReviewId, setLatestReviewId] = useState<string | null>(null);
+  const [ytdTaxSavings, setYtdTaxSavings] = useState(0);
 
   const getCurrentQuarter = () => {
     const now = new Date();
@@ -131,13 +135,14 @@ const ClientDetail = () => {
       if (!user || !id) return;
 
       try {
-        // Fetch client, strategies, client_strategies, and onboarding data in parallel
-        const [clientRes, strategiesRes, clientStrategiesRes, onboardingTasksRes, clientOnboardingRes] = await Promise.all([
+        // Fetch client, strategies, client_strategies, onboarding data, and latest review in parallel
+        const [clientRes, strategiesRes, clientStrategiesRes, onboardingTasksRes, clientOnboardingRes, latestReviewRes] = await Promise.all([
           supabase.from("clients").select("*").eq("id", id).maybeSingle(),
           supabase.from("strategies").select("*").order("id"),
           supabase.from("client_strategies").select("*").eq("client_id", id),
           supabase.from("onboarding_tasks").select("*", { count: "exact", head: true }),
           supabase.from("client_onboarding").select("*").eq("client_id", id),
+          supabase.from("quarterly_reviews").select("id").eq("client_id", id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
         ]);
 
         if (clientRes.error) throw clientRes.error;
@@ -154,6 +159,17 @@ const ClientDetail = () => {
         setClient(clientRes.data);
         setStrategies(strategiesRes.data || []);
         setClientStrategies(clientStrategiesRes.data || []);
+
+        // Set latest review and calculate YTD tax savings
+        if (latestReviewRes.data) {
+          setLatestReviewId(latestReviewRes.data.id);
+          // Calculate YTD savings from strategies linked to this review
+          const reviewStrategies = clientStrategiesRes.data?.filter(
+            (cs) => cs.review_id === latestReviewRes.data.id
+          ) || [];
+          const totalSavings = reviewStrategies.reduce((sum, cs) => sum + (cs.tax_savings || 0), 0);
+          setYtdTaxSavings(totalSavings);
+        }
 
         // Check if onboarding should be shown
         if (clientRes.data) {
@@ -462,8 +478,8 @@ const ClientDetail = () => {
               <p className="text-sm text-muted-foreground">Strategies</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-emerald-600 tabular-nums">{formatCurrency(stats.totalSavings)}</p>
-              <p className="text-sm text-muted-foreground">Est. Savings</p>
+              <p className="text-2xl font-bold text-emerald-600 tabular-nums">{formatCurrency(ytdTaxSavings)}</p>
+              <p className="text-sm text-muted-foreground">YTD Tax Savings</p>
             </div>
             <Button 
               variant="outline"
