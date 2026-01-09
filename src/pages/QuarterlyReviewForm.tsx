@@ -32,7 +32,9 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { ArrowLeft, CalendarIcon, Save, Printer, Trash2, Check, Loader2 } from "lucide-react";
+import { ArrowLeft, CalendarIcon, Save, Printer, Trash2, Check, Loader2, Plus } from "lucide-react";
+import { StrategyCard } from "@/components/review/StrategyCard";
+import { AddStrategyModal } from "@/components/review/AddStrategyModal";
 
 // Phase configuration
 const PHASES = [
@@ -91,6 +93,16 @@ interface ClientStrategy {
   status: string;
   tax_savings: number | null;
   deduction_amount: number | null;
+  notes: string | null;
+}
+
+interface Strategy {
+  id: number;
+  name: string;
+  phase: string;
+  phase_name: string;
+  irc_citation: string | null;
+  description: string | null;
 }
 
 const TAX_RATE_OPTIONS = [
@@ -123,8 +135,10 @@ const QuarterlyReviewForm = () => {
   const [review, setReview] = useState<QuarterlyReview | null>(null);
   const [client, setClient] = useState<Client | null>(null);
   const [clientStrategies, setClientStrategies] = useState<ClientStrategy[]>([]);
+  const [allStrategies, setAllStrategies] = useState<Strategy[]>([]);
   const [showCustomTaxRate, setShowCustomTaxRate] = useState(false);
   const [customTaxRate, setCustomTaxRate] = useState("");
+  const [showAddStrategyModal, setShowAddStrategyModal] = useState(false);
 
   useEffect(() => {
     if (user && id) fetchReview();
@@ -151,12 +165,19 @@ const QuarterlyReviewForm = () => {
       // Fetch client strategies
       const { data: strategiesData } = await supabase
         .from("client_strategies")
-        .select("id, strategy_id, status, tax_savings, deduction_amount")
+        .select("id, strategy_id, status, tax_savings, deduction_amount, notes")
         .eq("client_id", reviewData.client_id);
+
+      // Fetch all strategies for the library
+      const { data: allStrategiesData } = await supabase
+        .from("strategies")
+        .select("id, name, phase, phase_name, irc_citation, description")
+        .order("id");
 
       setReview(reviewData);
       setClient(clientData as Client);
-      setClientStrategies(strategiesData || []);
+      setClientStrategies((strategiesData || []) as ClientStrategy[]);
+      setAllStrategies((allStrategiesData || []) as Strategy[]);
 
       // Check if tax rate is custom
       const currentRate = reviewData.tax_rate_override ?? clientData.tax_rate ?? 0.37;
@@ -376,7 +397,7 @@ const QuarterlyReviewForm = () => {
 
     // Active strategies from client_strategies
     const activeStrategies = clientStrategies.filter(
-      (cs) => cs.status === "active" || cs.status === "complete" || cs.status === "in-progress"
+      (cs) => cs.status === "active" || cs.status === "complete" || cs.status === "in_progress"
     ).length;
 
     // YTD Savings
@@ -393,6 +414,72 @@ const QuarterlyReviewForm = () => {
       maximumFractionDigits: 0,
     }).format(value);
   };
+
+  // Strategy management functions
+  const handleAddStrategy = async (strategyId: number) => {
+    if (!client || !review) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("client_strategies")
+        .insert({
+          client_id: client.id,
+          strategy_id: strategyId,
+          review_id: review.id,
+          status: "not_started",
+        })
+        .select("id, strategy_id, status, tax_savings, deduction_amount, notes")
+        .single();
+
+      if (error) throw error;
+
+      setClientStrategies((prev) => [...prev, data as ClientStrategy]);
+      toast({ title: "Strategy added" });
+    } catch (error) {
+      console.error("Error adding strategy:", error);
+      toast({ title: "Error", description: "Failed to add strategy", variant: "destructive" });
+    }
+  };
+
+  const handleUpdateStrategy = async (id: string, updates: Partial<ClientStrategy>) => {
+    try {
+      const { error } = await supabase
+        .from("client_strategies")
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq("id", id);
+
+      if (error) throw error;
+
+      setClientStrategies((prev) =>
+        prev.map((cs) => (cs.id === id ? { ...cs, ...updates } : cs))
+      );
+    } catch (error) {
+      console.error("Error updating strategy:", error);
+      toast({ title: "Error", description: "Failed to update strategy", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteStrategy = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from("client_strategies")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+
+      setClientStrategies((prev) => prev.filter((cs) => cs.id !== id));
+      toast({ title: "Strategy removed" });
+    } catch (error) {
+      console.error("Error deleting strategy:", error);
+      toast({ title: "Error", description: "Failed to remove strategy", variant: "destructive" });
+    }
+  };
+
+  const addedStrategyIds = useMemo(
+    () => clientStrategies.map((cs) => cs.strategy_id),
+    [clientStrategies]
+  );
 
   if (loading) {
     return (
@@ -582,7 +669,7 @@ const QuarterlyReviewForm = () => {
 
           {/* Accordion Sections */}
           <div className="p-6">
-            <Accordion type="multiple" defaultValue={["section-1", "section-2", "section-3", "section-4", "section-5"]} className="space-y-4">
+            <Accordion type="multiple" defaultValue={["section-1", "section-2", "section-3", "section-4", "section-5", "section-6"]} className="space-y-4">
               {/* Section 1: How We Work Together */}
               <AccordionItem value="section-1" className="border rounded-lg px-4">
                 <AccordionTrigger className="hover:no-underline">
@@ -1020,8 +1107,68 @@ const QuarterlyReviewForm = () => {
                   </div>
                 </AccordionContent>
               </AccordionItem>
+
+              {/* Section 6: Strategies Currently Implementing */}
+              <AccordionItem value="section-6" className="border rounded-lg px-4">
+                <AccordionTrigger className="hover:no-underline">
+                  <span className="text-lg font-semibold">6. Strategies Currently Implementing</span>
+                </AccordionTrigger>
+                <AccordionContent className="pt-4 pb-6">
+                  <p className="text-muted-foreground mb-6">
+                    Active strategies being executed this quarter. Enter tax deduction amounts to auto-calculate savings.
+                  </p>
+
+                  {/* Strategy Cards */}
+                  <div className="space-y-4 mb-6">
+                    {clientStrategies.length > 0 ? (
+                      clientStrategies.map((cs) => {
+                        const strategy = allStrategies.find((s) => s.id === cs.strategy_id);
+                        if (!strategy) return null;
+                        return (
+                          <StrategyCard
+                            key={cs.id}
+                            clientStrategy={cs}
+                            strategy={strategy}
+                            taxRate={getCurrentTaxRate()}
+                            onUpdate={handleUpdateStrategy}
+                            onDelete={handleDeleteStrategy}
+                          />
+                        );
+                      })
+                    ) : (
+                      <div className="text-center py-8 bg-slate-50 rounded-lg border border-dashed border-slate-300">
+                        <p className="text-muted-foreground mb-2">No strategies added yet</p>
+                        <p className="text-sm text-muted-foreground">
+                          Click the button below to add strategies for this client
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Add Strategy Button */}
+                  <div className="flex justify-center">
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowAddStrategyModal(true)}
+                      className="gap-2"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add Strategy
+                    </Button>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
             </Accordion>
           </div>
+
+          {/* Add Strategy Modal */}
+          <AddStrategyModal
+            open={showAddStrategyModal}
+            onClose={() => setShowAddStrategyModal(false)}
+            strategies={allStrategies}
+            addedStrategyIds={addedStrategyIds}
+            onAddStrategy={handleAddStrategy}
+          />
 
           {/* Bottom Buttons */}
           <div className="px-6 py-6 border-t bg-slate-50 flex flex-wrap justify-center gap-4 print:hidden">
