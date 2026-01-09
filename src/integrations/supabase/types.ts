@@ -272,6 +272,7 @@ export type Database = {
           advisor_signature: boolean | null
           client_id: string
           client_signature: boolean | null
+          cogs: number | null
           compliance_books: boolean | null
           compliance_estimates: boolean | null
           compliance_notes: string | null
@@ -279,6 +280,7 @@ export type Database = {
           created_at: string
           draw_goal: number | null
           draw_ytd: number | null
+          employee_count: number | null
           employees_current: number | null
           employees_goal: number | null
           hurdle_1: string | null
@@ -288,6 +290,10 @@ export type Database = {
           meeting_date: string | null
           next_meeting_date: string | null
           next_meeting_time: string | null
+          profit_first_opex_target: number | null
+          profit_first_owner_target: number | null
+          profit_first_profit_target: number | null
+          profit_first_tax_target: number | null
           profit_goal: number | null
           profit_ytd: number | null
           quarter: string
@@ -295,6 +301,7 @@ export type Database = {
           revenue_ytd: number | null
           status: string
           tax_rate_override: number | null
+          total_expenses: number | null
           updated_at: string
         }
         Insert: {
@@ -302,6 +309,7 @@ export type Database = {
           advisor_signature?: boolean | null
           client_id: string
           client_signature?: boolean | null
+          cogs?: number | null
           compliance_books?: boolean | null
           compliance_estimates?: boolean | null
           compliance_notes?: string | null
@@ -309,6 +317,7 @@ export type Database = {
           created_at?: string
           draw_goal?: number | null
           draw_ytd?: number | null
+          employee_count?: number | null
           employees_current?: number | null
           employees_goal?: number | null
           hurdle_1?: string | null
@@ -318,6 +327,10 @@ export type Database = {
           meeting_date?: string | null
           next_meeting_date?: string | null
           next_meeting_time?: string | null
+          profit_first_opex_target?: number | null
+          profit_first_owner_target?: number | null
+          profit_first_profit_target?: number | null
+          profit_first_tax_target?: number | null
           profit_goal?: number | null
           profit_ytd?: number | null
           quarter: string
@@ -325,6 +338,7 @@ export type Database = {
           revenue_ytd?: number | null
           status?: string
           tax_rate_override?: number | null
+          total_expenses?: number | null
           updated_at?: string
         }
         Update: {
@@ -332,6 +346,7 @@ export type Database = {
           advisor_signature?: boolean | null
           client_id?: string
           client_signature?: boolean | null
+          cogs?: number | null
           compliance_books?: boolean | null
           compliance_estimates?: boolean | null
           compliance_notes?: string | null
@@ -339,6 +354,7 @@ export type Database = {
           created_at?: string
           draw_goal?: number | null
           draw_ytd?: number | null
+          employee_count?: number | null
           employees_current?: number | null
           employees_goal?: number | null
           hurdle_1?: string | null
@@ -348,6 +364,10 @@ export type Database = {
           meeting_date?: string | null
           next_meeting_date?: string | null
           next_meeting_time?: string | null
+          profit_first_opex_target?: number | null
+          profit_first_owner_target?: number | null
+          profit_first_profit_target?: number | null
+          profit_first_tax_target?: number | null
           profit_goal?: number | null
           profit_ytd?: number | null
           quarter?: string
@@ -355,6 +375,7 @@ export type Database = {
           revenue_ytd?: number | null
           status?: string
           tax_rate_override?: number | null
+          total_expenses?: number | null
           updated_at?: string
         }
         Relationships: [

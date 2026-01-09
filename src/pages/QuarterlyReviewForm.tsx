@@ -39,6 +39,8 @@ import { ActionItemsSection } from "@/components/review/ActionItemsSection";
 import { YearEndOpportunities } from "@/components/review/YearEndOpportunities";
 import { NextMeetingSection } from "@/components/review/NextMeetingSection";
 import { SignatureSection } from "@/components/review/SignatureSection";
+import { ImportPnlBar } from "@/components/review/ImportPnlBar";
+import { ProfitFirstSection } from "@/components/review/ProfitFirstSection";
 
 // Phase configuration
 const PHASES = [
@@ -85,6 +87,15 @@ interface QuarterlyReview {
   next_meeting_time: string | null;
   client_signature: boolean | null;
   advisor_signature: boolean | null;
+  // P&L Import fields
+  cogs: number | null;
+  total_expenses: number | null;
+  employee_count: number | null;
+  // Profit First targets
+  profit_first_profit_target: number | null;
+  profit_first_owner_target: number | null;
+  profit_first_tax_target: number | null;
+  profit_first_opex_target: number | null;
 }
 
 interface Client {
@@ -890,88 +901,141 @@ const QuarterlyReviewForm = () => {
                   <span className="text-lg font-semibold">2. Financial Goals for {getYear()}</span>
                 </AccordionTrigger>
                 <AccordionContent className="pt-4 pb-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {/* Revenue */}
-                    <MetricCard
-                      title="Revenue"
-                      color="emerald"
-                      ytd={review.revenue_ytd}
-                      goal={review.revenue_goal}
-                      onYtdChange={(v) => updateField("revenue_ytd", v)}
-                      onGoalChange={(v) => updateField("revenue_goal", v)}
-                      onYtdBlur={(v) => handleBlur("revenue_ytd", v)}
-                      onGoalBlur={(v) => handleBlur("revenue_goal", v)}
+                  <div className="space-y-6">
+                    {/* Import P&L Bar */}
+                    <ImportPnlBar
+                      onImport={(data) => {
+                        const updates: Partial<QuarterlyReview> = {};
+                        if (data.revenue !== null) {
+                          updates.revenue_ytd = data.revenue;
+                          updateField("revenue_ytd", data.revenue);
+                        }
+                        if (data.netProfit !== null) {
+                          updates.profit_ytd = data.netProfit;
+                          updateField("profit_ytd", data.netProfit);
+                        }
+                        if (data.cogs !== null) {
+                          updates.cogs = data.cogs;
+                          updateField("cogs", data.cogs);
+                        }
+                        if (data.expenses !== null) {
+                          updates.total_expenses = data.expenses;
+                          updateField("total_expenses", data.expenses);
+                        }
+                        if (Object.keys(updates).length > 0) {
+                          saveReview(updates);
+                        }
+                      }}
                     />
 
-                    {/* Net Profit */}
-                    <MetricCard
-                      title="Net Profit"
-                      color="blue"
-                      ytd={review.profit_ytd}
-                      goal={review.profit_goal}
-                      onYtdChange={(v) => updateField("profit_ytd", v)}
-                      onGoalChange={(v) => updateField("profit_goal", v)}
-                      onYtdBlur={(v) => handleBlur("profit_ytd", v)}
-                      onGoalBlur={(v) => handleBlur("profit_goal", v)}
-                    />
-
-                    {/* Personal Draw */}
-                    <MetricCard
-                      title="Personal Draw"
-                      color="navy"
-                      ytd={review.draw_ytd}
-                      goal={review.draw_goal}
-                      onYtdChange={(v) => updateField("draw_ytd", v)}
-                      onGoalChange={(v) => updateField("draw_goal", v)}
-                      onYtdBlur={(v) => handleBlur("draw_ytd", v)}
-                      onGoalBlur={(v) => handleBlur("draw_goal", v)}
-                    />
-
-                    {/* Employees */}
-                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                      <h4 className="font-semibold text-purple-700 mb-3">Employees</h4>
-                      <div className="grid grid-cols-2 gap-2 mb-3">
-                        <div>
-                          <Label className="text-xs text-muted-foreground">Current</Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            value={review.employees_current ?? ""}
-                            onChange={(e) =>
-                              updateField("employees_current", parseInt(e.target.value) || null)
-                            }
-                            onBlur={(e) =>
-                              handleBlur("employees_current", parseInt(e.target.value) || null)
-                            }
-                            className="h-9 bg-white"
-                            placeholder="0"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs text-muted-foreground">Goal</Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            value={review.employees_goal ?? ""}
-                            onChange={(e) =>
-                              updateField("employees_goal", parseInt(e.target.value) || null)
-                            }
-                            onBlur={(e) =>
-                              handleBlur("employees_goal", parseInt(e.target.value) || null)
-                            }
-                            className="h-9 bg-white"
-                            placeholder="0"
-                          />
-                        </div>
-                      </div>
-                      <Progress
-                        value={getProgress(review.employees_current, review.employees_goal)}
-                        className="h-2"
+                    {/* Financial Goal Metric Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      {/* Revenue */}
+                      <MetricCard
+                        title="Revenue"
+                        color="emerald"
+                        ytd={review.revenue_ytd}
+                        goal={review.revenue_goal}
+                        onYtdChange={(v) => updateField("revenue_ytd", v)}
+                        onGoalChange={(v) => updateField("revenue_goal", v)}
+                        onYtdBlur={(v) => handleBlur("revenue_ytd", v)}
+                        onGoalBlur={(v) => handleBlur("revenue_goal", v)}
                       />
-                      <p className="text-xs text-right text-muted-foreground mt-1">
-                        {getProgress(review.employees_current, review.employees_goal)}%
-                      </p>
+
+                      {/* Net Profit */}
+                      <MetricCard
+                        title="Net Profit"
+                        color="blue"
+                        ytd={review.profit_ytd}
+                        goal={review.profit_goal}
+                        onYtdChange={(v) => updateField("profit_ytd", v)}
+                        onGoalChange={(v) => updateField("profit_goal", v)}
+                        onYtdBlur={(v) => handleBlur("profit_ytd", v)}
+                        onGoalBlur={(v) => handleBlur("profit_goal", v)}
+                      />
+
+                      {/* Personal Draw */}
+                      <MetricCard
+                        title="Personal Draw"
+                        color="navy"
+                        ytd={review.draw_ytd}
+                        goal={review.draw_goal}
+                        onYtdChange={(v) => updateField("draw_ytd", v)}
+                        onGoalChange={(v) => updateField("draw_goal", v)}
+                        onYtdBlur={(v) => handleBlur("draw_ytd", v)}
+                        onGoalBlur={(v) => handleBlur("draw_goal", v)}
+                      />
+
+                      {/* Employees */}
+                      <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                        <h4 className="font-semibold text-purple-700 mb-3">Employees</h4>
+                        <div className="grid grid-cols-2 gap-2 mb-3">
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Current</Label>
+                            <Input
+                              type="number"
+                              min="0"
+                              value={review.employees_current ?? ""}
+                              onChange={(e) =>
+                                updateField("employees_current", parseInt(e.target.value) || null)
+                              }
+                              onBlur={(e) =>
+                                handleBlur("employees_current", parseInt(e.target.value) || null)
+                              }
+                              className="h-9 bg-white"
+                              placeholder="0"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Goal</Label>
+                            <Input
+                              type="number"
+                              min="0"
+                              value={review.employees_goal ?? ""}
+                              onChange={(e) =>
+                                updateField("employees_goal", parseInt(e.target.value) || null)
+                              }
+                              onBlur={(e) =>
+                                handleBlur("employees_goal", parseInt(e.target.value) || null)
+                              }
+                              className="h-9 bg-white"
+                              placeholder="0"
+                            />
+                          </div>
+                        </div>
+                        <Progress
+                          value={getProgress(review.employees_current, review.employees_goal)}
+                          className="h-2"
+                        />
+                        <p className="text-xs text-right text-muted-foreground mt-1">
+                          {getProgress(review.employees_current, review.employees_goal)}%
+                        </p>
+                      </div>
                     </div>
+
+                    {/* Profit First Health Check */}
+                    <ProfitFirstSection
+                      revenue={review.revenue_ytd}
+                      profit={review.profit_ytd}
+                      ownerPay={review.draw_ytd}
+                      targets={{
+                        profit: review.profit_first_profit_target ?? 10,
+                        ownerPay: review.profit_first_owner_target ?? 50,
+                        tax: review.profit_first_tax_target ?? 15,
+                        opEx: review.profit_first_opex_target ?? 25,
+                      }}
+                      onTargetChange={(target, value) => {
+                        const fieldMap = {
+                          profit: 'profit_first_profit_target',
+                          ownerPay: 'profit_first_owner_target',
+                          tax: 'profit_first_tax_target',
+                          opEx: 'profit_first_opex_target',
+                        } as const;
+                        const field = fieldMap[target];
+                        updateField(field, value);
+                        saveReview({ [field]: value });
+                      }}
+                    />
                   </div>
                 </AccordionContent>
               </AccordionItem>
