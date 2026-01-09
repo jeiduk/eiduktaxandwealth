@@ -113,6 +113,22 @@ export const StrategyImportModal = ({
     XLSX.writeFile(wb, "strategy_template.xlsx");
   };
 
+  const parseJSONData = (data: string): Record<string, string>[] | null => {
+    try {
+      const parsed = JSON.parse(data);
+      const arr = Array.isArray(parsed) ? parsed : [parsed];
+      return arr.map((item: any) => {
+        const normalized: Record<string, string> = {};
+        Object.keys(item).forEach((key) => {
+          normalized[key.toLowerCase().replace(/\s+/g, "_")] = String(item[key] ?? "");
+        });
+        return normalized;
+      });
+    } catch {
+      return null;
+    }
+  };
+
   const parseCSVData = (data: string): Record<string, string>[] => {
     const lines = data.trim().split("\n");
     if (lines.length < 2) return [];
@@ -236,17 +252,28 @@ export const StrategyImportModal = ({
     if (!pasteData.trim()) {
       toast({
         title: "No data",
-        description: "Please paste CSV data first",
+        description: "Please paste JSON or CSV data first",
         variant: "destructive",
       });
       return;
     }
 
-    const rawRows = parseCSVData(pasteData);
-    if (rawRows.length === 0) {
+    // Try JSON first, then CSV
+    let rawRows: Record<string, string>[] | null = null;
+    const trimmedData = pasteData.trim();
+    
+    if (trimmedData.startsWith("[") || trimmedData.startsWith("{")) {
+      rawRows = parseJSONData(trimmedData);
+    }
+    
+    if (!rawRows || rawRows.length === 0) {
+      rawRows = parseCSVData(pasteData);
+    }
+
+    if (!rawRows || rawRows.length === 0) {
       toast({
         title: "Invalid data",
-        description: "Could not parse the pasted data",
+        description: "Could not parse the pasted data as JSON or CSV",
         variant: "destructive",
       });
       return;
@@ -378,7 +405,7 @@ export const StrategyImportModal = ({
               <Textarea
                 value={pasteData}
                 onChange={(e) => setPasteData(e.target.value)}
-                placeholder="Paste CSV or tab-separated data here...&#10;id,name,phase,phase_name,irc_citation,description,typical_savings_low,typical_savings_high"
+                placeholder={'Paste JSON array or CSV data here...\n\n[{"id": 1, "name": "Strategy Name", "phase": 1, ...}]\n\nOR\n\nid,name,phase,phase_name,...'}
                 className="min-h-[150px] font-mono text-sm"
               />
               <Button
