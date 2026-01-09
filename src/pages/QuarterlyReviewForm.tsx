@@ -478,6 +478,13 @@ const QuarterlyReviewForm = () => {
     }
   };
 
+  const handleRemoveStrategyById = async (strategyId: number) => {
+    const clientStrategy = clientStrategies.find((cs) => cs.strategy_id === strategyId);
+    if (clientStrategy) {
+      await handleDeleteStrategy(clientStrategy.id);
+    }
+  };
+
   const addedStrategyIds = useMemo(
     () => clientStrategies.map((cs) => cs.strategy_id),
     [clientStrategies]
@@ -1170,6 +1177,7 @@ const QuarterlyReviewForm = () => {
             strategies={allStrategies}
             addedStrategyIds={addedStrategyIds}
             onAddStrategies={handleAddStrategies}
+            onRemoveStrategy={handleRemoveStrategyById}
           />
 
           {/* Bottom Buttons */}
