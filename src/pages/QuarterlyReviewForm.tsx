@@ -41,6 +41,7 @@ import { NextMeetingSection } from "@/components/review/NextMeetingSection";
 import { SignatureSection } from "@/components/review/SignatureSection";
 import { ImportPnlBar } from "@/components/review/ImportPnlBar";
 import { ProfitFirstSection } from "@/components/review/ProfitFirstSection";
+import Footer from "@/components/Footer";
 
 // Phase configuration
 const PHASES = [
@@ -1531,15 +1532,7 @@ const QuarterlyReviewForm = () => {
           </div>
 
           {/* Footer */}
-          <div className="gradient-header px-8 py-6 text-center">
-            <p className="text-eiduk-gold font-semibold text-sm">EIDUK TAX & WEALTH</p>
-            <p className="text-white/80 text-sm mt-1">
-              (704) 469-6777 • john@eiduk.com • eiduk.com
-            </p>
-            <p className="text-white/60 text-xs mt-2">
-              The Eiduk Pathway™ — Pay Less. Keep More. Build Wealth.
-            </p>
-          </div>
+          <Footer />
         </div>
       </div>
     </div>
