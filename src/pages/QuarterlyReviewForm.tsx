@@ -147,6 +147,7 @@ const QuarterlyReviewForm = () => {
   const [showCustomTaxRate, setShowCustomTaxRate] = useState(false);
   const [customTaxRate, setCustomTaxRate] = useState("");
   const [showAddStrategyModal, setShowAddStrategyModal] = useState(false);
+  const [showConsiderModal, setShowConsiderModal] = useState(false);
 
   useEffect(() => {
     if (user && id) fetchReview();
@@ -497,6 +498,60 @@ const QuarterlyReviewForm = () => {
     () => clientStrategies.map((cs) => cs.strategy_id),
     [clientStrategies]
   );
+
+  // Strategies for Section 6 (implementing - not considering)
+  const implementingStrategies = useMemo(
+    () => clientStrategies.filter((cs) => cs.status !== "considering"),
+    [clientStrategies]
+  );
+
+  // Handle adding strategies as "considering"
+  const handleAddConsideringStrategies = async (strategyIds: number[]) => {
+    if (!client || !review || strategyIds.length === 0) return;
+
+    try {
+      const inserts = strategyIds.map((strategyId) => ({
+        client_id: client.id,
+        strategy_id: strategyId,
+        review_id: review.id,
+        status: "considering",
+      }));
+
+      const { data, error } = await supabase
+        .from("client_strategies")
+        .insert(inserts)
+        .select("id, strategy_id, status, tax_savings, deduction_amount, notes");
+
+      if (error) throw error;
+
+      setClientStrategies((prev) => [...prev, ...(data as ClientStrategy[])]);
+      setShowConsiderModal(false);
+      toast({ title: `${strategyIds.length} strateg${strategyIds.length === 1 ? "y" : "ies"} added to consider` });
+    } catch (error) {
+      console.error("Error adding strategies:", error);
+      toast({ title: "Error", description: "Failed to add strategies", variant: "destructive" });
+    }
+  };
+
+  // Promote a considering strategy to implementing
+  const handlePromoteToImplementing = async (clientStrategyId: string) => {
+    try {
+      const { error } = await supabase
+        .from("client_strategies")
+        .update({ status: "not_started", updated_at: new Date().toISOString() })
+        .eq("id", clientStrategyId);
+
+      if (error) throw error;
+
+      setClientStrategies((prev) =>
+        prev.map((cs) => (cs.id === clientStrategyId ? { ...cs, status: "not_started" } : cs))
+      );
+      toast({ title: "Strategy moved to implementing" });
+    } catch (error) {
+      console.error("Error promoting strategy:", error);
+      toast({ title: "Error", description: "Failed to update strategy", variant: "destructive" });
+    }
+  };
 
   const handleCompleteReview = async () => {
     // Validation
@@ -1198,8 +1253,8 @@ const QuarterlyReviewForm = () => {
 
                   {/* Strategy Cards */}
                   <div className="space-y-4 mb-6">
-                    {clientStrategies.length > 0 ? (
-                      clientStrategies.map((cs) => {
+                    {implementingStrategies.length > 0 ? (
+                      implementingStrategies.map((cs) => {
                         const strategy = allStrategies.find((s) => s.id === cs.strategy_id);
                         if (!strategy) return null;
                         return (
@@ -1215,7 +1270,7 @@ const QuarterlyReviewForm = () => {
                       })
                     ) : (
                       <div className="text-center py-8 bg-slate-50 rounded-lg border border-dashed border-slate-300">
-                        <p className="text-muted-foreground mb-2">No strategies added yet</p>
+                        <p className="text-muted-foreground mb-2">No strategies being implemented yet</p>
                         <p className="text-sm text-muted-foreground">
                           Click the button below to add strategies for this client
                         </p>
@@ -1248,9 +1303,11 @@ const QuarterlyReviewForm = () => {
                   </p>
                   <YearEndOpportunities
                     allStrategies={allStrategies}
-                    addedStrategyIds={addedStrategyIds}
+                    clientStrategies={clientStrategies}
                     phaseStatus={client?.phase_status ?? null}
-                    onConsider={(strategyId) => handleAddStrategies([strategyId])}
+                    onAddToConsider={() => setShowConsiderModal(true)}
+                    onPromoteToImplementing={handlePromoteToImplementing}
+                    onRemove={handleDeleteStrategy}
                   />
                 </AccordionContent>
               </AccordionItem>
@@ -1305,13 +1362,23 @@ const QuarterlyReviewForm = () => {
             </Accordion>
           </div>
 
-          {/* Add Strategy Modal */}
+          {/* Add Strategy Modal (for Section 6 - Implementing) */}
           <AddStrategyModal
             open={showAddStrategyModal}
             onClose={() => setShowAddStrategyModal(false)}
             strategies={allStrategies}
             addedStrategyIds={addedStrategyIds}
             onAddStrategies={handleAddStrategies}
+            onRemoveStrategy={handleRemoveStrategyById}
+          />
+
+          {/* Add Strategy Modal (for Section 7 - Considering) */}
+          <AddStrategyModal
+            open={showConsiderModal}
+            onClose={() => setShowConsiderModal(false)}
+            strategies={allStrategies}
+            addedStrategyIds={addedStrategyIds}
+            onAddStrategies={handleAddConsideringStrategies}
             onRemoveStrategy={handleRemoveStrategyById}
           />
 
