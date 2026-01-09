@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Building2, User, Clock, DollarSign, Scale, BarChart3, ChevronRight, ArrowLeft, ArrowRight, Shield, Lock, Check, AlertTriangle, Info, FileText, Printer, Mail, Save, LayoutDashboard, Home } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { Building2, User, Clock, DollarSign, Scale, BarChart3, ChevronRight, ArrowLeft, ArrowRight, Shield, Lock, Check, AlertTriangle, Info, FileText, Printer, Mail, Save, LayoutDashboard, Home, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,8 @@ import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useReasonableCompFile } from "@/hooks/useReasonableCompFile";
+import { useAuth } from "@/hooks/useAuth";
 
 // Step Configuration
 const steps = [
@@ -87,65 +89,28 @@ const presets = {
 
 export default function ReasonableComp() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const fileId = searchParams.get('id') || undefined;
+  const { user } = useAuth();
+  const { data, updateData, save, loading, saving, currentFileId } = useReasonableCompFile(fileId);
   const [currentStep, setCurrentStep] = useState(1);
   
-  // Step 1: Business Info
-  const [businessName, setBusinessName] = useState("");
-  const [taxYear, setTaxYear] = useState("2026");
-  const [industry, setIndustry] = useState("");
-  const [naicsCode, setNaicsCode] = useState("");
-  const [state, setState] = useState("");
-  const [metroArea, setMetroArea] = useState("");
-  const [grossRevenue, setGrossRevenue] = useState("");
+  // Local state for UI-only fields not persisted
   const [netIncome, setNetIncome] = useState("");
-  const [employeeCount, setEmployeeCount] = useState("1");
-
-  // Step 2: Owner Info
-  const [ownerName, setOwnerName] = useState("");
-  const [roleTitle, setRoleTitle] = useState("");
-  const [yearsExperience, setYearsExperience] = useState("");
-  const [hoursPerWeek, setHoursPerWeek] = useState("40");
-  const [weeksPerYear, setWeeksPerYear] = useState("50");
-  const [credentials, setCredentials] = useState<string[]>([]);
-
-  // Step 3: Time Allocation
-  const [allocations, setAllocations] = useState({
-    ceo: 20,
-    ops: 25,
-    sales: 20,
-    tech: 25,
-    admin: 10,
-  });
-  const [proficiency, setProficiency] = useState({
-    ceo: "average",
-    ops: "average",
-    sales: "average",
-    tech: "average",
-    admin: "average",
-  });
-
-  // Step 5: IRS Factors
-  const [selectedFactors, setSelectedFactors] = useState<string[]>([]);
-
-  // Step 6: Results
-  const [finalWage, setFinalWage] = useState(105000);
-  const [advisorName, setAdvisorName] = useState("");
-  const [justification, setJustification] = useState("");
-  
-  // Signatures
-  const [clientAckChecked, setClientAckChecked] = useState(false);
-  const [advisorAckChecked, setAdvisorAckChecked] = useState(false);
-  const [clientSigName, setClientSigName] = useState("");
-  const [advisorSigName, setAdvisorSigName] = useState("");
-  const [clientTimestamp, setClientTimestamp] = useState("");
-  const [advisorTimestamp, setAdvisorTimestamp] = useState("");
-  const [clientConfirmed, setClientConfirmed] = useState(false);
-  const [advisorConfirmed, setAdvisorConfirmed] = useState(false);
-  const [documentLocked, setDocumentLocked] = useState(false);
+  const [localMetroArea, setLocalMetroArea] = useState("");
   const [lockTimestamp, setLockTimestamp] = useState("");
 
+  // Destructure data from hook for convenience
+  const {
+    businessName, taxYear, industry, naicsCode, state, grossRevenue, employeeCount,
+    ownerName, roleTitle, yearsExperience, hoursPerWeek, weeksPerYear, credentials,
+    allocations, proficiency, selectedFactors, finalWage, advisorName, justification,
+    clientAckChecked, advisorAckChecked, clientSigName, advisorSigName,
+    clientTimestamp, advisorTimestamp, clientConfirmed, advisorConfirmed, documentLocked
+  } = data;
+
   // Calculated values
-  const totalAllocation = Object.values(allocations).reduce((a, b) => a + b, 0);
+  const totalAllocation = Object.values(allocations).reduce((a: number, b: number) => a + b, 0);
   const annualHours = parseInt(hoursPerWeek) * parseInt(weeksPerYear) || 2000;
   const rangeLow = 89250;
   const rangeHigh = 120750;
@@ -176,60 +141,65 @@ export default function ReasonableComp() {
   };
 
   const applyPreset = (presetKey: keyof typeof presets) => {
-    setAllocations(presets[presetKey]);
+    updateData({ allocations: presets[presetKey] });
     toast.success("Preset applied!");
   };
 
   const toggleCredential = (cred: string) => {
-    setCredentials(prev => 
-      prev.includes(cred) 
-        ? prev.filter(c => c !== cred)
-        : [...prev, cred]
-    );
+    const newCredentials = credentials.includes(cred)
+      ? credentials.filter(c => c !== cred)
+      : [...credentials, cred];
+    updateData({ credentials: newCredentials });
   };
 
   const toggleFactor = (factorId: string) => {
-    setSelectedFactors(prev =>
-      prev.includes(factorId)
-        ? prev.filter(f => f !== factorId)
-        : [...prev, factorId]
-    );
+    const newFactors = selectedFactors.includes(factorId)
+      ? selectedFactors.filter(f => f !== factorId)
+      : [...selectedFactors, factorId];
+    updateData({ selectedFactors: newFactors });
   };
 
   const handleClientSign = () => {
     if (clientSigName.length >= 2) {
       const now = new Date();
-      setClientTimestamp(formatTimestamp(now));
-      setClientConfirmed(true);
+      updateData({
+        clientTimestamp: formatTimestamp(now),
+        clientConfirmed: true
+      });
     }
   };
 
   const handleAdvisorSign = () => {
     if (advisorSigName.length >= 2) {
       const now = new Date();
-      setAdvisorTimestamp(formatTimestamp(now));
-      setAdvisorConfirmed(true);
+      updateData({
+        advisorTimestamp: formatTimestamp(now),
+        advisorConfirmed: true
+      });
     }
   };
 
-  const lockDocument = () => {
+  const lockDocument = async () => {
     if (!clientConfirmed || !advisorConfirmed) {
       toast.error("Both signatures are required to finalize.");
       return;
     }
     const now = new Date();
     setLockTimestamp(formatTimestamp(now));
-    setDocumentLocked(true);
+    updateData({ documentLocked: true });
+    await save();
     toast.success("Defense File has been finalized!");
   };
 
-  const handleSave = () => {
-    toast.success("Defense File saved successfully!");
+  const handleSave = async () => {
+    await save();
   };
 
-  const handleSaveAndExit = () => {
-    toast.success("Defense File saved!");
-    navigate("/dashboard");
+  const handleSaveAndExit = async () => {
+    const success = await save();
+    if (success) {
+      navigate("/dashboard");
+    }
   };
 
   // Calculate estimated wages
@@ -239,7 +209,7 @@ export default function ReasonableComp() {
     Object.entries(allocations).forEach(([role, pct]) => {
       const roleKey = role as keyof typeof defaultWageData;
       const hourlyWage = defaultWageData[roleKey].median;
-      const roleHours = (annualHours * pct) / 100;
+      const roleHours = (annualHours * (pct as number)) / 100;
       wages[role] = hourlyWage * roleHours;
       total += wages[role];
     });
@@ -258,6 +228,18 @@ export default function ReasonableComp() {
   };
 
   const sliderPercent = ((finalWage - rangeLow) / (rangeHigh - rangeLow)) * 100;
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-eiduk-blue" />
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -352,18 +334,18 @@ export default function ReasonableComp() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Business Name <span className="text-red-500">*</span></Label>
-                  <Input value={businessName} onChange={(e) => setBusinessName(e.target.value)} placeholder="ABC Consulting, Inc." />
+                  <Input value={businessName} onChange={(e) => updateData({ businessName: e.target.value })} placeholder="ABC Consulting, Inc." />
                 </div>
                 <div className="space-y-2">
                   <Label>Tax Year <span className="text-red-500">*</span></Label>
-                  <Input type="number" value={taxYear} onChange={(e) => setTaxYear(e.target.value)} min="2020" max="2027" />
+                  <Input type="number" value={taxYear} onChange={(e) => updateData({ taxYear: e.target.value })} min="2020" max="2027" />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Industry <span className="text-red-500">*</span></Label>
-                  <Select value={industry} onValueChange={setIndustry}>
+                  <Select value={industry} onValueChange={(val) => updateData({ industry: val })}>
                     <SelectTrigger><SelectValue placeholder="Select industry..." /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="professional">Professional Services</SelectItem>
@@ -381,14 +363,14 @@ export default function ReasonableComp() {
                 </div>
                 <div className="space-y-2">
                   <Label>NAICS Code (optional)</Label>
-                  <Input value={naicsCode} onChange={(e) => setNaicsCode(e.target.value)} placeholder="e.g., 541110" />
+                  <Input value={naicsCode} onChange={(e) => updateData({ naicsCode: e.target.value })} placeholder="e.g., 541110" />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>State <span className="text-red-500">*</span></Label>
-                  <Select value={state} onValueChange={setState}>
+                  <Select value={state} onValueChange={(val) => updateData({ state: val })}>
                     <SelectTrigger><SelectValue placeholder="Select state..." /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="IL">Illinois</SelectItem>
@@ -401,7 +383,7 @@ export default function ReasonableComp() {
                 </div>
                 <div className="space-y-2">
                   <Label>Metro Area (optional)</Label>
-                  <Input value={metroArea} onChange={(e) => setMetroArea(e.target.value)} placeholder="Chicago" />
+                  <Input value={localMetroArea} onChange={(e) => setLocalMetroArea(e.target.value)} placeholder="Chicago" />
                 </div>
               </div>
 
@@ -412,7 +394,7 @@ export default function ReasonableComp() {
                     <Label>Gross Revenue <span className="text-red-500">*</span></Label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                      <Input className="pl-7" type="number" value={grossRevenue} onChange={(e) => setGrossRevenue(e.target.value)} placeholder="250000" />
+                      <Input className="pl-7" type="number" value={grossRevenue} onChange={(e) => updateData({ grossRevenue: e.target.value })} placeholder="250000" />
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -425,7 +407,7 @@ export default function ReasonableComp() {
                   </div>
                   <div className="space-y-2">
                     <Label>Number of Employees <span className="text-red-500">*</span></Label>
-                    <Input type="number" value={employeeCount} onChange={(e) => setEmployeeCount(e.target.value)} min="1" />
+                    <Input type="number" value={employeeCount} onChange={(e) => updateData({ employeeCount: e.target.value })} min="1" />
                   </div>
                 </div>
               </div>
@@ -456,26 +438,26 @@ export default function ReasonableComp() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Owner Name <span className="text-red-500">*</span></Label>
-                  <Input value={ownerName} onChange={(e) => setOwnerName(e.target.value)} placeholder="John Smith" />
+                  <Input value={ownerName} onChange={(e) => updateData({ ownerName: e.target.value })} placeholder="John Smith" />
                 </div>
                 <div className="space-y-2">
                   <Label>Primary Role Title <span className="text-red-500">*</span></Label>
-                  <Input value={roleTitle} onChange={(e) => setRoleTitle(e.target.value)} placeholder="e.g., CEO, President, Managing Partner" />
+                  <Input value={roleTitle} onChange={(e) => updateData({ roleTitle: e.target.value })} placeholder="e.g., CEO, President, Managing Partner" />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>Years of Experience <span className="text-red-500">*</span></Label>
-                  <Input type="number" value={yearsExperience} onChange={(e) => setYearsExperience(e.target.value)} placeholder="15" />
+                  <Input type="number" value={yearsExperience} onChange={(e) => updateData({ yearsExperience: e.target.value })} placeholder="15" />
                 </div>
                 <div className="space-y-2">
                   <Label>Hours per Week</Label>
-                  <Input type="number" value={hoursPerWeek} onChange={(e) => setHoursPerWeek(e.target.value)} />
+                  <Input type="number" value={hoursPerWeek} onChange={(e) => updateData({ hoursPerWeek: e.target.value })} />
                 </div>
                 <div className="space-y-2">
                   <Label>Weeks per Year</Label>
-                  <Input type="number" value={weeksPerYear} onChange={(e) => setWeeksPerYear(e.target.value)} />
+                  <Input type="number" value={weeksPerYear} onChange={(e) => updateData({ weeksPerYear: e.target.value })} />
                 </div>
               </div>
 
@@ -567,7 +549,7 @@ export default function ReasonableComp() {
                               type="number"
                               className="w-16 text-center"
                               value={allocations[role]}
-                              onChange={(e) => setAllocations(prev => ({ ...prev, [role]: parseInt(e.target.value) || 0 }))}
+                              onChange={(e) => updateData({ allocations: { ...allocations, [role]: parseInt(e.target.value) || 0 } })}
                               min="0"
                               max="100"
                             />
@@ -575,7 +557,7 @@ export default function ReasonableComp() {
                           </div>
                         </td>
                         <td className="p-3">
-                          <Select value={proficiency[role]} onValueChange={(val) => setProficiency(prev => ({ ...prev, [role]: val }))}>
+                          <Select value={proficiency[role]} onValueChange={(val) => updateData({ proficiency: { ...proficiency, [role]: val } })}>
                             <SelectTrigger className="w-full">
                               <SelectValue />
                             </SelectTrigger>
@@ -875,7 +857,7 @@ export default function ReasonableComp() {
                   </div>
                   <Slider
                     value={[finalWage]}
-                    onValueChange={(val) => setFinalWage(val[0])}
+                    onValueChange={(val) => updateData({ finalWage: val[0] })}
                     min={rangeLow}
                     max={rangeHigh}
                     step={250}
@@ -892,7 +874,7 @@ export default function ReasonableComp() {
                   <Label>Advisor Name / Credentials</Label>
                   <Input
                     value={advisorName}
-                    onChange={(e) => setAdvisorName(e.target.value)}
+                    onChange={(e) => updateData({ advisorName: e.target.value })}
                     placeholder="e.g., John Eiduk, CPA, CFP®"
                   />
                 </div>
@@ -905,7 +887,7 @@ export default function ReasonableComp() {
                   </p>
                   <Textarea
                     value={justification}
-                    onChange={(e) => setJustification(e.target.value)}
+                    onChange={(e) => updateData({ justification: e.target.value })}
                     placeholder="The recommended wage of [amount] was selected based on..."
                     rows={4}
                   />
@@ -962,7 +944,7 @@ export default function ReasonableComp() {
                           <div className="flex items-start gap-3">
                             <Checkbox
                               checked={clientAckChecked}
-                              onCheckedChange={(checked) => setClientAckChecked(checked as boolean)}
+                              onCheckedChange={(checked) => updateData({ clientAckChecked: checked as boolean })}
                             />
                             <span className="text-sm">
                               I confirm that the information provided is accurate and complete to the best of my knowledge. I understand that reasonable compensation is a facts-and-circumstances determination.
@@ -975,7 +957,7 @@ export default function ReasonableComp() {
                                 <Label>Client Name (Type to Sign) <span className="text-red-500">*</span></Label>
                                 <Input
                                   value={clientSigName}
-                                  onChange={(e) => setClientSigName(e.target.value)}
+                                  onChange={(e) => updateData({ clientSigName: e.target.value })}
                                   onBlur={handleClientSign}
                                   placeholder="Type your full legal name"
                                   className="font-display italic text-base"
@@ -1018,7 +1000,7 @@ export default function ReasonableComp() {
                           <div className="flex items-start gap-3">
                             <Checkbox
                               checked={advisorAckChecked}
-                              onCheckedChange={(checked) => setAdvisorAckChecked(checked as boolean)}
+                              onCheckedChange={(checked) => updateData({ advisorAckChecked: checked as boolean })}
                             />
                             <span className="text-sm">
                               I certify that this Reasonable Compensation Defense File was prepared in accordance with IRS guidelines, Treasury Regulations §1.162-7(b)(3), and judicially recognized factors.
@@ -1031,7 +1013,7 @@ export default function ReasonableComp() {
                                 <Label>Advisor Name & Credentials <span className="text-red-500">*</span></Label>
                                 <Input
                                   value={advisorSigName}
-                                  onChange={(e) => setAdvisorSigName(e.target.value)}
+                                  onChange={(e) => updateData({ advisorSigName: e.target.value })}
                                   onBlur={handleAdvisorSign}
                                   placeholder="e.g., John Eiduk, CPA, CFP®"
                                   className="font-display italic text-base"
