@@ -416,28 +416,30 @@ const QuarterlyReviewForm = () => {
   };
 
   // Strategy management functions
-  const handleAddStrategy = async (strategyId: number) => {
-    if (!client || !review) return;
+  const handleAddStrategies = async (strategyIds: number[]) => {
+    if (!client || !review || strategyIds.length === 0) return;
 
     try {
+      const inserts = strategyIds.map((strategyId) => ({
+        client_id: client.id,
+        strategy_id: strategyId,
+        review_id: review.id,
+        status: "not_started",
+      }));
+
       const { data, error } = await supabase
         .from("client_strategies")
-        .insert({
-          client_id: client.id,
-          strategy_id: strategyId,
-          review_id: review.id,
-          status: "not_started",
-        })
-        .select("id, strategy_id, status, tax_savings, deduction_amount, notes")
-        .single();
+        .insert(inserts)
+        .select("id, strategy_id, status, tax_savings, deduction_amount, notes");
 
       if (error) throw error;
 
-      setClientStrategies((prev) => [...prev, data as ClientStrategy]);
-      toast({ title: "Strategy added" });
+      setClientStrategies((prev) => [...prev, ...(data as ClientStrategy[])]);
+      setShowAddStrategyModal(false);
+      toast({ title: `${strategyIds.length} strateg${strategyIds.length === 1 ? "y" : "ies"} added` });
     } catch (error) {
-      console.error("Error adding strategy:", error);
-      toast({ title: "Error", description: "Failed to add strategy", variant: "destructive" });
+      console.error("Error adding strategies:", error);
+      toast({ title: "Error", description: "Failed to add strategies", variant: "destructive" });
     }
   };
 
@@ -1167,7 +1169,7 @@ const QuarterlyReviewForm = () => {
             onClose={() => setShowAddStrategyModal(false)}
             strategies={allStrategies}
             addedStrategyIds={addedStrategyIds}
-            onAddStrategy={handleAddStrategy}
+            onAddStrategies={handleAddStrategies}
           />
 
           {/* Bottom Buttons */}
