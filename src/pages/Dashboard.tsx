@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useBackfillStrategies } from "@/hooks/useBackfillStrategies";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { OnboardingProgressCard } from "@/components/dashboard/OnboardingProgressCard";
+import { toast } from "@/hooks/use-toast";
 import { 
   Users, 
   TrendingUp, 
@@ -17,7 +18,8 @@ import {
   Plus,
   FileText,
   ChevronRight,
-  Clock
+  Clock,
+  Loader2
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, addDays } from "date-fns";
 
@@ -42,6 +44,7 @@ interface ClientReview {
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats>({
     activeClients: 0,
     totalSavings: 0,
@@ -50,6 +53,7 @@ const Dashboard = () => {
   });
   const [upcomingReviews, setUpcomingReviews] = useState<ClientReview[]>([]);
   const [loading, setLoading] = useState(true);
+  const [creatingReview, setCreatingReview] = useState<string | null>(null);
 
   // Run backfill for existing clients without strategies
   useBackfillStrategies(user?.id);
@@ -159,6 +163,40 @@ const Dashboard = () => {
     }
   };
 
+  const getCurrentQuarter = () => {
+    const now = new Date();
+    const quarter = Math.ceil((now.getMonth() + 1) / 3);
+    return `Q${quarter} ${now.getFullYear()}`;
+  };
+
+  const createReviewAndNavigate = async (clientId: string) => {
+    setCreatingReview(clientId);
+    try {
+      const { data, error } = await supabase
+        .from("quarterly_reviews")
+        .insert({
+          client_id: clientId,
+          quarter: getCurrentQuarter(),
+          status: "in-progress",
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      navigate(`/reviews/${data.id}`);
+    } catch (error) {
+      console.error("Error creating review:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create quarterly review",
+        variant: "destructive",
+      });
+    } finally {
+      setCreatingReview(null);
+    }
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -259,8 +297,25 @@ const Dashboard = () => {
 
         {/* Quick Actions */}
         <div className="flex flex-wrap gap-3">
-          <Button variant="gold">
-            <Clock className="h-4 w-4 mr-2" />
+          <Button 
+            variant="gold"
+            onClick={() => {
+              if (upcomingReviews.length > 0) {
+                createReviewAndNavigate(upcomingReviews[0].id);
+              } else {
+                toast({
+                  title: "No clients available",
+                  description: "Add a client first to start a quarterly review",
+                });
+              }
+            }}
+            disabled={creatingReview !== null}
+          >
+            {creatingReview ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Clock className="h-4 w-4 mr-2" />
+            )}
             Start Quarterly Review
           </Button>
           <Button variant="outline" className="border-eiduk-blue text-eiduk-blue hover:bg-eiduk-blue/10" asChild>
@@ -340,11 +395,17 @@ const Dashboard = () => {
                             {review.isOverdue && <span className="ml-2 text-xs">(Overdue)</span>}
                           </td>
                           <td className="py-3 px-4 text-right">
-                            <Button variant="ghost" size="sm" asChild>
-                              <Link to={`/clients/${review.id}/review`}>
-                                Start Review
-                                <ChevronRight className="h-4 w-4 ml-1" />
-                              </Link>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => createReviewAndNavigate(review.id)}
+                              disabled={creatingReview === review.id}
+                            >
+                              {creatingReview === review.id ? (
+                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                              ) : null}
+                              Start Review
+                              <ChevronRight className="h-4 w-4 ml-1" />
                             </Button>
                           </td>
                         </tr>
