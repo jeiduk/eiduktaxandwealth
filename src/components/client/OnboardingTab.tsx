@@ -11,7 +11,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronRight, User, Users, StickyNote, ExternalLink } from "lucide-react";
+import { ChevronDown, ChevronRight, User, Users, StickyNote, ChevronsUpDown, ChevronsDownUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -214,6 +214,17 @@ export const OnboardingTab = ({ clientId, clientCreatedAt }: OnboardingTabProps)
     setExpandedPhases((prev) => ({ ...prev, [phase]: !prev[phase] }));
   };
 
+  const expandAll = () => {
+    setExpandedPhases(PHASE_ORDER.reduce((acc, phase) => ({ ...acc, [phase]: true }), {}));
+  };
+
+  const collapseAll = () => {
+    setExpandedPhases(PHASE_ORDER.reduce((acc, phase) => ({ ...acc, [phase]: false }), {}));
+  };
+
+  const allExpanded = PHASE_ORDER.every((phase) => expandedPhases[phase]);
+  const allCollapsed = PHASE_ORDER.every((phase) => !expandedPhases[phase]);
+
   if (loading) {
     return (
       <div className="space-y-4 animate-pulse">
@@ -235,7 +246,31 @@ export const OnboardingTab = ({ clientId, clientCreatedAt }: OnboardingTabProps)
                 {stats.completed} of {stats.total} tasks complete
               </p>
             </div>
-            <div className="text-3xl font-bold text-primary">{stats.progress}%</div>
+            <div className="flex items-center gap-4">
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={expandAll}
+                  disabled={allExpanded}
+                  className="gap-1"
+                >
+                  <ChevronsUpDown className="h-4 w-4" />
+                  Expand All
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={collapseAll}
+                  disabled={allCollapsed}
+                  className="gap-1"
+                >
+                  <ChevronsDownUp className="h-4 w-4" />
+                  Collapse All
+                </Button>
+              </div>
+              <div className="text-3xl font-bold text-primary">{stats.progress}%</div>
+            </div>
           </div>
           <Progress value={stats.progress} className="h-3" />
         </CardContent>
