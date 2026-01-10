@@ -1,8 +1,9 @@
-import { Link } from "react-router-dom";
+import { useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { FileText, Scale, Shield, ArrowRight, Building2, User, Clock, BarChart3, ClipboardCheck, CheckCircle, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-
+import { useAuth } from "@/hooks/useAuth";
 const steps = [
   {
     number: 1,
@@ -70,6 +71,29 @@ const faqs = [
 ];
 
 export default function ReasonableCompLanding() {
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!loading && user) {
+      navigate('/dashboard');
+    }
+  }, [user, loading, navigate]);
+
+  // Show loading while checking auth
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-eiduk-gold font-display text-sm tracking-[0.3em] uppercase mb-4">
+            Eiduk Tax & Wealth
+          </p>
+          <div className="w-8 h-8 border-2 border-eiduk-navy border-t-transparent rounded-full animate-spin mx-auto" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-eiduk-cream">
       {/* Header */}
