@@ -673,9 +673,9 @@ const QuarterlyReviewForm = () => {
     <div className="min-h-screen bg-[#FAF8F5]">
       {/* Back button */}
       <div className="max-w-[1200px] mx-auto px-4 py-4 print:hidden">
-        <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")} className="gap-2">
+        <Button variant="ghost" size="sm" onClick={() => navigate(`/clients/${client.id}`)} className="gap-2">
           <ArrowLeft className="h-4 w-4" />
-          Back to Dashboard
+          Back to {client.name}
         </Button>
       </div>
 
