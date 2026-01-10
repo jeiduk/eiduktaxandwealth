@@ -105,7 +105,8 @@ const ClientDetail = () => {
     if (!id) return;
     setCreatingReview(true);
     try {
-      const { data, error } = await supabase
+      // Create the quarterly review
+      const { data: reviewData, error: reviewError } = await supabase
         .from("quarterly_reviews")
         .insert({
           client_id: id,
@@ -115,9 +116,23 @@ const ClientDetail = () => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (reviewError) throw reviewError;
 
-      navigate(`/reviews/${data.id}`);
+      // Link all client strategies that don't have a review_id to this new review
+      const unlinkedStrategies = clientStrategies.filter(cs => !cs.review_id);
+      if (unlinkedStrategies.length > 0) {
+        const { error: updateError } = await supabase
+          .from("client_strategies")
+          .update({ review_id: reviewData.id })
+          .in("id", unlinkedStrategies.map(cs => cs.id));
+
+        if (updateError) {
+          console.error("Error linking strategies to review:", updateError);
+          // Don't throw - the review was created, just log the error
+        }
+      }
+
+      navigate(`/reviews/${reviewData.id}`);
     } catch (error) {
       console.error("Error creating review:", error);
       toast({
