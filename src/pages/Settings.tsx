@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { Database, CheckCircle, AlertCircle, Loader2, User, Bell, Upload } from "lucide-react";
+import { Database, CheckCircle, AlertCircle, Loader2, User, Bell, Upload, Lock, Eye, EyeOff } from "lucide-react";
 import { StrategyImportModal } from "@/components/settings/StrategyImportModal";
 
 const Settings = () => {
@@ -24,6 +24,15 @@ const Settings = () => {
     title: "",
   });
   const [savingProfile, setSavingProfile] = useState(false);
+  const [passwords, setPasswords] = useState({
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [showPasswords, setShowPasswords] = useState({
+    new: false,
+    confirm: false,
+  });
+  const [savingPassword, setSavingPassword] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -133,6 +142,56 @@ const Settings = () => {
     await signOut();
   };
 
+  const handleChangePassword = async () => {
+    if (!passwords.newPassword || !passwords.confirmPassword) {
+      toast({
+        title: "Error",
+        description: "Please fill in both password fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (passwords.newPassword.length < 6) {
+      toast({
+        title: "Error",
+        description: "Password must be at least 6 characters",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (passwords.newPassword !== passwords.confirmPassword) {
+      toast({
+        title: "Error",
+        description: "Passwords do not match",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSavingPassword(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: passwords.newPassword,
+      });
+
+      if (error) throw error;
+
+      toast({ title: "Password updated successfully" });
+      setPasswords({ newPassword: "", confirmPassword: "" });
+    } catch (error: any) {
+      console.error("Error changing password:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to change password",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingPassword(false);
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6 max-w-2xl">
@@ -190,6 +249,73 @@ const Settings = () => {
               {savingProfile && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Save Changes
             </Button>
+
+            <Separator className="my-6" />
+
+            {/* Change Password Section */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Lock className="h-4 w-4 text-muted-foreground" />
+                <h3 className="font-medium">Change Password</h3>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="newPassword">New Password</Label>
+                <div className="relative">
+                  <Input
+                    id="newPassword"
+                    type={showPasswords.new ? "text" : "password"}
+                    value={passwords.newPassword}
+                    onChange={(e) => setPasswords({ ...passwords, newPassword: e.target.value })}
+                    placeholder="Enter new password"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                    onClick={() => setShowPasswords({ ...showPasswords, new: !showPasswords.new })}
+                  >
+                    {showPasswords.new ? (
+                      <EyeOff className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <Eye className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                <div className="relative">
+                  <Input
+                    id="confirmPassword"
+                    type={showPasswords.confirm ? "text" : "password"}
+                    value={passwords.confirmPassword}
+                    onChange={(e) => setPasswords({ ...passwords, confirmPassword: e.target.value })}
+                    placeholder="Confirm new password"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                    onClick={() => setShowPasswords({ ...showPasswords, confirm: !showPasswords.confirm })}
+                  >
+                    {showPasswords.confirm ? (
+                      <EyeOff className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <Eye className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              <Button onClick={handleChangePassword} disabled={savingPassword} variant="secondary">
+                {savingPassword && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Update Password
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
