@@ -13,8 +13,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
-import { Plus, FileText, Calendar, DollarSign, Target, Loader2 } from "lucide-react";
+import { Plus, FileText, Calendar, Target, Loader2, Trash2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface QuarterlyReview {
@@ -37,6 +48,12 @@ export function ReviewsTab({ clientId, clientName, clientIndustry }: ReviewsTabP
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [strategyCounts, setStrategyCounts] = useState<Record<string, number>>({});
+  
+  // Delete state
+  const [deleteReview, setDeleteReview] = useState<QuarterlyReview | null>(null);
+  const [deleteStep, setDeleteStep] = useState<1 | 2>(1);
+  const [confirmText, setConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   const getCurrentQuarter = () => {
     const now = new Date();
@@ -196,6 +213,77 @@ export function ReviewsTab({ clientId, clientName, clientIndustry }: ReviewsTabP
     }
   };
 
+  const handleDeleteClick = (e: React.MouseEvent, review: QuarterlyReview) => {
+    e.stopPropagation();
+    setDeleteReview(review);
+    setDeleteStep(1);
+    setConfirmText("");
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteReview) return;
+
+    // For completed reviews, require double confirmation
+    if (deleteReview.status === "completed" && deleteStep === 1) {
+      setDeleteStep(2);
+      return;
+    }
+
+    // For completed reviews on step 2, check confirmation text
+    if (deleteReview.status === "completed" && confirmText !== "DELETE") {
+      toast({
+        title: "Confirmation required",
+        description: "Please type DELETE to confirm",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      // Delete related action items first
+      await supabase
+        .from("action_items")
+        .delete()
+        .eq("review_id", deleteReview.id);
+
+      // Unlink strategies from this review (don't delete them, just remove the review_id)
+      await supabase
+        .from("client_strategies")
+        .update({ review_id: null })
+        .eq("review_id", deleteReview.id);
+
+      // Delete the review
+      const { error } = await supabase
+        .from("quarterly_reviews")
+        .delete()
+        .eq("id", deleteReview.id);
+
+      if (error) throw error;
+
+      setReviews((prev) => prev.filter((r) => r.id !== deleteReview.id));
+      toast({ title: "Review deleted" });
+    } catch (error) {
+      console.error("Error deleting review:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete review",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleting(false);
+      setDeleteReview(null);
+      setDeleteStep(1);
+      setConfirmText("");
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteReview(null);
+    setDeleteStep(1);
+    setConfirmText("");
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "completed":
@@ -289,9 +377,19 @@ export function ReviewsTab({ clientId, clientName, clientIndustry }: ReviewsTabP
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="sm">
-                      Open
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="sm">
+                        Open
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => handleDeleteClick(e, review)}
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -299,6 +397,84 @@ export function ReviewsTab({ clientId, clientName, clientIndustry }: ReviewsTabP
           </Table>
         </div>
       )}
+
+      {/* Delete Confirmation Dialog - Step 1 (for non-completed or first step of completed) */}
+      <AlertDialog open={!!deleteReview && deleteStep === 1} onOpenChange={(open) => !open && handleCancelDelete()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Review?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteReview?.status === "completed" ? (
+                <>
+                  This is a <strong>completed review</strong> for <strong>{deleteReview?.quarter}</strong>. 
+                  Deleting it will remove all associated data. This action cannot be undone.
+                  <br /><br />
+                  <strong>Are you sure you want to proceed?</strong>
+                </>
+              ) : (
+                <>
+                  Are you sure you want to delete the review for <strong>{deleteReview?.quarter}</strong>? 
+                  This will remove the review and unlink any associated strategies.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelDelete}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleting}
+            >
+              {deleting ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : null}
+              {deleteReview?.status === "completed" ? "Yes, Continue" : "Delete Review"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Confirmation Dialog - Step 2 (double confirmation for completed reviews) */}
+      <AlertDialog open={!!deleteReview && deleteStep === 2} onOpenChange={(open) => !open && handleCancelDelete()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">⚠️ Final Confirmation Required</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-4">
+              <p>
+                You are about to permanently delete the completed review for <strong>{deleteReview?.quarter}</strong>.
+              </p>
+              <p>
+                This will remove all review data including financial information, signatures, and meeting notes.
+              </p>
+              <div className="pt-2">
+                <p className="text-sm font-medium text-foreground mb-2">
+                  Type <strong>DELETE</strong> to confirm:
+                </p>
+                <Input
+                  value={confirmText}
+                  onChange={(e) => setConfirmText(e.target.value)}
+                  placeholder="Type DELETE"
+                  className="font-mono"
+                />
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelDelete}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleting || confirmText !== "DELETE"}
+            >
+              {deleting ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : null}
+              Permanently Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
