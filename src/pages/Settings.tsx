@@ -21,6 +21,7 @@ const Settings = () => {
   const [profile, setProfile] = useState({
     full_name: "",
     email: "",
+    title: "",
   });
   const [savingProfile, setSavingProfile] = useState(false);
 
@@ -41,7 +42,7 @@ const Settings = () => {
       if (user) {
         const { data: profileData } = await supabase
           .from("profiles")
-          .select("full_name, email")
+          .select("full_name, email, title")
           .eq("user_id", user.id)
           .maybeSingle();
 
@@ -49,11 +50,13 @@ const Settings = () => {
           setProfile({
             full_name: profileData.full_name || "",
             email: profileData.email || user.email || "",
+            title: profileData.title || "",
           });
         } else {
           setProfile({
             full_name: "",
             email: user.email || "",
+            title: "",
           });
         }
       }
@@ -107,6 +110,7 @@ const Settings = () => {
           user_id: user.id,
           full_name: profile.full_name,
           email: profile.email,
+          title: profile.title,
           updated_at: new Date().toISOString(),
         }, { onConflict: "user_id" });
 
@@ -159,6 +163,16 @@ const Settings = () => {
                 onChange={(e) => setProfile({ ...profile, full_name: e.target.value })}
                 placeholder="Enter your full name"
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="title">Professional Title / Credentials</Label>
+              <Input
+                id="title"
+                value={profile.title}
+                onChange={(e) => setProfile({ ...profile, title: e.target.value })}
+                placeholder="e.g., CPA, CFP, MSCTA"
+              />
+              <p className="text-xs text-muted-foreground">Displayed on reports and client documents</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
