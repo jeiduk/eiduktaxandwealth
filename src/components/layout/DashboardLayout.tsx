@@ -12,7 +12,6 @@ import {
   LogOut,
   Menu,
   X,
-  Calendar,
   Calculator,
   FileText,
   BookOpen,
@@ -31,16 +30,14 @@ interface NavItem {
   external?: boolean;
 }
 
-const mainNavItems: NavItem[] = [
+const dashboardNavItems: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/clients', label: 'Clients', icon: Users, showBadge: true },
-  { href: '/calendar', label: 'Calendar', icon: Calendar },
 ];
 
 const toolsNavItems: NavItem[] = [
-  { href: '/', label: 'Reasonable Comp', icon: FileText },
+  { href: '/reasonable-comp', label: 'Reasonable Comp', icon: FileText },
   { href: 'https://tools.eiduktaxandwealth.com', label: 'Calculators', icon: Calculator, external: true },
-  { href: '/templates', label: 'Templates', icon: FileText },
   { href: '/strategies', label: 'Strategy Library', icon: BookOpen },
 ];
 
@@ -162,11 +159,16 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         
         {/* Navigation */}
         <nav className="flex-1 px-4 py-6 space-y-6 overflow-y-auto">
-          {/* Main Navigation */}
-          <div className="space-y-1">
-            {mainNavItems.map((item) => (
-              <NavItemComponent key={item.href} item={item} />
-            ))}
+          {/* Dashboard Section */}
+          <div>
+            <p className="px-4 text-xs font-medium text-white/40 uppercase tracking-wider mb-2">
+              Dashboard
+            </p>
+            <div className="space-y-1">
+              {dashboardNavItems.map((item) => (
+                <NavItemComponent key={item.href} item={item} />
+              ))}
+            </div>
           </div>
 
           {/* Tools Section */}
@@ -242,10 +244,15 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         {/* Mobile Menu */}
         {mobileMenuOpen && (
           <div className="absolute top-16 left-0 right-0 bg-gradient-to-b from-[#1e3a5f] to-[#152d4a] border-t border-white/10 px-4 py-4 space-y-4 max-h-[calc(100vh-4rem)] overflow-y-auto">
-            <div className="space-y-1">
-              {mainNavItems.map((item) => (
-                <NavItemComponent key={item.href} item={item} onClick={() => setMobileMenuOpen(false)} />
-              ))}
+            <div>
+              <p className="px-4 text-xs font-medium text-white/40 uppercase tracking-wider mb-2">
+                Dashboard
+              </p>
+              <div className="space-y-1">
+                {dashboardNavItems.map((item) => (
+                  <NavItemComponent key={item.href} item={item} onClick={() => setMobileMenuOpen(false)} />
+                ))}
+              </div>
             </div>
             
             <div className="pt-2 border-t border-white/10">
