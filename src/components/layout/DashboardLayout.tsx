@@ -54,16 +54,36 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [clientCount, setClientCount] = useState(0);
+  const [profile, setProfile] = useState<{ full_name: string | null; title: string | null }>({
+    full_name: null,
+    title: null,
+  });
 
   useEffect(() => {
-    const fetchClientCount = async () => {
+    const fetchData = async () => {
       if (!user) return;
+      
+      // Fetch client count
       const { count } = await supabase
         .from('clients')
         .select('*', { count: 'exact', head: true });
       setClientCount(count || 0);
+      
+      // Fetch profile
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('full_name, title')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      
+      if (profileData) {
+        setProfile({
+          full_name: profileData.full_name,
+          title: profileData.title,
+        });
+      }
     };
-    fetchClientCount();
+    fetchData();
   }, [user]);
 
   const handleSignOut = async () => {
@@ -178,15 +198,19 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <div className="p-4 border-t border-white/10">
           <div className="flex items-center gap-3 px-2 py-2">
             <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center text-white font-semibold text-sm">
-              JE
+              {profile.full_name 
+                ? profile.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+                : user?.email?.[0]?.toUpperCase() || 'U'}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-white truncate">
-                John Eiduk
+                {profile.full_name || user?.email || 'User'}
               </p>
-              <p className="text-xs text-white/50 truncate">
-                CPA, CFP®, MSCTA
-              </p>
+              {profile.title && (
+                <p className="text-xs text-white/50 truncate">
+                  {profile.title}
+                </p>
+              )}
             </div>
             <Button 
               variant="ghost" 
