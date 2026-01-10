@@ -205,14 +205,14 @@ const Settings = () => {
               Strategy Database
             </CardTitle>
             <CardDescription>
-              Seed the database with all 70 tax strategies
+              Manage your tax strategy database
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/50">
               {loading ? (
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-              ) : strategyCount === 70 ? (
+              ) : strategyCount && strategyCount > 0 ? (
                 <CheckCircle className="h-5 w-5 text-success" />
               ) : (
                 <AlertCircle className="h-5 w-5 text-warning" />
@@ -221,41 +221,19 @@ const Settings = () => {
                 <p className="font-medium">
                   {loading
                     ? "Loading..."
-                    : strategyCount === 70
-                    ? "All 70 strategies loaded"
-                    : `${strategyCount} of 70 strategies loaded`}
+                    : strategyCount && strategyCount > 0
+                    ? `${strategyCount} strategies loaded`
+                    : "No strategies loaded"}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {strategyCount === 70
-                    ? "Your strategy database is complete"
-                    : "Run the seed function to populate strategies"}
+                  {strategyCount && strategyCount > 0
+                    ? "Your strategy database is ready"
+                    : "Import strategies to get started"}
                 </p>
               </div>
             </div>
 
             <div className="flex gap-2">
-              <Button
-                onClick={handleSeedStrategies}
-                disabled={seeding || strategyCount === 70}
-                className="bg-eiduk-blue hover:bg-eiduk-light-blue"
-              >
-                {seeding ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Seeding...
-                  </>
-                ) : strategyCount === 70 ? (
-                  <>
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Already Seeded
-                  </>
-                ) : (
-                  <>
-                    <Database className="h-4 w-4 mr-2" />
-                    Seed 70 Strategies
-                  </>
-                )}
-              </Button>
               <Button
                 variant="outline"
                 onClick={() => setImportModalOpen(true)}
