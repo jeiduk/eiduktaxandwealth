@@ -61,16 +61,16 @@ interface ClientStrategy {
   review_id: string | null;
 }
 
-// Phase configuration - phase IDs match database values (P1, P2, etc.)
+// Phase configuration - phase values in database are numeric (1, 2, 3, etc.)
 const PHASES = [
-  { id: "P1", name: "Foundation", color: "#1e40af", strategies: 6 },
-  { id: "P2", name: "Core Deductions", color: "#059669", strategies: 7 },
-  { id: "P3", name: "Retirement & Benefits", color: "#7c3aed", strategies: 10 },
-  { id: "P4", name: "Credits & Multistate", color: "#ea580c", strategies: 7 },
-  { id: "P5", name: "Real Estate & PAL", color: "#0891b2", strategies: 8 },
-  { id: "P6", name: "Acquisitions & Leverage", color: "#dc2626", strategies: 11 },
-  { id: "P7", name: "Exit & Wealth Transfer", color: "#ca8a04", strategies: 10 },
-  { id: "P8", name: "Charitable", color: "#9333ea", strategies: 11 },
+  { id: 1, displayId: "P1", name: "Foundation", color: "#1e40af", strategies: 6 },
+  { id: 2, displayId: "P2", name: "Core Deductions", color: "#059669", strategies: 7 },
+  { id: 3, displayId: "P3", name: "Retirement & Benefits", color: "#7c3aed", strategies: 10 },
+  { id: 4, displayId: "P4", name: "Credits & Multistate", color: "#ea580c", strategies: 7 },
+  { id: 5, displayId: "P5", name: "Real Estate & PAL", color: "#0891b2", strategies: 8 },
+  { id: 6, displayId: "P6", name: "Acquisitions & Leverage", color: "#dc2626", strategies: 11 },
+  { id: 7, displayId: "P7", name: "Exit & Wealth Transfer", color: "#ca8a04", strategies: 10 },
+  { id: 8, displayId: "P8", name: "Charitable", color: "#9333ea", strategies: 11 },
 ];
 
 const ClientDetail = () => {
@@ -83,7 +83,7 @@ const ClientDetail = () => {
   const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [clientStrategies, setClientStrategies] = useState<ClientStrategy[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activePhase, setActivePhase] = useState("P1");
+  const [activePhase, setActivePhase] = useState<number>(1);
   const [deductionInputs, setDeductionInputs] = useState<Record<number, string>>({});
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "overview");
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -217,10 +217,10 @@ const ClientDetail = () => {
 
   // Get phases that have assigned strategies - only show phases with at least 1 strategy
   const availablePhases = useMemo(() => {
-    const phasesWithStrategies = new Set<string>();
+    const phasesWithStrategies = new Set<number>();
     clientStrategies.forEach((cs) => {
       const strategy = strategies.find((s) => s.id === cs.strategy_id);
-      if (strategy) phasesWithStrategies.add(strategy.phase);
+      if (strategy) phasesWithStrategies.add(Number(strategy.phase));
     });
     
     // Only return phases that have assigned strategies
@@ -229,19 +229,20 @@ const ClientDetail = () => {
 
   // Get phase completion stats (only for assigned strategies)
   const phaseStats = useMemo(() => {
-    const phaseStatsMap: Record<string, { completed: number; total: number }> = {};
+    const phaseStatsMap: Record<number, { completed: number; total: number }> = {};
     
     // Only count assigned strategies
     clientStrategies.forEach((cs) => {
       const strategy = strategies.find((s) => s.id === cs.strategy_id);
       if (!strategy) return;
       
-      if (!phaseStatsMap[strategy.phase]) {
-        phaseStatsMap[strategy.phase] = { completed: 0, total: 0 };
+      const phaseId = Number(strategy.phase);
+      if (!phaseStatsMap[phaseId]) {
+        phaseStatsMap[phaseId] = { completed: 0, total: 0 };
       }
-      phaseStatsMap[strategy.phase].total += 1;
+      phaseStatsMap[phaseId].total += 1;
       if (cs.status === "complete") {
-        phaseStatsMap[strategy.phase].completed += 1;
+        phaseStatsMap[phaseId].completed += 1;
       }
     });
 
@@ -252,7 +253,7 @@ const ClientDetail = () => {
   const phaseStrategies = useMemo(() => {
     const assignedIds = clientStrategies.map((cs) => cs.strategy_id);
     return strategies.filter(
-      (s) => s.phase === activePhase && assignedIds.includes(s.id)
+      (s) => Number(s.phase) === activePhase && assignedIds.includes(s.id)
     );
   }, [strategies, activePhase, clientStrategies]);
 
@@ -597,7 +598,7 @@ const ClientDetail = () => {
                             )}
                             style={isActive ? { backgroundColor: phase.color } : undefined}
                           >
-                            <span>{phase.id}</span>
+                            <span>{phase.displayId}</span>
                             <span className="hidden sm:inline">{phase.name}</span>
                             <span className={cn(
                               "text-xs px-1.5 py-0.5 rounded",
@@ -625,7 +626,7 @@ const ClientDetail = () => {
               const cs = getClientStrategy(strategy.id);
               const status = cs?.status || "not_started";
               const statusConfig = getStatusConfig(status);
-              const phase = PHASES.find((p) => p.id === strategy.phase);
+              const phase = PHASES.find((p) => p.id === Number(strategy.phase));
               const deduction = cs?.deduction_amount || 0;
               const taxSavings = Math.round(deduction * stats.taxRate);
 
