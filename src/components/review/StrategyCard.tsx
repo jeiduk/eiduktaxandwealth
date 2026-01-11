@@ -22,25 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-// Phase colors
-const PHASE_COLORS: Record<string, string> = {
-  P1: "#1E40AF",
-  P2: "#059669",
-  P3: "#7C3AED",
-  P4: "#EA580C",
-  P5: "#0891B2",
-  P6: "#DC2626",
-  P7: "#CA8A04",
-  P8: "#9333EA",
-};
-
-const STATUS_OPTIONS = [
-  { value: "not_started", label: "Not Started", color: "bg-gray-100 text-gray-700" },
-  { value: "in_progress", label: "In Progress", color: "bg-amber-100 text-amber-700" },
-  { value: "active", label: "Active", color: "bg-emerald-100 text-emerald-700" },
-  { value: "complete", label: "Complete", color: "bg-blue-100 text-blue-700" },
-];
+import { PHASE_COLORS, STATUS_OPTIONS } from "@/lib/strategy-constants";
 
 interface Strategy {
   id: number;
@@ -87,7 +69,7 @@ export const StrategyCard = ({
     setNotes(clientStrategy.notes || "");
   }, [clientStrategy.deduction_amount, clientStrategy.notes]);
 
-  const phaseColor = PHASE_COLORS[strategy.phase] || "#1E40AF";
+  const phaseColor = PHASE_COLORS[strategy.phase] || "#1e40af";
 
   const formatCurrency = (value: number): string => {
     return new Intl.NumberFormat("en-US", {
@@ -145,7 +127,7 @@ export const StrategyCard = ({
             <SelectTrigger
               className={cn(
                 "w-[130px] h-8 text-xs font-medium",
-                STATUS_OPTIONS.find((s) => s.value === clientStrategy.status)?.color
+                STATUS_OPTIONS.find((s) => s.value === clientStrategy.status)?.className
               )}
             >
               <SelectValue />
@@ -155,7 +137,7 @@ export const StrategyCard = ({
                 <SelectItem
                   key={option.value}
                   value={option.value}
-                  className={cn("text-xs", option.color)}
+                  className={cn("text-xs", option.className)}
                 >
                   {option.label}
                 </SelectItem>

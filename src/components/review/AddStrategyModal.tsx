@@ -22,18 +22,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Search, Plus, Check, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-// Phase configuration
-const PHASES = [
-  { id: 1, name: "Foundation", color: "#1E40AF", prefix: "P1" },
-  { id: 2, name: "Core Deductions", color: "#059669", prefix: "P2" },
-  { id: 3, name: "Retirement", color: "#7C3AED", prefix: "P3" },
-  { id: 4, name: "Credits", color: "#EA580C", prefix: "P4" },
-  { id: 5, name: "Real Estate", color: "#0891B2", prefix: "P5" },
-  { id: 6, name: "Acquisitions", color: "#DC2626", prefix: "P6" },
-  { id: 7, name: "Exit", color: "#CA8A04", prefix: "P7" },
-  { id: 8, name: "Charitable", color: "#9333EA", prefix: "P8" },
-];
+import { STRATEGY_PHASES, getPhaseColor } from "@/lib/strategy-constants";
 
 interface Strategy {
   id: number;
@@ -80,9 +69,8 @@ export const AddStrategyModal = ({
     });
   }, [strategies, search, selectedPhase]);
 
-  const getPhaseColor = (phase: string): string => {
-    const p = PHASES.find((ph) => ph.prefix === phase);
-    return p?.color || "#1E40AF";
+  const getPhaseColorLocal = (phase: string): string => {
+    return getPhaseColor(phase);
   };
 
   const toggleSelect = (id: number) => {
@@ -143,21 +131,21 @@ export const AddStrategyModal = ({
             >
               All
             </Button>
-            {PHASES.map((phase) => (
+            {STRATEGY_PHASES.map((phase) => (
               <Button
                 key={phase.id}
-                variant={selectedPhase === phase.prefix ? "default" : "outline"}
+                variant={selectedPhase === phase.id ? "default" : "outline"}
                 size="sm"
-                onClick={() => setSelectedPhase(phase.prefix)}
+                onClick={() => setSelectedPhase(phase.id)}
                 className="h-7 text-xs"
                 style={{
                   backgroundColor:
-                    selectedPhase === phase.prefix ? phase.color : undefined,
+                    selectedPhase === phase.id ? phase.color : undefined,
                   borderColor: phase.color,
-                  color: selectedPhase === phase.prefix ? "white" : phase.color,
+                  color: selectedPhase === phase.id ? "white" : phase.color,
                 }}
               >
-                {phase.prefix}
+                {phase.id}
               </Button>
             ))}
             {selectedIds.length > 0 && (
@@ -195,7 +183,7 @@ export const AddStrategyModal = ({
               {filteredStrategies.map((strategy) => {
                 const isAdded = addedStrategyIds.includes(strategy.id);
                 const isSelected = selectedIds.includes(strategy.id);
-                const phaseColor = getPhaseColor(strategy.phase);
+                const phaseColor = getPhaseColorLocal(strategy.phase);
 
                 return (
                   <div

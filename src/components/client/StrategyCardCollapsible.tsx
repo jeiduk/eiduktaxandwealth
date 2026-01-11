@@ -18,7 +18,7 @@ import {
   DollarSign
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
+import { getPhaseColor } from "@/lib/strategy-constants";
 interface StrategyDocument {
   id: string;
   name: string;
@@ -193,6 +193,8 @@ export const StrategyCardCollapsible = ({
   const receivedCount = documents.filter(doc => getDocumentStatus(doc.id) === "received").length;
   const totalDocs = documents.length;
 
+  const dynamicPhaseColor = getPhaseColor(strategy.phase);
+
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <div 
@@ -201,7 +203,7 @@ export const StrategyCardCollapsible = ({
           isOpen ? "shadow-lg" : "shadow-sm hover:shadow-md"
         )}
         style={{ 
-          borderLeft: "4px solid #1e40af",
+          borderLeft: `4px solid ${dynamicPhaseColor}`,
           borderRadius: "12px"
         }}
         onMouseEnter={() => setIsHovered(true)}
@@ -213,7 +215,7 @@ export const StrategyCardCollapsible = ({
             {/* Strategy Number */}
             <span 
               className="font-bold text-sm shrink-0"
-              style={{ color: "#1e40af" }}
+              style={{ color: dynamicPhaseColor }}
             >
               {strategyNumber}
             </span>

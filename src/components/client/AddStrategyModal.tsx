@@ -14,6 +14,7 @@ import { Check, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
+import { STRATEGY_PHASES, TIER_MAX_STRATEGY } from "@/lib/strategy-constants";
 
 interface Strategy {
   id: number;
@@ -41,24 +42,6 @@ interface AddStrategyModalProps {
   assignedStrategyIds: number[];
   onStrategyAdded: (newClientStrategy: ClientStrategy) => void;
 }
-
-const PHASES = [
-  { id: "P1", name: "Foundation", color: "#1e40af" },
-  { id: "P2", name: "Core Deductions", color: "#059669" },
-  { id: "P3", name: "Retirement & Benefits", color: "#7c3aed" },
-  { id: "P4", name: "Credits & Multistate", color: "#ea580c" },
-  { id: "P5", name: "Real Estate & PAL", color: "#0891b2" },
-  { id: "P6", name: "Acquisitions & Leverage", color: "#dc2626" },
-  { id: "P7", name: "Exit & Wealth Transfer", color: "#ca8a04" },
-  { id: "P8", name: "Charitable", color: "#9333ea" },
-];
-
-const TIER_MAX_STRATEGY: Record<string, number> = {
-  Essentials: 0,
-  Foundation: 13,
-  Complete: 30,
-  Premium: 59,
-};
 
 export const AddStrategyModal = ({
   open,
@@ -177,7 +160,7 @@ export const AddStrategyModal = ({
           <h4 className="text-sm font-semibold text-muted-foreground">{label}</h4>
         )}
         {phaseIds.map((phaseId) => {
-          const phase = PHASES.find((p) => p.id === phaseId);
+          const phase = STRATEGY_PHASES.find((p) => p.id === phaseId);
           const strategies = grouped[phaseId];
 
           return (
