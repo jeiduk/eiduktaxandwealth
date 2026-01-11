@@ -181,11 +181,11 @@ export const StrategyCardCollapsible = ({
   const getDocumentStatusBadge = (docStatus: "received" | "pending" | "needed") => {
     switch (docStatus) {
       case "received":
-        return <Badge className="bg-emerald-100 text-emerald-700 border-emerald-300 text-xs">Received</Badge>;
+        return <Badge className="bg-[#059669]/15 text-[#059669] border-[#059669]/30 text-xs font-medium">Received</Badge>;
       case "pending":
-        return <Badge className="bg-amber-100 text-amber-700 border-amber-300 text-xs">Pending</Badge>;
+        return <Badge className="bg-[#f59e0b]/15 text-[#f59e0b] border-[#f59e0b]/30 text-xs font-medium">Pending</Badge>;
       case "needed":
-        return <Badge className="bg-red-100 text-red-700 border-red-300 text-xs">Needed</Badge>;
+        return <Badge className="bg-[#dc2626]/15 text-[#dc2626] border-[#dc2626]/30 text-xs font-medium">Needed</Badge>;
     }
   };
 

@@ -72,16 +72,16 @@ interface ClientStrategy {
   document_statuses: Record<string, "received" | "pending" | "needed"> | null;
 }
 
-// Phase configuration - phase values in database are numeric (1, 2, 3, etc.)
+// Phase configuration - all 8 phases with their colors
 const PHASES = [
-  { id: 1, displayId: "P1", name: "Foundation", color: "#1e40af", strategies: 6 },
-  { id: 2, displayId: "P2", name: "Core Deductions", color: "#059669", strategies: 7 },
-  { id: 3, displayId: "P3", name: "Retirement & Benefits", color: "#7c3aed", strategies: 10 },
-  { id: 4, displayId: "P4", name: "Credits & Multistate", color: "#ea580c", strategies: 7 },
-  { id: 5, displayId: "P5", name: "Real Estate & PAL", color: "#0891b2", strategies: 8 },
-  { id: 6, displayId: "P6", name: "Acquisitions & Leverage", color: "#dc2626", strategies: 11 },
-  { id: 7, displayId: "P7", name: "Exit & Wealth Transfer", color: "#ca8a04", strategies: 10 },
-  { id: 8, displayId: "P8", name: "Charitable", color: "#9333ea", strategies: 11 },
+  { id: 1, displayId: "P1", name: "Foundation", color: "#1e40af" },
+  { id: 2, displayId: "P2", name: "Core Deductions", color: "#059669" },
+  { id: 3, displayId: "P3", name: "Retirement", color: "#7c3aed" },
+  { id: 4, displayId: "P4", name: "Credits", color: "#ea580c" },
+  { id: 5, displayId: "P5", name: "Real Estate", color: "#0891b2" },
+  { id: 6, displayId: "P6", name: "Acquisitions", color: "#dc2626" },
+  { id: 7, displayId: "P7", name: "Exit", color: "#ca8a04" },
+  { id: 8, displayId: "P8", name: "Charitable", color: "#9333ea" },
 ];
 
 const ClientDetail = () => {
@@ -249,17 +249,18 @@ const ClientDetail = () => {
     return { completed, total, totalDeductions, totalSavings, progress, taxRate };
   }, [clientStrategies, client]);
 
-  // Get phases that have assigned strategies - only show phases with at least 1 strategy
-  const availablePhases = useMemo(() => {
-    const phasesWithStrategies = new Set<number>();
+  // Get phases that have assigned strategies - for highlighting, but show all 8 phases
+  const phasesWithStrategies = useMemo(() => {
+    const phaseSet = new Set<number>();
     clientStrategies.forEach((cs) => {
       const strategy = strategies.find((s) => s.id === cs.strategy_id);
-      if (strategy) phasesWithStrategies.add(Number(strategy.phase));
+      if (strategy) phaseSet.add(Number(strategy.phase));
     });
-    
-    // Only return phases that have assigned strategies
-    return PHASES.filter((p) => phasesWithStrategies.has(p.id));
+    return phaseSet;
   }, [clientStrategies, strategies]);
+
+  // Show all 8 phases always
+  const availablePhases = PHASES;
 
   // Get phase completion stats (only for assigned strategies)
   const phaseStats = useMemo(() => {
@@ -648,45 +649,52 @@ const ClientDetail = () => {
                   </Button>
                 </div>
 
-                {/* Phase Tabs */}
-                {availablePhases.length > 0 && (
-                  <div className="overflow-x-auto pb-2">
-                    <div className="flex gap-2 min-w-max">
-                      {availablePhases.map((phase) => {
-                        const pStats = phaseStats[phase.id] || { completed: 0, total: 0 };
-                        const isActive = activePhase === phase.id;
-                        return (
-                          <button
-                            key={phase.id}
-                            onClick={() => setActivePhase(phase.id)}
-                            className={cn(
-                              "px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 whitespace-nowrap",
-                              isActive
-                                ? "text-white shadow-md"
-                                : "bg-muted hover:bg-muted/80 text-foreground"
-                            )}
-                            style={isActive ? { backgroundColor: phase.color } : undefined}
-                          >
-                            <span>{phase.displayId}</span>
-                            <span className="hidden sm:inline">{phase.name}</span>
+                {/* Phase Tabs - Always show all 8 phases */}
+                <div className="overflow-x-auto pb-2">
+                  <div className="flex gap-2 min-w-max">
+                    {availablePhases.map((phase) => {
+                      const pStats = phaseStats[phase.id] || { completed: 0, total: 0 };
+                      const isActive = activePhase === phase.id;
+                      const hasStrategies = phasesWithStrategies.has(phase.id);
+                      return (
+                        <button
+                          key={phase.id}
+                          onClick={() => setActivePhase(phase.id)}
+                          className={cn(
+                            "px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 whitespace-nowrap",
+                            isActive
+                              ? "text-white shadow-md"
+                              : hasStrategies
+                              ? "bg-muted hover:bg-muted/80 text-foreground"
+                              : "bg-muted/50 hover:bg-muted/70 text-muted-foreground"
+                          )}
+                          style={isActive ? { backgroundColor: phase.color } : undefined}
+                        >
+                          <span>{phase.displayId}</span>
+                          <span className="hidden sm:inline">{phase.name}</span>
+                          {pStats.total > 0 && (
                             <span className={cn(
                               "text-xs px-1.5 py-0.5 rounded",
                               isActive ? "bg-white/20" : "bg-background"
                             )}>
-                              {pStats.total}
+                              {pStats.completed}/{pStats.total}
                             </span>
-                          </button>
-                        );
-                      })}
-                    </div>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
-                )}
+                </div>
 
                 {/* Strategy Cards - Collapsible List */}
                 {phaseStrategies.length === 0 ? (
                   <Card>
                     <CardContent className="py-12 text-center">
-                      <p className="text-muted-foreground">No strategies assigned in this phase</p>
+                      <p className="text-muted-foreground mb-4">No strategies assigned in {PHASES.find(p => p.id === activePhase)?.displayId} {PHASES.find(p => p.id === activePhase)?.name}</p>
+                      <Button variant="outline" onClick={() => setAddStrategyOpen(true)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Strategy
+                      </Button>
                     </CardContent>
                   </Card>
                 ) : (
