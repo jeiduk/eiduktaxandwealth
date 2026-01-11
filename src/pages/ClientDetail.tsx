@@ -637,7 +637,7 @@ const ClientDetail = () => {
                     </CardContent>
                   </Card>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {phaseStrategies.map((strategy) => {
                       const cs = getClientStrategy(strategy.id);
                       const phase = PHASES.find((p) => p.id === Number(strategy.phase));
