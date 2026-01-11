@@ -2,17 +2,7 @@ import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, ArrowRight, Trash2 } from "lucide-react";
-
-const PHASES = [
-  { id: 1, name: "Foundation", color: "#1E40AF", prefix: "P1" },
-  { id: 2, name: "Core Deductions", color: "#059669", prefix: "P2" },
-  { id: 3, name: "Retirement", color: "#7C3AED", prefix: "P3" },
-  { id: 4, name: "Credits", color: "#EA580C", prefix: "P4" },
-  { id: 5, name: "Real Estate", color: "#0891B2", prefix: "P5" },
-  { id: 6, name: "Acquisitions", color: "#DC2626", prefix: "P6" },
-  { id: 7, name: "Exit", color: "#CA8A04", prefix: "P7" },
-  { id: 8, name: "Charitable", color: "#9333EA", prefix: "P8" },
-];
+import { STRATEGY_PHASES, getPhaseColor } from "@/lib/strategy-constants";
 
 interface Strategy {
   id: number;
@@ -55,9 +45,8 @@ export const YearEndOpportunities = ({
       .filter(Boolean) as (ClientStrategy & { strategy: Strategy })[];
   }, [clientStrategies, allStrategies]);
 
-  const getPhaseColor = (phase: string): string => {
-    const p = PHASES.find((ph) => ph.prefix === phase);
-    return p?.color || "#1E40AF";
+  const getPhaseColorLocal = (phase: string): string => {
+    return getPhaseColor(phase);
   };
 
   return (
@@ -66,7 +55,7 @@ export const YearEndOpportunities = ({
       {consideringStrategies.length > 0 ? (
         <div className="space-y-2">
           {consideringStrategies.map(({ id, strategy }) => {
-            const phaseColor = getPhaseColor(strategy.phase);
+            const phaseColor = getPhaseColorLocal(strategy.phase);
             return (
               <div
                 key={id}
