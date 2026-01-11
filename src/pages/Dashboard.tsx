@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { OnboardingProgressCard } from "@/components/dashboard/OnboardingProgressCard";
+import { ClientSelectDialog } from "@/components/dashboard/ClientSelectDialog";
 import { toast } from "@/hooks/use-toast";
 import { 
   Users, 
@@ -54,6 +55,7 @@ const Dashboard = () => {
   const [upcomingReviews, setUpcomingReviews] = useState<ClientReview[]>([]);
   const [loading, setLoading] = useState(true);
   const [creatingReview, setCreatingReview] = useState<string | null>(null);
+  const [clientSelectOpen, setClientSelectOpen] = useState(false);
 
   // Disabled backfill - strategies should persist as advisor adds/removes them
   // useBackfillStrategies(user?.id);
@@ -295,20 +297,22 @@ const Dashboard = () => {
           ))}
         </div>
 
+        {/* Client Select Dialog */}
+        <ClientSelectDialog
+          open={clientSelectOpen}
+          onOpenChange={setClientSelectOpen}
+          onSelect={(clientId) => {
+            setClientSelectOpen(false);
+            createReviewAndNavigate(clientId);
+          }}
+          isLoading={creatingReview !== null}
+        />
+
         {/* Quick Actions */}
         <div className="flex flex-wrap gap-3">
           <Button 
             variant="gold"
-            onClick={() => {
-              if (upcomingReviews.length > 0) {
-                createReviewAndNavigate(upcomingReviews[0].id);
-              } else {
-                toast({
-                  title: "No clients available",
-                  description: "Add a client first to start a quarterly review",
-                });
-              }
-            }}
+            onClick={() => setClientSelectOpen(true)}
             disabled={creatingReview !== null}
           >
             {creatingReview ? (
