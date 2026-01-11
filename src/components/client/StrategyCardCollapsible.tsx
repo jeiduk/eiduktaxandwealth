@@ -7,6 +7,11 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import { 
   ChevronDown, 
@@ -220,10 +225,17 @@ export const StrategyCardCollapsible = ({
               {strategyNumber}
             </span>
             
-            {/* Strategy Name */}
-            <span className="font-semibold text-sm flex-1 truncate uppercase tracking-wide text-slate-800">
-              {strategy.name}
-            </span>
+            {/* Strategy Name with Tooltip */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="font-semibold text-sm flex-1 truncate uppercase tracking-wide text-slate-800">
+                  {strategy.name}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs">
+                <p className="font-medium">{strategy.name}</p>
+              </TooltipContent>
+            </Tooltip>
             
             {/* Savings Range Badge */}
             {savingsRange && (
@@ -271,6 +283,10 @@ export const StrategyCardCollapsible = ({
         {/* Expanded Content */}
         <CollapsibleContent className="animate-accordion-down data-[state=closed]:animate-accordion-up">
           <div className="px-4 pb-4 pt-3 border-t border-slate-100 space-y-4">
+            {/* Full Strategy Name */}
+            <h3 className="text-base font-bold text-slate-900 uppercase tracking-wide">
+              {strategyNumber} {strategy.name}
+            </h3>
             {/* Tool Link Button */}
             {toolUrl && (
               <a 
