@@ -84,6 +84,14 @@ const PHASES = [
   { id: 8, displayId: "P8", name: "Charitable", color: "#9333ea" },
 ];
 
+// Helper to extract phase number from phase strings like "P1", "P2", "1", "2", etc.
+const getPhaseNumber = (phase: string | number): number => {
+  if (typeof phase === "number") return phase;
+  // Handle "P1", "P2" etc.
+  const match = phase.match(/\d+/);
+  return match ? parseInt(match[0], 10) : 0;
+};
+
 const ClientDetail = () => {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
@@ -254,7 +262,7 @@ const ClientDetail = () => {
     const phaseSet = new Set<number>();
     clientStrategies.forEach((cs) => {
       const strategy = strategies.find((s) => s.id === cs.strategy_id);
-      if (strategy) phaseSet.add(Number(strategy.phase));
+      if (strategy) phaseSet.add(getPhaseNumber(strategy.phase));
     });
     return phaseSet;
   }, [clientStrategies, strategies]);
@@ -271,7 +279,7 @@ const ClientDetail = () => {
       const strategy = strategies.find((s) => s.id === cs.strategy_id);
       if (!strategy) return;
       
-      const phaseId = Number(strategy.phase);
+      const phaseId = getPhaseNumber(strategy.phase);
       if (!phaseStatsMap[phaseId]) {
         phaseStatsMap[phaseId] = { completed: 0, total: 0 };
       }
@@ -288,7 +296,7 @@ const ClientDetail = () => {
   const phaseStrategies = useMemo(() => {
     const assignedIds = clientStrategies.map((cs) => cs.strategy_id);
     return strategies.filter(
-      (s) => Number(s.phase) === activePhase && assignedIds.includes(s.id)
+      (s) => getPhaseNumber(s.phase) === activePhase && assignedIds.includes(s.id)
     );
   }, [strategies, activePhase, clientStrategies]);
 
@@ -701,7 +709,7 @@ const ClientDetail = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {phaseStrategies.map((strategy) => {
                       const cs = getClientStrategy(strategy.id);
-                      const phase = PHASES.find((p) => p.id === Number(strategy.phase));
+                      const phase = PHASES.find((p) => p.id === getPhaseNumber(strategy.phase));
                       
                       return (
                         <StrategyCardCollapsible
