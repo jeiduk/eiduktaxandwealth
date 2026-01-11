@@ -107,6 +107,7 @@ export type Database = {
         Row: {
           client_id: string
           deduction_amount: number | null
+          document_statuses: Json | null
           id: string
           implemented_date: string | null
           notes: string | null
@@ -119,6 +120,7 @@ export type Database = {
         Insert: {
           client_id: string
           deduction_amount?: number | null
+          document_statuses?: Json | null
           id?: string
           implemented_date?: string | null
           notes?: string | null
@@ -131,6 +133,7 @@ export type Database = {
         Update: {
           client_id?: string
           deduction_amount?: number | null
+          document_statuses?: Json | null
           id?: string
           implemented_date?: string | null
           notes?: string | null
@@ -563,6 +566,7 @@ export type Database = {
           client_overview: string | null
           created_at: string | null
           description: string | null
+          documents: Json | null
           forms_required: string | null
           id: number
           implementation: string | null
@@ -578,6 +582,8 @@ export type Database = {
           savings_low: number | null
           strategy_number: string | null
           tier: string | null
+          tool_name: string | null
+          tool_url: string | null
           typical_savings_high: number | null
           typical_savings_low: number | null
           updated_at: string | null
@@ -587,6 +593,7 @@ export type Database = {
           client_overview?: string | null
           created_at?: string | null
           description?: string | null
+          documents?: Json | null
           forms_required?: string | null
           id: number
           implementation?: string | null
@@ -602,6 +609,8 @@ export type Database = {
           savings_low?: number | null
           strategy_number?: string | null
           tier?: string | null
+          tool_name?: string | null
+          tool_url?: string | null
           typical_savings_high?: number | null
           typical_savings_low?: number | null
           updated_at?: string | null
@@ -611,6 +620,7 @@ export type Database = {
           client_overview?: string | null
           created_at?: string | null
           description?: string | null
+          documents?: Json | null
           forms_required?: string | null
           id?: number
           implementation?: string | null
@@ -626,6 +636,8 @@ export type Database = {
           savings_low?: number | null
           strategy_number?: string | null
           tier?: string | null
+          tool_name?: string | null
+          tool_url?: string | null
           typical_savings_high?: number | null
           typical_savings_low?: number | null
           updated_at?: string | null

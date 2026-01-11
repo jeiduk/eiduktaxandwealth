@@ -19,47 +19,10 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// Strategy tool configurations
-const STRATEGY_TOOLS: Record<number, { toolName: string; toolPath: string }> = {
-  1: { toolName: "Reasonable Comp Calculator", toolPath: "reasonable-comp" },
-  2: { toolName: "Entity Comparison Tool", toolPath: "entity-comparison" },
-  3: { toolName: "Basis Tracker", toolPath: "basis-tracker" },
-  4: { toolName: "Accountable Plan Generator", toolPath: "accountable-plan" },
-  5: { toolName: "Home Office Calculator", toolPath: "home-office" },
-  6: { toolName: "Vehicle Deduction Calculator", toolPath: "vehicle-deduction" },
-};
-
-// Document checklist by strategy
-const STRATEGY_DOCUMENTS: Record<number, { id: string; name: string; required: boolean }[]> = {
-  1: [
-    { id: "comp-study", name: "Compensation Study", required: true },
-    { id: "job-desc", name: "Job Description", required: true },
-    { id: "board-res", name: "Board Resolution", required: true },
-    { id: "payroll-records", name: "Payroll Records", required: false },
-  ],
-  2: [
-    { id: "entity-docs", name: "Entity Formation Docs", required: true },
-    { id: "operating-agreement", name: "Operating Agreement", required: true },
-    { id: "tax-returns", name: "Prior Tax Returns", required: false },
-  ],
-  3: [
-    { id: "basis-schedule", name: "Basis Schedule", required: true },
-    { id: "k1-forms", name: "K-1 Forms", required: true },
-    { id: "contribution-records", name: "Contribution Records", required: false },
-  ],
-  4: [
-    { id: "expense-policy", name: "Expense Policy", required: true },
-    { id: "receipts", name: "Expense Receipts", required: true },
-  ],
-  5: [
-    { id: "floor-plan", name: "Floor Plan/Measurements", required: true },
-    { id: "utility-bills", name: "Utility Bills", required: false },
-  ],
-  6: [
-    { id: "mileage-log", name: "Mileage Log", required: true },
-    { id: "vehicle-title", name: "Vehicle Title", required: true },
-  ],
-};
+interface StrategyDocument {
+  id: string;
+  name: string;
+}
 
 interface Strategy {
   id: number;
@@ -70,6 +33,10 @@ interface Strategy {
   description: string | null;
   typical_savings_low: number | null;
   typical_savings_high: number | null;
+  strategy_number: string | null;
+  tool_url: string | null;
+  tool_name: string | null;
+  documents: StrategyDocument[] | null;
 }
 
 interface ClientStrategy {
@@ -81,6 +48,7 @@ interface ClientStrategy {
   notes: string | null;
   tax_savings: number | null;
   review_id: string | null;
+  document_statuses: Record<string, "received" | "pending" | "needed"> | null;
 }
 
 interface StrategyCardCollapsibleProps {
@@ -93,9 +61,8 @@ interface StrategyCardCollapsibleProps {
   onDeductionChange: (strategyId: number, value: string) => void;
   onDeductionBlur: (strategyId: number, value: string) => void;
   onRemove: (strategyId: number) => void;
+  onDocumentStatusChange?: (clientStrategyId: string, documentId: string, status: "received" | "pending" | "needed") => void;
 }
-
-const TOOLS_BASE_URL = "https://tools.eiduktaxandwealth.com";
 
 export const StrategyCardCollapsible = ({
   strategy,
@@ -107,19 +74,21 @@ export const StrategyCardCollapsible = ({
   onDeductionChange,
   onDeductionBlur,
   onRemove,
+  onDocumentStatusChange,
 }: StrategyCardCollapsibleProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
-  
-  // Track document statuses locally (in real app, persist to database)
-  const [documentStatuses, setDocumentStatuses] = useState<Record<string, "received" | "pending" | "needed">>({});
+  const [localDocStatuses, setLocalDocStatuses] = useState<Record<string, "received" | "pending" | "needed">>({});
   
   const status = clientStrategy?.status || "not_started";
   const deduction = clientStrategy?.deduction_amount || 0;
   const taxSavings = Math.round(deduction * taxRate);
   
-  const toolConfig = STRATEGY_TOOLS[strategy.id];
-  const documents = STRATEGY_DOCUMENTS[strategy.id] || [];
+  // Use database fields
+  const strategyNumber = strategy.strategy_number || `#${strategy.id}`;
+  const toolUrl = strategy.tool_url;
+  const toolName = strategy.tool_name || "Open Tool";
+  const documents = strategy.documents || [];
 
   const formatSavingsRange = () => {
     const low = strategy.typical_savings_low;
@@ -177,9 +146,12 @@ export const StrategyCardCollapsible = ({
     }).format(amount);
   };
 
-  // Get document status with fallback
+  // Get document status from database or local state
   const getDocumentStatus = (docId: string): "received" | "pending" | "needed" => {
-    if (documentStatuses[docId]) return documentStatuses[docId];
+    // First check local state (for optimistic updates)
+    if (localDocStatuses[docId]) return localDocStatuses[docId];
+    // Then check database value
+    if (clientStrategy?.document_statuses?.[docId]) return clientStrategy.document_statuses[docId];
     // Default based on strategy status
     if (status === "complete") return "received";
     if (status === "in_progress") return "pending";
@@ -187,15 +159,23 @@ export const StrategyCardCollapsible = ({
   };
 
   const toggleDocumentStatus = (docId: string) => {
+    if (!clientStrategy) return;
+    
     const currentStatus = getDocumentStatus(docId);
     const nextStatus: "received" | "pending" | "needed" = 
       currentStatus === "needed" ? "pending" :
       currentStatus === "pending" ? "received" : "needed";
     
-    setDocumentStatuses(prev => ({
+    // Optimistic update
+    setLocalDocStatuses(prev => ({
       ...prev,
       [docId]: nextStatus
     }));
+
+    // Call parent handler if provided
+    if (onDocumentStatusChange) {
+      onDocumentStatusChange(clientStrategy.id, docId, nextStatus);
+    }
   };
 
   const getDocumentStatusBadge = (docStatus: "received" | "pending" | "needed") => {
@@ -235,7 +215,7 @@ export const StrategyCardCollapsible = ({
               className="font-bold text-sm shrink-0"
               style={{ color: "#1e40af" }}
             >
-              #{strategy.id}
+              {strategyNumber}
             </span>
             
             {/* Strategy Name */}
@@ -290,15 +270,15 @@ export const StrategyCardCollapsible = ({
         <CollapsibleContent className="animate-accordion-down data-[state=closed]:animate-accordion-up">
           <div className="px-4 pb-4 pt-3 border-t border-slate-100 space-y-4">
             {/* Tool Link Button */}
-            {toolConfig && (
+            {toolUrl && (
               <a 
-                href={`${TOOLS_BASE_URL}/${toolConfig.toolPath}`} 
+                href={toolUrl} 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 bg-[#eff6ff] text-[#1e40af] hover:bg-[#2c5aa0] hover:text-white"
               >
                 <ExternalLink className="h-4 w-4" />
-                {toolConfig.toolName}
+                {toolName}
               </a>
             )}
 

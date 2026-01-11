@@ -40,6 +40,11 @@ interface Client {
   industry: string | null;
 }
 
+interface StrategyDocument {
+  id: string;
+  name: string;
+}
+
 interface Strategy {
   id: number;
   name: string;
@@ -49,6 +54,10 @@ interface Strategy {
   description: string | null;
   typical_savings_low: number | null;
   typical_savings_high: number | null;
+  strategy_number: string | null;
+  tool_url: string | null;
+  tool_name: string | null;
+  documents: StrategyDocument[] | null;
 }
 
 interface ClientStrategy {
@@ -60,6 +69,7 @@ interface ClientStrategy {
   notes: string | null;
   tax_savings: number | null;
   review_id: string | null;
+  document_statuses: Record<string, "received" | "pending" | "needed"> | null;
 }
 
 // Phase configuration - phase values in database are numeric (1, 2, 3, etc.)
@@ -173,8 +183,16 @@ const ClientDetail = () => {
         });
 
         setClient(clientRes.data);
-        setStrategies(strategiesRes.data || []);
-        setClientStrategies(clientStrategiesRes.data || []);
+        setStrategies((strategiesRes.data || []).map(s => ({
+          ...s,
+          documents: (Array.isArray(s.documents) ? s.documents : []) as unknown as StrategyDocument[]
+        })) as Strategy[]);
+        setClientStrategies((clientStrategiesRes.data || []).map(cs => ({
+          ...cs,
+          document_statuses: (typeof cs.document_statuses === 'object' && cs.document_statuses !== null && !Array.isArray(cs.document_statuses) 
+            ? cs.document_statuses 
+            : {}) as unknown as Record<string, "received" | "pending" | "needed">
+        })) as ClientStrategy[]);
 
         // Set latest review and calculate YTD tax savings
         if (latestReviewRes.data) {
@@ -337,7 +355,10 @@ const ClientDetail = () => {
           .single();
 
         if (error) throw error;
-        setClientStrategies((prev) => [...prev, data]);
+        setClientStrategies((prev) => [...prev, {
+          ...data,
+          document_statuses: data.document_statuses as Record<string, "received" | "pending" | "needed"> | null
+        } as ClientStrategy]);
       }
 
       toast({ title: "Status updated" });
@@ -373,6 +394,38 @@ const ClientDetail = () => {
     } catch (error) {
       console.error("Error updating deduction:", error);
       toast({ title: "Error", description: "Failed to update deduction", variant: "destructive" });
+    }
+  };
+
+  const updateDocumentStatus = async (
+    clientStrategyId: string, 
+    documentId: string, 
+    status: "received" | "pending" | "needed"
+  ) => {
+    const existingCs = clientStrategies.find((cs) => cs.id === clientStrategyId);
+    if (!existingCs) return;
+
+    const newDocStatuses = {
+      ...(existingCs.document_statuses || {}),
+      [documentId]: status
+    };
+
+    try {
+      const { error } = await supabase
+        .from("client_strategies")
+        .update({ document_statuses: newDocStatuses })
+        .eq("id", clientStrategyId);
+
+      if (error) throw error;
+
+      setClientStrategies((prev) =>
+        prev.map((cs) =>
+          cs.id === clientStrategyId ? { ...cs, document_statuses: newDocStatuses } : cs
+        )
+      );
+    } catch (error) {
+      console.error("Error updating document status:", error);
+      toast({ title: "Error", description: "Failed to update document status", variant: "destructive" });
     }
   };
 
@@ -659,6 +712,7 @@ const ClientDetail = () => {
                           }
                           onDeductionBlur={updateDeduction}
                           onRemove={removeStrategy}
+                          onDocumentStatusChange={updateDocumentStatus}
                         />
                       );
                     })}
