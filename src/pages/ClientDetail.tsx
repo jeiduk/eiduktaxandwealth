@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, Check, Clock, Circle, X, DollarSign, Rocket, Plus, Trash2, Target, Loader2, Edit, FileText, FolderOpen } from "lucide-react";
+import { StrategyCardCollapsible } from "@/components/client/StrategyCardCollapsible";
 import { AddStrategyModal } from "@/components/client/AddStrategyModal";
 import { ReviewsTab } from "@/components/client/ReviewsTab";
 import { EditClientModal } from "@/components/client/EditClientModal";
@@ -628,7 +629,7 @@ const ClientDetail = () => {
                   </div>
                 )}
 
-                {/* Strategy Cards Grid */}
+                {/* Strategy Cards - Collapsible List */}
                 {phaseStrategies.length === 0 ? (
                   <Card>
                     <CardContent className="py-12 text-center">
@@ -636,125 +637,32 @@ const ClientDetail = () => {
                     </CardContent>
                   </Card>
                 ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {phaseStrategies.map((strategy) => {
-              const cs = getClientStrategy(strategy.id);
-              const status = cs?.status || "not_started";
-              const statusConfig = getStatusConfig(status);
-              const phase = PHASES.find((p) => p.id === Number(strategy.phase));
-              const deduction = cs?.deduction_amount || 0;
-              const taxSavings = Math.round(deduction * stats.taxRate);
-
-              return (
-                <Card
-                  key={strategy.id}
-                  className="overflow-hidden"
-                  style={{ borderLeftWidth: "4px", borderLeftColor: phase?.color }}
-                >
-                  <CardContent className="p-4 space-y-3">
-                    {/* Strategy header */}
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="text-sm font-bold"
-                            style={{ color: phase?.color }}
-                          >
-                            #{strategy.id}
-                          </span>
-                          <span className="font-semibold text-sm line-clamp-1">
-                            {strategy.name}
-                          </span>
-                        </div>
-                        {strategy.irc_citation && (
-                          <p className="text-xs text-blue-600 mt-0.5">{strategy.irc_citation}</p>
-                        )}
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
-                        onClick={() => removeStrategy(strategy.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-
-                    {/* Status dropdown */}
-                    <Select
-                      value={status}
-                      onValueChange={(value) => updateStatus(strategy.id, value)}
-                    >
-                      <SelectTrigger className={cn(
-                        "h-8 text-sm font-medium",
-                        statusConfig.bg,
-                        statusConfig.text,
-                        statusConfig.border
-                      )}>
-                        <div className="flex items-center gap-2">
-                          <statusConfig.icon className="h-3.5 w-3.5" />
-                          <SelectValue />
-                        </div>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="not_started">
-                          <div className="flex items-center gap-2">
-                            <Circle className="h-3.5 w-3.5" />
-                            Not Started
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="in_progress">
-                          <div className="flex items-center gap-2">
-                            <Clock className="h-3.5 w-3.5" />
-                            In Progress
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="complete">
-                          <div className="flex items-center gap-2">
-                            <Check className="h-3.5 w-3.5" />
-                            Complete
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="not_applicable">
-                          <div className="flex items-center gap-2">
-                            <X className="h-3.5 w-3.5" />
-                            N/A
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-
-                    {/* Deduction input (only for complete status) */}
-                    {status === "complete" && (
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <DollarSign className="h-4 w-4 text-muted-foreground" />
-                          <Input
-                            type="number"
-                            placeholder="Deduction Amount"
-                            value={deductionInputs[strategy.id] || ""}
-                            onChange={(e) =>
-                              setDeductionInputs((prev) => ({
-                                ...prev,
-                                [strategy.id]: e.target.value,
-                              }))
-                            }
-                            onBlur={(e) => updateDeduction(strategy.id, e.target.value)}
-                            className="h-8 text-sm"
-                          />
-                        </div>
-                        {deduction > 0 && (
-                          <p className="text-sm text-emerald-600 font-medium pl-6">
-                            Tax Savings: {formatCurrency(taxSavings)}
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              );
-            })}
-            </div>
+                  <div className="space-y-2">
+                    {phaseStrategies.map((strategy) => {
+                      const cs = getClientStrategy(strategy.id);
+                      const phase = PHASES.find((p) => p.id === Number(strategy.phase));
+                      
+                      return (
+                        <StrategyCardCollapsible
+                          key={strategy.id}
+                          strategy={strategy}
+                          clientStrategy={cs}
+                          phaseColor={phase?.color || "#1e40af"}
+                          taxRate={stats.taxRate}
+                          deductionInput={deductionInputs[strategy.id] || ""}
+                          onStatusChange={updateStatus}
+                          onDeductionChange={(strategyId, value) => 
+                            setDeductionInputs((prev) => ({
+                              ...prev,
+                              [strategyId]: value,
+                            }))
+                          }
+                          onDeductionBlur={updateDeduction}
+                          onRemove={removeStrategy}
+                        />
+                      );
+                    })}
+                  </div>
                 )}
               </>
             )}
