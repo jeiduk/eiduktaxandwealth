@@ -1,22 +1,22 @@
-// Strategy phase configuration for 67 strategies across 8 phases
+// Strategy phase configuration for 70 strategies across 8 phases (v5.0)
 // P1: #1-6 (6 strategies) - Foundation
 // P2: #7-11 (5 strategies) - Core Deductions
-// P3: #12-21 (10 strategies) - Retirement
-// P4: #22-28 (7 strategies) - Credits
-// P5: #29-36 (8 strategies) - Real Estate
-// P6: #37-45 (9 strategies) - Acquisitions
-// P7: #46-56 (11 strategies) - Exit
-// P8: #57-67 (11 strategies) - Charitable
+// P3: #12-23 (12 strategies) - Retirement (includes new #12, #13)
+// P4: #24-30 (7 strategies) - Credits
+// P5: #31-38 (8 strategies) - Real Estate
+// P6: #39-47 (9 strategies) - Acquisitions
+// P7: #48-59 (12 strategies) - Exit (includes new #48)
+// P8: #60-70 (11 strategies) - Charitable
 
 export const STRATEGY_PHASES = [
   { id: "P1", name: "Foundation", color: "#1e40af", strategyRange: "1-6" },
   { id: "P2", name: "Core Deductions", color: "#059669", strategyRange: "7-11" },
-  { id: "P3", name: "Retirement", color: "#7c3aed", strategyRange: "12-21" },
-  { id: "P4", name: "Credits", color: "#ea580c", strategyRange: "22-28" },
-  { id: "P5", name: "Real Estate", color: "#0891b2", strategyRange: "29-36" },
-  { id: "P6", name: "Acquisitions", color: "#dc2626", strategyRange: "37-45" },
-  { id: "P7", name: "Exit", color: "#ca8a04", strategyRange: "46-56" },
-  { id: "P8", name: "Charitable", color: "#9333ea", strategyRange: "57-67" },
+  { id: "P3", name: "Retirement", color: "#7c3aed", strategyRange: "12-23" },
+  { id: "P4", name: "Credits", color: "#ea580c", strategyRange: "24-30" },
+  { id: "P5", name: "Real Estate", color: "#0891b2", strategyRange: "31-38" },
+  { id: "P6", name: "Acquisitions", color: "#dc2626", strategyRange: "39-47" },
+  { id: "P7", name: "Exit", color: "#ca8a04", strategyRange: "48-59" },
+  { id: "P8", name: "Charitable", color: "#9333ea", strategyRange: "60-70" },
 ] as const;
 
 // Map phase ID to color for quick lookup
