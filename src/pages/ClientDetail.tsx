@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Check, Clock, Circle, X, DollarSign, Rocket, Plus, Trash2, Target, Loader2, Edit, FileText, FolderOpen } from "lucide-react";
+import { ArrowLeft, Check, Clock, Circle, X, DollarSign, Rocket, Plus, Trash2, Target, Loader2, Edit, FileText, FolderOpen, ExternalLink } from "lucide-react";
 import { StrategyCardCollapsible } from "@/components/client/StrategyCardCollapsible";
 import { AddStrategyModal } from "@/components/client/AddStrategyModal";
 import { ReviewsTab } from "@/components/client/ReviewsTab";
@@ -567,6 +567,21 @@ const ClientDetail = () => {
             >
               <Edit className="h-4 w-4 mr-2" />
               Edit
+            </Button>
+            <Button 
+              variant="outline"
+              size="sm"
+              asChild
+            >
+              <a 
+                href="https://tools.eiduktaxandwealth.com/downloads/4.2a_Annual_Meeting_Minutes_Dual_Entity-4.html" 
+                target="_blank" 
+                rel="noopener noreferrer"
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Annual Meeting Minutes
+                <ExternalLink className="h-3 w-3 ml-1" />
+              </a>
             </Button>
             <Button 
               variant="gold"
