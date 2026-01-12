@@ -46,7 +46,8 @@ interface ClientWithStats {
   tax_rate: number | null;
   completed_strategies: number;
   total_strategies: number;
-  total_savings: number;
+  estimated_savings: number;
+  actual_savings: number;
 }
 
 // Strategy ID ranges by tier (for auto-assignment on new clients)
@@ -93,33 +94,64 @@ const Clients = () => {
 
       if (clientsError) throw clientsError;
 
-      // Fetch strategy stats for all clients
+      // Fetch strategy stats for all clients (including tax_savings and review_id)
       const { data: strategiesData, error: strategiesError } = await supabase
         .from("client_strategies")
-        .select("client_id, status, deduction_amount");
+        .select("client_id, status, deduction_amount, tax_savings, review_id");
 
       if (strategiesError) throw strategiesError;
 
-      // Aggregate stats per client (deductions, then calculate savings with tax rate)
-      const deductionsMap = new Map<string, { completed: number; total: number; deductions: number }>();
+      // Fetch completed quarterly reviews
+      const { data: completedReviews, error: reviewsError } = await supabase
+        .from("quarterly_reviews")
+        .select("id")
+        .eq("status", "complete");
+
+      if (reviewsError) throw reviewsError;
+
+      const completedReviewIds = new Set(completedReviews?.map(r => r.id) || []);
+
+      // Aggregate stats per client
+      const statsMap = new Map<string, { 
+        completed: number; 
+        total: number; 
+        deductions: number; 
+        actualSavings: number;
+      }>();
+      
       strategiesData?.forEach((cs) => {
-        const current = deductionsMap.get(cs.client_id) || { completed: 0, total: 0, deductions: 0 };
+        const current = statsMap.get(cs.client_id) || { 
+          completed: 0, 
+          total: 0, 
+          deductions: 0, 
+          actualSavings: 0 
+        };
         current.total += 1;
         if (cs.status === "complete") {
           current.completed += 1;
           current.deductions += cs.deduction_amount || 0;
         }
-        deductionsMap.set(cs.client_id, current);
+        // Sum actual savings from strategies linked to completed reviews
+        if (cs.review_id && completedReviewIds.has(cs.review_id)) {
+          current.actualSavings += cs.tax_savings || 0;
+        }
+        statsMap.set(cs.client_id, current);
       });
 
       const enrichedClients: ClientWithStats[] = (clientsData || []).map((client) => {
-        const clientStats = deductionsMap.get(client.id) || { completed: 0, total: 0, deductions: 0 };
+        const clientStats = statsMap.get(client.id) || { 
+          completed: 0, 
+          total: 0, 
+          deductions: 0, 
+          actualSavings: 0 
+        };
         const taxRate = client.tax_rate || 0.37;
         return {
           ...client,
           completed_strategies: clientStats.completed,
-          total_strategies: clientStats.total, // Use actual assigned count, not tier-based
-          total_savings: Math.round(clientStats.deductions * taxRate),
+          total_strategies: clientStats.total,
+          estimated_savings: Math.round(clientStats.deductions * taxRate),
+          actual_savings: clientStats.actualSavings,
         };
       });
 
@@ -517,6 +549,7 @@ const Clients = () => {
                   <TableHead>Strategies</TableHead>
                   <TableHead>Progress</TableHead>
                   <TableHead>Est. Savings</TableHead>
+                  <TableHead>Actual Savings</TableHead>
                   <TableHead>Next Review</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -557,8 +590,11 @@ const Clients = () => {
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell className="font-medium">
-                        {formatCurrency(client.total_savings)}
+                      <TableCell className="font-medium text-muted-foreground tabular-nums">
+                        {formatCurrency(client.estimated_savings)}
+                      </TableCell>
+                      <TableCell className="font-medium text-emerald-600 tabular-nums">
+                        {formatCurrency(client.actual_savings)}
                       </TableCell>
                       <TableCell>
                         {client.next_review_date
