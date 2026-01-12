@@ -87,6 +87,14 @@ const PHASES = [
   { id: 9, displayId: "P9", name: "Premium Alt Investments", color: "#be185d" },
 ];
 
+// Strategy ID ranges by tier
+const TIER_STRATEGY_RANGES: Record<string, { start: number; end: number } | null> = {
+  Essentials: null,
+  Foundation: { start: 1, end: 13 },
+  Complete: { start: 1, end: 30 },
+  Premium: { start: 1, end: 59 },
+};
+
 // Helper to extract phase number from phase strings like "P1", "P2", "1", "2", etc.
 const getPhaseNumber = (phase: string | number): number => {
   if (typeof phase === "number") return phase;
@@ -116,6 +124,7 @@ const ClientDetail = () => {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [latestReviewId, setLatestReviewId] = useState<string | null>(null);
   const [totalTaxSavings, setTotalTaxSavings] = useState(0);
+  const [loadingDefaults, setLoadingDefaults] = useState(false);
 
   const getCurrentQuarter = () => {
     const now = new Date();
@@ -339,6 +348,81 @@ const ClientDetail = () => {
   const handleStrategyAdded = (newClientStrategy: ClientStrategy) => {
     console.log("Adding strategy to state:", newClientStrategy);
     setClientStrategies((prev) => [...prev, newClientStrategy]);
+  };
+
+  const loadDefaultStrategies = async () => {
+    if (!id || !client) return;
+    
+    const range = TIER_STRATEGY_RANGES[client.package_tier];
+    if (!range) {
+      toast({
+        title: "No default strategies",
+        description: `${client.package_tier} tier has no default strategies`,
+      });
+      return;
+    }
+
+    setLoadingDefaults(true);
+    try {
+      // Get strategy IDs for this tier
+      const { data: tierStrategies, error: strategiesError } = await supabase
+        .from("strategies")
+        .select("id")
+        .gte("id", range.start)
+        .lte("id", range.end);
+
+      if (strategiesError) throw strategiesError;
+
+      // Get existing client strategy IDs
+      const existingStrategyIds = new Set(clientStrategies.map(cs => cs.strategy_id));
+
+      // Filter to only strategies not already assigned
+      const newStrategies = tierStrategies?.filter(s => !existingStrategyIds.has(s.id)) || [];
+
+      if (newStrategies.length === 0) {
+        toast({
+          title: "All strategies loaded",
+          description: `All ${client.package_tier} tier strategies are already assigned`,
+        });
+        return;
+      }
+
+      // Insert new client_strategies
+      const clientStrategiesToInsert = newStrategies.map(s => ({
+        client_id: id,
+        strategy_id: s.id,
+        status: "not_started",
+      }));
+
+      const { data: insertedStrategies, error: insertError } = await supabase
+        .from("client_strategies")
+        .insert(clientStrategiesToInsert)
+        .select();
+
+      if (insertError) throw insertError;
+
+      // Update state with new strategies
+      const newClientStrategies = (insertedStrategies || []).map(cs => ({
+        ...cs,
+        document_statuses: {} as Record<string, "received" | "pending" | "needed">
+      })) as ClientStrategy[];
+
+      setClientStrategies(prev => [...prev, ...newClientStrategies]);
+
+      toast({
+        title: "Strategies loaded",
+        description: `Added ${newStrategies.length} ${client.package_tier} tier strategies`,
+      });
+    } catch (error) {
+      console.error("Error loading default strategies:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load default strategies",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingDefaults(false);
+    }
   };
 
   const updateStatus = async (strategyId: number, newStatus: string) => {
@@ -670,14 +754,29 @@ const ClientDetail = () => {
                       {stats.progress}%
                     </span>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setAddStrategyOpen(true)}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Strategy
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={loadDefaultStrategies}
+                      disabled={loadingDefaults}
+                    >
+                      {loadingDefaults ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <FolderOpen className="h-4 w-4 mr-2" />
+                      )}
+                      Load {client?.package_tier} Defaults
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setAddStrategyOpen(true)}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Strategy
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Phase Tabs - Always show all 8 phases */}
