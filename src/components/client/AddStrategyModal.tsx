@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import { Check, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -229,7 +229,7 @@ export const AddStrategyModal = ({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+      <DialogContent className="max-w-2xl w-full h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="font-display">Add Strategies</DialogTitle>
           {selectedIds.length > 0 && (
@@ -238,7 +238,7 @@ export const AddStrategyModal = ({
             </p>
           )}
         </DialogHeader>
-        <ScrollArea className="flex-1 min-h-0 max-h-[60vh] pr-4">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-4">
           {!hasStrategies ? (
             <div className="py-8 text-center text-muted-foreground">
               <Check className="h-12 w-12 mx-auto mb-3 text-emerald-500" />
@@ -258,7 +258,7 @@ export const AddStrategyModal = ({
               )}
             </div>
           )}
-        </ScrollArea>
+        </div>
         {hasStrategies && (
           <DialogFooter className="border-t pt-4">
             <Button
