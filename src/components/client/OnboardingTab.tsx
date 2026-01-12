@@ -17,7 +17,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronRight, User, Users, StickyNote, ChevronsUpDown, ChevronsDownUp, CalendarIcon } from "lucide-react";
+import { ChevronDown, ChevronRight, User, Users, StickyNote, ChevronsUpDown, ChevronsDownUp, CalendarIcon, Flag, CheckCircle2, Circle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -46,6 +46,7 @@ interface ClientOnboarding {
 interface OnboardingTabProps {
   clientId: string;
   clientCreatedAt: string;
+  hasCompletedReview?: boolean;
 }
 
 const PHASE_ORDER = ["Setup", "Foundation", "Accounting", "Retirement"];
@@ -56,7 +57,7 @@ const PHASE_COLORS: Record<string, string> = {
   Retirement: "#ea580c",
 };
 
-export const OnboardingTab = ({ clientId, clientCreatedAt }: OnboardingTabProps) => {
+export const OnboardingTab = ({ clientId, clientCreatedAt, hasCompletedReview = false }: OnboardingTabProps) => {
   const { toast } = useToast();
   const [tasks, setTasks] = useState<OnboardingTask[]>([]);
   const [clientOnboarding, setClientOnboarding] = useState<ClientOnboarding[]>([]);
@@ -69,6 +70,11 @@ export const OnboardingTab = ({ clientId, clientCreatedAt }: OnboardingTabProps)
   });
   const [notesOpen, setNotesOpen] = useState<number | null>(null);
   const [noteText, setNoteText] = useState("");
+  const [nextSteps, setNextSteps] = useState({
+    firstQuarterlyReview: false,
+    ongoingMonitoring: false,
+    onboardingComplete: false,
+  });
 
   useEffect(() => {
     fetchData();
@@ -471,6 +477,101 @@ export const OnboardingTab = ({ clientId, clientCreatedAt }: OnboardingTabProps)
           </Collapsible>
         );
       })}
+
+      {/* Next Steps Section */}
+      <Card>
+        <CardHeader style={{ borderLeftWidth: "4px", borderLeftColor: "#0ea5e9" }}>
+          <div className="flex items-center gap-3">
+            <Flag className="h-5 w-5 text-sky-500" />
+            <CardTitle className="text-lg">Next Steps</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {/* First Quarterly Review */}
+          <div
+            className={cn(
+              "flex items-center gap-3 p-3 rounded-lg border transition-colors cursor-pointer",
+              (nextSteps.firstQuarterlyReview || hasCompletedReview)
+                ? "bg-emerald-50/50 border-emerald-200"
+                : "bg-card hover:bg-muted/30"
+            )}
+            onClick={() => setNextSteps(prev => ({ ...prev, firstQuarterlyReview: !prev.firstQuarterlyReview }))}
+          >
+            {(nextSteps.firstQuarterlyReview || hasCompletedReview) ? (
+              <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+            ) : (
+              <Circle className="h-5 w-5 text-muted-foreground shrink-0" />
+            )}
+            <div className="flex-1">
+              <p className={cn(
+                "font-medium",
+                (nextSteps.firstQuarterlyReview || hasCompletedReview) && "text-emerald-700"
+              )}>
+                First Quarterly Review
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Complete the initial quarterly review with the client
+              </p>
+            </div>
+          </div>
+
+          {/* Ongoing Monitoring Established */}
+          <div
+            className={cn(
+              "flex items-center gap-3 p-3 rounded-lg border transition-colors cursor-pointer",
+              nextSteps.ongoingMonitoring
+                ? "bg-emerald-50/50 border-emerald-200"
+                : "bg-card hover:bg-muted/30"
+            )}
+            onClick={() => setNextSteps(prev => ({ ...prev, ongoingMonitoring: !prev.ongoingMonitoring }))}
+          >
+            {nextSteps.ongoingMonitoring ? (
+              <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+            ) : (
+              <Circle className="h-5 w-5 text-muted-foreground shrink-0" />
+            )}
+            <div className="flex-1">
+              <p className={cn(
+                "font-medium",
+                nextSteps.ongoingMonitoring && "text-emerald-700"
+              )}>
+                Ongoing Monitoring Established
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Set up recurring reviews and monitoring schedule
+              </p>
+            </div>
+          </div>
+
+          {/* Onboarding Complete */}
+          <div
+            className={cn(
+              "flex items-center gap-3 p-3 rounded-lg border transition-colors cursor-pointer",
+              nextSteps.onboardingComplete
+                ? "bg-emerald-50/50 border-emerald-200"
+                : "bg-card hover:bg-muted/30"
+            )}
+            onClick={() => setNextSteps(prev => ({ ...prev, onboardingComplete: !prev.onboardingComplete }))}
+          >
+            {nextSteps.onboardingComplete ? (
+              <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+            ) : (
+              <Circle className="h-5 w-5 text-muted-foreground shrink-0" />
+            )}
+            <div className="flex-1">
+              <p className={cn(
+                "font-medium",
+                nextSteps.onboardingComplete && "text-emerald-700"
+              )}>
+                Onboarding Complete
+              </p>
+              <p className="text-sm text-muted-foreground">
+                All onboarding tasks finished and client is fully set up
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
