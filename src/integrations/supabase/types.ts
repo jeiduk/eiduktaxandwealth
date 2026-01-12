@@ -60,6 +60,7 @@ export type Database = {
           client_id: string
           completed_date: string | null
           created_at: string
+          due_date: string | null
           id: string
           notes: string | null
           status: string
@@ -70,6 +71,7 @@ export type Database = {
           client_id: string
           completed_date?: string | null
           created_at?: string
+          due_date?: string | null
           id?: string
           notes?: string | null
           status?: string
@@ -80,6 +82,7 @@ export type Database = {
           client_id?: string
           completed_date?: string | null
           created_at?: string
+          due_date?: string | null
           id?: string
           notes?: string | null
           status?: string

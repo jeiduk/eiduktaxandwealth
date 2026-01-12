@@ -6,14 +6,21 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronRight, User, Users, StickyNote, ChevronsUpDown, ChevronsDownUp } from "lucide-react";
+import { ChevronDown, ChevronRight, User, Users, StickyNote, ChevronsUpDown, ChevronsDownUp, CalendarIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 
 interface OnboardingTask {
   id: number;
@@ -33,6 +40,7 @@ interface ClientOnboarding {
   status: string;
   completed_date: string | null;
   notes: string | null;
+  due_date: string | null;
 }
 
 interface OnboardingTabProps {
@@ -176,10 +184,41 @@ export const OnboardingTab = ({ clientId, clientCreatedAt }: OnboardingTabProps)
     }
   };
 
-  const getDeadlineDate = (task: OnboardingTask) => {
+  const getDeadlineDate = (task: OnboardingTask, onboarding: ClientOnboarding | undefined) => {
+    // Use custom due_date if set, otherwise calculate from default
+    if (onboarding?.due_date) {
+      return new Date(onboarding.due_date);
+    }
     const startDate = new Date(clientCreatedAt);
     startDate.setDate(startDate.getDate() + task.default_deadline_days);
     return startDate;
+  };
+
+  const updateDueDate = async (taskId: number, date: Date | undefined) => {
+    const existing = getClientOnboarding(taskId);
+    if (!existing) return;
+
+    const dueDateStr = date ? format(date, "yyyy-MM-dd") : null;
+
+    try {
+      const { error } = await supabase
+        .from("client_onboarding")
+        .update({ due_date: dueDateStr })
+        .eq("id", existing.id);
+
+      if (error) throw error;
+
+      setClientOnboarding((prev) =>
+        prev.map((co) =>
+          co.id === existing.id ? { ...co, due_date: dueDateStr } : co
+        )
+      );
+
+      toast({ title: "Due date updated" });
+    } catch (error) {
+      console.error("Error updating due date:", error);
+      toast({ title: "Error", description: "Failed to update due date", variant: "destructive" });
+    }
   };
 
   const getOwnerBadge = (owner: string) => {
@@ -315,7 +354,7 @@ export const OnboardingTab = ({ clientId, clientCreatedAt }: OnboardingTabProps)
                   {phaseTasks.map((task) => {
                     const onboarding = getClientOnboarding(task.id);
                     const isComplete = onboarding?.status === "complete";
-                    const deadline = getDeadlineDate(task);
+                    const deadline = getDeadlineDate(task, onboarding);
                     const isOverdue = !isComplete && deadline < new Date();
 
                     return (
@@ -362,15 +401,31 @@ export const OnboardingTab = ({ clientId, clientCreatedAt }: OnboardingTabProps)
                             </div>
                           </div>
                           <div className="flex items-center gap-4 mt-2">
-                            <span
-                              className={cn(
-                                "text-xs",
-                                isOverdue ? "text-red-600 font-medium" : "text-muted-foreground"
-                              )}
-                            >
-                              Due: {deadline.toLocaleDateString()}
-                              {isOverdue && " (Overdue)"}
-                            </span>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className={cn(
+                                    "h-6 px-2 text-xs gap-1",
+                                    isOverdue ? "text-red-600 font-medium hover:text-red-700" : "text-muted-foreground hover:text-foreground"
+                                  )}
+                                >
+                                  <CalendarIcon className="h-3 w-3" />
+                                  Due: {format(deadline, "MMM d, yyyy")}
+                                  {isOverdue && " (Overdue)"}
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0 bg-white z-50" align="start">
+                                <Calendar
+                                  mode="single"
+                                  selected={deadline}
+                                  onSelect={(date) => updateDueDate(task.id, date)}
+                                  initialFocus
+                                  className={cn("p-3 pointer-events-auto")}
+                                />
+                              </PopoverContent>
+                            </Popover>
                             <Button
                               variant="ghost"
                               size="sm"
