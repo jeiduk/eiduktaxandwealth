@@ -12,6 +12,13 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { 
   ChevronDown, 
@@ -247,14 +254,42 @@ export const StrategyCardCollapsible = ({
               </Badge>
             )}
             
-            {/* Status Badge */}
-            <Badge 
-              variant="outline" 
-              className={cn("shrink-0 gap-1", statusConfig.className)}
+            {/* Status Selector */}
+            <Select
+              value={status}
+              onValueChange={(value) => onStatusChange(strategy.id, value)}
             >
-              <statusConfig.icon className="h-3 w-3" />
-              {statusConfig.label}
-            </Badge>
+              <SelectTrigger 
+                className={cn(
+                  "h-7 w-[130px] text-xs border shrink-0",
+                  statusConfig.className
+                )}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <statusConfig.icon className="h-3 w-3 mr-1" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-white z-50">
+                <SelectItem value="not_started">
+                  <div className="flex items-center gap-2">
+                    <Circle className="h-3 w-3 text-gray-500" />
+                    Not Started
+                  </div>
+                </SelectItem>
+                <SelectItem value="in_progress">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-3 w-3 text-amber-600" />
+                    In Progress
+                  </div>
+                </SelectItem>
+                <SelectItem value="complete">
+                  <div className="flex items-center gap-2">
+                    <Check className="h-3 w-3 text-emerald-600" />
+                    Complete
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
             
             {/* Chevron Icon */}
             <ChevronDown 
