@@ -80,28 +80,33 @@ const Dashboard = () => {
 
       if (clientsError) throw clientsError;
 
-      // Fetch all client strategies (to get total assigned count)
+      // Fetch all client strategies with review_id to check for completed reviews
       const { data: allClientStrategies, error: strategiesError } = await supabase
         .from("client_strategies")
-        .select("client_id, deduction_amount, status");
+        .select("client_id, deduction_amount, status, tax_savings, review_id");
 
       if (strategiesError) throw strategiesError;
 
-      // Filter to completed strategies for savings calculation
+      // Fetch all completed quarterly reviews
+      const { data: completedReviews, error: reviewsError } = await supabase
+        .from("quarterly_reviews")
+        .select("id")
+        .eq("status", "complete");
+
+      if (reviewsError) throw reviewsError;
+
+      const completedReviewIds = new Set(completedReviews?.map(r => r.id) || []);
+
+      // Filter to completed strategies for count
       const completedStrategies = allClientStrategies?.filter(s => s.status === "complete") || [];
 
-      // Calculate stats - tax savings = sum of (deductions × client tax rate)
+      // Calculate stats - tax savings from strategies linked to completed reviews
       const activeClients = clients?.length || 0;
       
-      // Calculate total savings across all clients
-      let totalSavings = 0;
-      clients?.forEach(client => {
-        const clientDeductions = completedStrategies
-          ?.filter(s => s.client_id === client.id)
-          .reduce((sum, s) => sum + (s.deduction_amount || 0), 0) || 0;
-        const taxRate = client.tax_rate || 0.37;
-        totalSavings += Math.round(clientDeductions * taxRate);
-      });
+      // Calculate total savings: sum tax_savings from strategies linked to completed reviews
+      const totalSavings = allClientStrategies
+        ?.filter(s => s.review_id && completedReviewIds.has(s.review_id))
+        .reduce((sum, s) => sum + (s.tax_savings || 0), 0) || 0;
       
       const strategiesImplemented = completedStrategies?.length || 0;
 
