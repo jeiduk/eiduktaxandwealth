@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Building2, Eye, Mail } from "lucide-react";
+import { Plus, Search, Building2, Eye, Mail, Clock, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
@@ -62,12 +62,14 @@ const TIER_STRATEGY_RANGES: Record<string, { start: number; end: number } | null
 const Clients = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [clients, setClients] = useState<ClientWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("All");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
+  const [creatingReview, setCreatingReview] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     entity_type: "S-Corp",
@@ -238,6 +240,40 @@ const Clients = () => {
       });
     } finally {
       setFormLoading(false);
+    }
+  };
+
+  const getCurrentQuarter = () => {
+    const now = new Date();
+    const quarter = Math.ceil((now.getMonth() + 1) / 3);
+    return `Q${quarter} ${now.getFullYear()}`;
+  };
+
+  const createReviewAndNavigate = async (clientId: string) => {
+    setCreatingReview(clientId);
+    try {
+      const { data, error } = await supabase
+        .from("quarterly_reviews")
+        .insert({
+          client_id: clientId,
+          quarter: getCurrentQuarter(),
+          status: "in-progress",
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      navigate(`/reviews/${data.id}`);
+    } catch (error) {
+      console.error("Error creating review:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create quarterly review",
+        variant: "destructive",
+      });
+    } finally {
+      setCreatingReview(null);
     }
   };
 
@@ -531,6 +567,19 @@ const Clients = () => {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => createReviewAndNavigate(client.id)}
+                            disabled={creatingReview === client.id}
+                          >
+                            {creatingReview === client.id ? (
+                              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                            ) : (
+                              <Clock className="h-4 w-4 mr-1" />
+                            )}
+                            Review
+                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"
