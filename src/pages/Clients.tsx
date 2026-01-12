@@ -46,8 +46,8 @@ interface ClientWithStats {
   tax_rate: number | null;
   completed_strategies: number;
   total_strategies: number;
-  estimated_savings: number;
-  actual_savings: number;
+  total_deductions: number;
+  tax_savings: number;
 }
 
 // Strategy ID ranges by tier (for auto-assignment on new clients)
@@ -145,13 +145,12 @@ const Clients = () => {
           deductions: 0, 
           actualSavings: 0 
         };
-        const taxRate = client.tax_rate || 0.37;
         return {
           ...client,
           completed_strategies: clientStats.completed,
           total_strategies: clientStats.total,
-          estimated_savings: Math.round(clientStats.deductions * taxRate),
-          actual_savings: clientStats.actualSavings,
+          total_deductions: clientStats.deductions,
+          tax_savings: clientStats.actualSavings,
         };
       });
 
@@ -548,8 +547,8 @@ const Clients = () => {
                   <TableHead>Package Tier</TableHead>
                   <TableHead>Strategies</TableHead>
                   <TableHead>Progress</TableHead>
-                  <TableHead>Est. Savings</TableHead>
-                  <TableHead>Actual Savings</TableHead>
+                  <TableHead>Total Deductions</TableHead>
+                  <TableHead>Tax Savings</TableHead>
                   <TableHead>Next Review</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -590,11 +589,11 @@ const Clients = () => {
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell className="font-medium text-muted-foreground tabular-nums">
-                        {formatCurrency(client.estimated_savings)}
+                      <TableCell className="font-medium tabular-nums">
+                        {formatCurrency(client.total_deductions)}
                       </TableCell>
                       <TableCell className="font-medium text-emerald-600 tabular-nums">
-                        {formatCurrency(client.actual_savings)}
+                        {formatCurrency(client.tax_savings)}
                       </TableCell>
                       <TableCell>
                         {client.next_review_date
