@@ -67,13 +67,16 @@ export const OnboardingTab = ({ clientId, clientCreatedAt, hasCompletedReview = 
     Foundation: true,
     Accounting: true,
     Retirement: true,
+    NextSteps: true,
   });
   const [notesOpen, setNotesOpen] = useState<number | null>(null);
   const [noteText, setNoteText] = useState("");
+  const [nextStepNotesOpen, setNextStepNotesOpen] = useState<string | null>(null);
+  const [nextStepNoteText, setNextStepNoteText] = useState("");
   const [nextSteps, setNextSteps] = useState({
-    firstQuarterlyReview: false,
-    ongoingMonitoring: false,
-    onboardingComplete: false,
+    firstQuarterlyReview: { completed: false, notes: "" },
+    ongoingMonitoring: { completed: false, notes: "" },
+    onboardingComplete: { completed: false, notes: "" },
   });
 
   useEffect(() => {
@@ -260,15 +263,15 @@ export const OnboardingTab = ({ clientId, clientCreatedAt, hasCompletedReview = 
   };
 
   const expandAll = () => {
-    setExpandedPhases(PHASE_ORDER.reduce((acc, phase) => ({ ...acc, [phase]: true }), {}));
+    setExpandedPhases({ ...PHASE_ORDER.reduce((acc, phase) => ({ ...acc, [phase]: true }), {}), NextSteps: true });
   };
 
   const collapseAll = () => {
-    setExpandedPhases(PHASE_ORDER.reduce((acc, phase) => ({ ...acc, [phase]: false }), {}));
+    setExpandedPhases({ ...PHASE_ORDER.reduce((acc, phase) => ({ ...acc, [phase]: false }), {}), NextSteps: false });
   };
 
-  const allExpanded = PHASE_ORDER.every((phase) => expandedPhases[phase]);
-  const allCollapsed = PHASE_ORDER.every((phase) => !expandedPhases[phase]);
+  const allExpanded = PHASE_ORDER.every((phase) => expandedPhases[phase]) && expandedPhases["NextSteps"];
+  const allCollapsed = PHASE_ORDER.every((phase) => !expandedPhases[phase]) && !expandedPhases["NextSteps"];
 
   if (loading) {
     return (
@@ -479,99 +482,248 @@ export const OnboardingTab = ({ clientId, clientCreatedAt, hasCompletedReview = 
       })}
 
       {/* Next Steps Section */}
-      <Card>
-        <CardHeader style={{ borderLeftWidth: "4px", borderLeftColor: "#0ea5e9" }}>
-          <div className="flex items-center gap-3">
-            <Flag className="h-5 w-5 text-sky-500" />
-            <CardTitle className="text-lg">Next Steps</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {/* First Quarterly Review */}
-          <div
-            className={cn(
-              "flex items-center gap-3 p-3 rounded-lg border transition-colors cursor-pointer",
-              (nextSteps.firstQuarterlyReview || hasCompletedReview)
-                ? "bg-emerald-50/50 border-emerald-200"
-                : "bg-card hover:bg-muted/30"
-            )}
-            onClick={() => setNextSteps(prev => ({ ...prev, firstQuarterlyReview: !prev.firstQuarterlyReview }))}
-          >
-            {(nextSteps.firstQuarterlyReview || hasCompletedReview) ? (
-              <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
-            ) : (
-              <Circle className="h-5 w-5 text-muted-foreground shrink-0" />
-            )}
-            <div className="flex-1">
-              <p className={cn(
-                "font-medium",
-                (nextSteps.firstQuarterlyReview || hasCompletedReview) && "text-emerald-700"
-              )}>
-                First Quarterly Review
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Complete the initial quarterly review with the client
-              </p>
-            </div>
-          </div>
+      <Collapsible
+        open={expandedPhases["NextSteps"]}
+        onOpenChange={() => togglePhase("NextSteps")}
+      >
+        <Card>
+          <CollapsibleTrigger asChild>
+            <CardHeader
+              className="cursor-pointer hover:bg-muted/50 transition-colors"
+              style={{ borderLeftWidth: "4px", borderLeftColor: "#0ea5e9" }}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {expandedPhases["NextSteps"] ? (
+                    <ChevronDown className="h-5 w-5" />
+                  ) : (
+                    <ChevronRight className="h-5 w-5" />
+                  )}
+                  <Flag className="h-5 w-5 text-sky-500" />
+                  <CardTitle className="text-lg">Next Steps</CardTitle>
+                  <Badge variant="secondary">
+                    {[
+                      nextSteps.firstQuarterlyReview.completed || hasCompletedReview,
+                      nextSteps.ongoingMonitoring.completed,
+                      nextSteps.onboardingComplete.completed
+                    ].filter(Boolean).length}/3
+                  </Badge>
+                </div>
+              </div>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="pt-0 space-y-2">
+              {/* First Quarterly Review */}
+              <div
+                className={cn(
+                  "flex items-start gap-3 p-3 rounded-lg border transition-colors",
+                  (nextSteps.firstQuarterlyReview.completed || hasCompletedReview)
+                    ? "bg-emerald-50/50 border-emerald-200"
+                    : "bg-card hover:bg-muted/30"
+                )}
+              >
+                <Checkbox
+                  checked={nextSteps.firstQuarterlyReview.completed || hasCompletedReview}
+                  onCheckedChange={() => setNextSteps(prev => ({
+                    ...prev,
+                    firstQuarterlyReview: { ...prev.firstQuarterlyReview, completed: !prev.firstQuarterlyReview.completed }
+                  }))}
+                  className="mt-1"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className={cn(
+                    "font-medium",
+                    (nextSteps.firstQuarterlyReview.completed || hasCompletedReview) && "line-through text-muted-foreground"
+                  )}>
+                    First Quarterly Review
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Complete the initial quarterly review with the client
+                  </p>
+                  <div className="flex items-center gap-4 mt-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-xs"
+                      onClick={() => {
+                        setNextStepNotesOpen(nextStepNotesOpen === "firstQuarterlyReview" ? null : "firstQuarterlyReview");
+                        setNextStepNoteText(nextSteps.firstQuarterlyReview.notes);
+                      }}
+                    >
+                      <StickyNote className="h-3 w-3 mr-1" />
+                      {nextSteps.firstQuarterlyReview.notes ? "Edit Notes" : "Add Notes"}
+                    </Button>
+                  </div>
+                  {nextStepNotesOpen === "firstQuarterlyReview" && (
+                    <div className="mt-3 space-y-2">
+                      <Textarea
+                        value={nextStepNoteText}
+                        onChange={(e) => setNextStepNoteText(e.target.value)}
+                        placeholder="Add notes..."
+                        rows={2}
+                      />
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={() => {
+                          setNextSteps(prev => ({
+                            ...prev,
+                            firstQuarterlyReview: { ...prev.firstQuarterlyReview, notes: nextStepNoteText }
+                          }));
+                          setNextStepNotesOpen(null);
+                          toast({ title: "Notes saved" });
+                        }}>
+                          Save
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => setNextStepNotesOpen(null)}>
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
 
-          {/* Ongoing Monitoring Established */}
-          <div
-            className={cn(
-              "flex items-center gap-3 p-3 rounded-lg border transition-colors cursor-pointer",
-              nextSteps.ongoingMonitoring
-                ? "bg-emerald-50/50 border-emerald-200"
-                : "bg-card hover:bg-muted/30"
-            )}
-            onClick={() => setNextSteps(prev => ({ ...prev, ongoingMonitoring: !prev.ongoingMonitoring }))}
-          >
-            {nextSteps.ongoingMonitoring ? (
-              <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
-            ) : (
-              <Circle className="h-5 w-5 text-muted-foreground shrink-0" />
-            )}
-            <div className="flex-1">
-              <p className={cn(
-                "font-medium",
-                nextSteps.ongoingMonitoring && "text-emerald-700"
-              )}>
-                Ongoing Monitoring Established
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Set up recurring reviews and monitoring schedule
-              </p>
-            </div>
-          </div>
+              {/* Ongoing Monitoring Established */}
+              <div
+                className={cn(
+                  "flex items-start gap-3 p-3 rounded-lg border transition-colors",
+                  nextSteps.ongoingMonitoring.completed
+                    ? "bg-emerald-50/50 border-emerald-200"
+                    : "bg-card hover:bg-muted/30"
+                )}
+              >
+                <Checkbox
+                  checked={nextSteps.ongoingMonitoring.completed}
+                  onCheckedChange={() => setNextSteps(prev => ({
+                    ...prev,
+                    ongoingMonitoring: { ...prev.ongoingMonitoring, completed: !prev.ongoingMonitoring.completed }
+                  }))}
+                  className="mt-1"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className={cn(
+                    "font-medium",
+                    nextSteps.ongoingMonitoring.completed && "line-through text-muted-foreground"
+                  )}>
+                    Ongoing Monitoring Established
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Set up recurring reviews and monitoring schedule
+                  </p>
+                  <div className="flex items-center gap-4 mt-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-xs"
+                      onClick={() => {
+                        setNextStepNotesOpen(nextStepNotesOpen === "ongoingMonitoring" ? null : "ongoingMonitoring");
+                        setNextStepNoteText(nextSteps.ongoingMonitoring.notes);
+                      }}
+                    >
+                      <StickyNote className="h-3 w-3 mr-1" />
+                      {nextSteps.ongoingMonitoring.notes ? "Edit Notes" : "Add Notes"}
+                    </Button>
+                  </div>
+                  {nextStepNotesOpen === "ongoingMonitoring" && (
+                    <div className="mt-3 space-y-2">
+                      <Textarea
+                        value={nextStepNoteText}
+                        onChange={(e) => setNextStepNoteText(e.target.value)}
+                        placeholder="Add notes..."
+                        rows={2}
+                      />
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={() => {
+                          setNextSteps(prev => ({
+                            ...prev,
+                            ongoingMonitoring: { ...prev.ongoingMonitoring, notes: nextStepNoteText }
+                          }));
+                          setNextStepNotesOpen(null);
+                          toast({ title: "Notes saved" });
+                        }}>
+                          Save
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => setNextStepNotesOpen(null)}>
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
 
-          {/* Onboarding Complete */}
-          <div
-            className={cn(
-              "flex items-center gap-3 p-3 rounded-lg border transition-colors cursor-pointer",
-              nextSteps.onboardingComplete
-                ? "bg-emerald-50/50 border-emerald-200"
-                : "bg-card hover:bg-muted/30"
-            )}
-            onClick={() => setNextSteps(prev => ({ ...prev, onboardingComplete: !prev.onboardingComplete }))}
-          >
-            {nextSteps.onboardingComplete ? (
-              <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
-            ) : (
-              <Circle className="h-5 w-5 text-muted-foreground shrink-0" />
-            )}
-            <div className="flex-1">
-              <p className={cn(
-                "font-medium",
-                nextSteps.onboardingComplete && "text-emerald-700"
-              )}>
-                Onboarding Complete
-              </p>
-              <p className="text-sm text-muted-foreground">
-                All onboarding tasks finished and client is fully set up
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+              {/* Onboarding Complete */}
+              <div
+                className={cn(
+                  "flex items-start gap-3 p-3 rounded-lg border transition-colors",
+                  nextSteps.onboardingComplete.completed
+                    ? "bg-emerald-50/50 border-emerald-200"
+                    : "bg-card hover:bg-muted/30"
+                )}
+              >
+                <Checkbox
+                  checked={nextSteps.onboardingComplete.completed}
+                  onCheckedChange={() => setNextSteps(prev => ({
+                    ...prev,
+                    onboardingComplete: { ...prev.onboardingComplete, completed: !prev.onboardingComplete.completed }
+                  }))}
+                  className="mt-1"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className={cn(
+                    "font-medium",
+                    nextSteps.onboardingComplete.completed && "line-through text-muted-foreground"
+                  )}>
+                    Onboarding Complete
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    All onboarding tasks finished and client is fully set up
+                  </p>
+                  <div className="flex items-center gap-4 mt-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-xs"
+                      onClick={() => {
+                        setNextStepNotesOpen(nextStepNotesOpen === "onboardingComplete" ? null : "onboardingComplete");
+                        setNextStepNoteText(nextSteps.onboardingComplete.notes);
+                      }}
+                    >
+                      <StickyNote className="h-3 w-3 mr-1" />
+                      {nextSteps.onboardingComplete.notes ? "Edit Notes" : "Add Notes"}
+                    </Button>
+                  </div>
+                  {nextStepNotesOpen === "onboardingComplete" && (
+                    <div className="mt-3 space-y-2">
+                      <Textarea
+                        value={nextStepNoteText}
+                        onChange={(e) => setNextStepNoteText(e.target.value)}
+                        placeholder="Add notes..."
+                        rows={2}
+                      />
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={() => {
+                          setNextSteps(prev => ({
+                            ...prev,
+                            onboardingComplete: { ...prev.onboardingComplete, notes: nextStepNoteText }
+                          }));
+                          setNextStepNotesOpen(null);
+                          toast({ title: "Notes saved" });
+                        }}>
+                          Save
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => setNextStepNotesOpen(null)}>
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
     </div>
   );
 };
