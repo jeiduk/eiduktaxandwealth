@@ -1,34 +1,37 @@
-// Strategy phase configuration for 70 strategies across 8 phases (v5.0)
-// P1: #1-6 (6 strategies) - Foundation
-// P2: #7-11 (5 strategies) - Core Deductions
-// P3: #12-23 (12 strategies) - Retirement (includes new #12, #13)
-// P4: #24-30 (7 strategies) - Credits
-// P5: #31-38 (8 strategies) - Real Estate
-// P6: #39-47 (9 strategies) - Acquisitions
-// P7: #48-59 (12 strategies) - Exit (includes new #48)
-// P8: #60-70 (11 strategies) - Charitable
+// Strategy phase configuration for 80 strategies across 9 phases (v6.0)
+// Phase 1: #1-7 (7 strategies) - Foundation
+// Phase 2: #8-17 (10 strategies) - Core Deductions
+// Phase 3: #18-28 (11 strategies) - Retirement & Benefits
+// Phase 4: #29-35 (7 strategies) - Credits & Multistate
+// Phase 5: #36-43 (8 strategies) - Real Estate & PAL
+// Phase 6: #44-50 (7 strategies) - Acquisitions & Leverage
+// Phase 7: #51-61 (11 strategies) - Exit & Wealth Transfer
+// Phase 8: #62-72 (11 strategies) - Charitable & Philanthropic
+// Phase 9: #73-80 (8 strategies) - Premium Alternative Investments
 
 export const STRATEGY_PHASES = [
-  { id: "P1", name: "Foundation", color: "#1e40af", strategyRange: "1-6" },
-  { id: "P2", name: "Core Deductions", color: "#059669", strategyRange: "7-11" },
-  { id: "P3", name: "Retirement", color: "#7c3aed", strategyRange: "12-23" },
-  { id: "P4", name: "Credits", color: "#ea580c", strategyRange: "24-30" },
-  { id: "P5", name: "Real Estate", color: "#0891b2", strategyRange: "31-38" },
-  { id: "P6", name: "Acquisitions", color: "#dc2626", strategyRange: "39-47" },
-  { id: "P7", name: "Exit", color: "#ca8a04", strategyRange: "48-59" },
-  { id: "P8", name: "Charitable", color: "#9333ea", strategyRange: "60-70" },
+  { id: "1", name: "Foundation", color: "#1e40af", strategyRange: "1-7" },
+  { id: "2", name: "Core Deductions", color: "#059669", strategyRange: "8-17" },
+  { id: "3", name: "Retirement & Benefits", color: "#7c3aed", strategyRange: "18-28" },
+  { id: "4", name: "Credits & Multistate", color: "#ea580c", strategyRange: "29-35" },
+  { id: "5", name: "Real Estate & PAL", color: "#0891b2", strategyRange: "36-43" },
+  { id: "6", name: "Acquisitions & Leverage", color: "#dc2626", strategyRange: "44-50" },
+  { id: "7", name: "Exit & Wealth Transfer", color: "#ca8a04", strategyRange: "51-61" },
+  { id: "8", name: "Charitable & Philanthropic", color: "#9333ea", strategyRange: "62-72" },
+  { id: "9", name: "Premium Alternative Investments", color: "#be185d", strategyRange: "73-80" },
 ] as const;
 
 // Map phase ID to color for quick lookup
 export const PHASE_COLORS: Record<string, string> = {
-  P1: "#1e40af",
-  P2: "#059669",
-  P3: "#7c3aed",
-  P4: "#ea580c",
-  P5: "#0891b2",
-  P6: "#dc2626",
-  P7: "#ca8a04",
-  P8: "#9333ea",
+  "1": "#1e40af",
+  "2": "#059669",
+  "3": "#7c3aed",
+  "4": "#ea580c",
+  "5": "#0891b2",
+  "6": "#dc2626",
+  "7": "#ca8a04",
+  "8": "#9333ea",
+  "9": "#be185d",
 };
 
 // Helper function to get phase color
@@ -57,7 +60,7 @@ export type DocumentStatus = typeof DOCUMENT_STATUS_OPTIONS[number];
 // Package tier strategy limits
 export const TIER_MAX_STRATEGY: Record<string, number> = {
   Essentials: 0,
-  Foundation: 13,
-  Complete: 30,
-  Premium: 67,
+  Foundation: 17,
+  Complete: 35,
+  Premium: 80,
 };

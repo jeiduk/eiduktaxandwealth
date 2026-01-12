@@ -12,16 +12,17 @@ import { Search, Plus, TrendingUp, Users, BookOpen, Check, X, ChevronDown, Chevr
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
-// Phase configuration with colors, descriptions - using P-prefixed IDs to match database
+// Phase configuration with colors, descriptions - matching database phase values
 const PHASES = [
-  { id: 'P1', name: 'Foundation', shortName: 'Foundation', color: '#1e40af', description: 'S-Corp Optimization & Core Setup', range: '1-6' },
-  { id: 'P2', name: 'Core Deductions', shortName: 'Core', color: '#059669', description: 'Depreciation, Deductions & QBI', range: '7-11' },
-  { id: 'P3', name: 'Retirement', shortName: 'Retirement', color: '#7c3aed', description: 'Tax-Advantaged Wealth Building', range: '12-21' },
-  { id: 'P4', name: 'Credits', shortName: 'Credits', color: '#ea580c', description: 'Tax Credits & State Optimization', range: '22-28' },
-  { id: 'P5', name: 'Real Estate', shortName: 'Real Estate', color: '#0891b2', description: 'Real Estate Tax Strategies', range: '29-36' },
-  { id: 'P6', name: 'Acquisitions', shortName: 'Acquisitions', color: '#dc2626', description: 'Advanced Asset & Investment Strategies', range: '37-45' },
-  { id: 'P7', name: 'Exit', shortName: 'Exit', color: '#ca8a04', description: 'Business Exit & Legacy Planning', range: '46-56' },
-  { id: 'P8', name: 'Charitable', shortName: 'Charitable', color: '#9333ea', description: 'Charitable Planning & Giving', range: '57-67' },
+  { id: '1', name: 'Foundation', shortName: 'Foundation', color: '#1e40af', description: 'S-Corp Optimization & Core Setup', range: '1-7' },
+  { id: '2', name: 'Core Deductions', shortName: 'Core', color: '#059669', description: 'Depreciation, Deductions & QBI', range: '8-17' },
+  { id: '3', name: 'Retirement & Benefits', shortName: 'Retirement', color: '#7c3aed', description: 'Tax-Advantaged Wealth Building', range: '18-28' },
+  { id: '4', name: 'Credits & Multistate', shortName: 'Credits', color: '#ea580c', description: 'Tax Credits & State Optimization', range: '29-35' },
+  { id: '5', name: 'Real Estate & PAL', shortName: 'Real Estate', color: '#0891b2', description: 'Real Estate Tax Strategies', range: '36-43' },
+  { id: '6', name: 'Acquisitions & Leverage', shortName: 'Acquisitions', color: '#dc2626', description: 'Advanced Asset & Investment Strategies', range: '44-50' },
+  { id: '7', name: 'Exit & Wealth Transfer', shortName: 'Exit', color: '#ca8a04', description: 'Business Exit & Legacy Planning', range: '51-61' },
+  { id: '8', name: 'Charitable & Philanthropic', shortName: 'Charitable', color: '#9333ea', description: 'Charitable Planning & Giving', range: '62-72' },
+  { id: '9', name: 'Premium Alternative Investments', shortName: 'Premium Alt', color: '#be185d', description: 'Alternative Investment Strategies', range: '73-80' },
 ];
 
 const getPhaseConfig = (phase: string) => {
@@ -352,7 +353,7 @@ export default function Strategies() {
         {/* Header */}
         <div>
           <h1 className="text-3xl font-bold text-foreground">Strategy Library</h1>
-          <p className="text-muted-foreground">67 Tax Reduction Strategies Across 8 Phases</p>
+          <p className="text-muted-foreground">80 Tax Reduction Strategies Across 9 Phases</p>
         </div>
 
         {/* Quick Stats */}
@@ -432,7 +433,7 @@ export default function Strategies() {
                 onClick={() => setActivePhase(phase.id)}
                 style={isActive ? { backgroundColor: phase.color, borderColor: phase.color } : {}}
               >
-                P{phase.id.replace('P', '')}: {phase.shortName} ({count})
+                P{phase.id}: {phase.shortName} ({count})
               </Button>
             );
           })}

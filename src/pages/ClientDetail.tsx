@@ -72,16 +72,17 @@ interface ClientStrategy {
   document_statuses: Record<string, "received" | "pending" | "needed"> | null;
 }
 
-// Phase configuration - all 8 phases with their colors
+// Phase configuration - all 9 phases with their colors (v6.0)
 const PHASES = [
   { id: 1, displayId: "P1", name: "Foundation", color: "#1e40af" },
   { id: 2, displayId: "P2", name: "Core Deductions", color: "#059669" },
-  { id: 3, displayId: "P3", name: "Retirement", color: "#7c3aed" },
-  { id: 4, displayId: "P4", name: "Credits", color: "#ea580c" },
-  { id: 5, displayId: "P5", name: "Real Estate", color: "#0891b2" },
-  { id: 6, displayId: "P6", name: "Acquisitions", color: "#dc2626" },
-  { id: 7, displayId: "P7", name: "Exit", color: "#ca8a04" },
-  { id: 8, displayId: "P8", name: "Charitable", color: "#9333ea" },
+  { id: 3, displayId: "P3", name: "Retirement & Benefits", color: "#7c3aed" },
+  { id: 4, displayId: "P4", name: "Credits & Multistate", color: "#ea580c" },
+  { id: 5, displayId: "P5", name: "Real Estate & PAL", color: "#0891b2" },
+  { id: 6, displayId: "P6", name: "Acquisitions & Leverage", color: "#dc2626" },
+  { id: 7, displayId: "P7", name: "Exit & Wealth Transfer", color: "#ca8a04" },
+  { id: 8, displayId: "P8", name: "Charitable & Philanthropic", color: "#9333ea" },
+  { id: 9, displayId: "P9", name: "Premium Alt Investments", color: "#be185d" },
 ];
 
 // Helper to extract phase number from phase strings like "P1", "P2", "1", "2", etc.
