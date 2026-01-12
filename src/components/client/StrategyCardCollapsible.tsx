@@ -42,6 +42,8 @@ interface Strategy {
   tool_url: string | null;
   tool_name: string | null;
   documents: StrategyDocument[] | null;
+  what_it_is: string | null;
+  client_overview: string | null;
 }
 
 interface ClientStrategy {
@@ -287,6 +289,23 @@ export const StrategyCardCollapsible = ({
             <h3 className="text-base font-bold text-slate-900 uppercase tracking-wide">
               {strategyNumber} {strategy.name}
             </h3>
+
+            {/* What It Is */}
+            {strategy.what_it_is && (
+              <div className="space-y-1">
+                <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">What It Is</h4>
+                <p className="text-sm text-slate-700 leading-relaxed">{strategy.what_it_is}</p>
+              </div>
+            )}
+
+            {/* Client Overview */}
+            {strategy.client_overview && (
+              <div className="space-y-1 p-3 bg-blue-50 rounded-lg border border-blue-100">
+                <h4 className="text-xs font-semibold text-blue-600 uppercase tracking-wide">Client Overview</h4>
+                <p className="text-sm text-slate-700 leading-relaxed">{strategy.client_overview}</p>
+              </div>
+            )}
+
             {/* Tool Link Button */}
             {toolUrl && (
               <a 

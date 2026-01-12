@@ -58,6 +58,8 @@ interface Strategy {
   tool_url: string | null;
   tool_name: string | null;
   documents: StrategyDocument[] | null;
+  what_it_is: string | null;
+  client_overview: string | null;
 }
 
 interface ClientStrategy {
