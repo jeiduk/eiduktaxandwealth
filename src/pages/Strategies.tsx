@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Search, Plus, TrendingUp, Users, BookOpen, Check, X, ChevronDown, ChevronRight } from 'lucide-react';
+import { Search, Plus, TrendingUp, Users, BookOpen, Check, X, ChevronDown, ChevronRight, ExternalLink, Calculator } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -52,6 +52,8 @@ interface Strategy {
   typical_savings_high: number | null;
   savings_low: number | null;
   savings_high: number | null;
+  tool_url: string | null;
+  tool_name: string | null;
 }
 
 interface Client {
@@ -300,18 +302,34 @@ export default function Strategies() {
               {formatCurrency(strategy.savings_low || strategy.typical_savings_low)} - {formatCurrency(strategy.savings_high || strategy.typical_savings_high)}
             </span>
             
-            <Button
-              size="sm"
-              variant="outline"
-              className="opacity-0 group-hover:opacity-100 transition-opacity"
-              onClick={(e) => {
-                e.stopPropagation();
-                setAddToClientModal({ open: true, strategy });
-              }}
-            >
-              <Plus className="h-3 w-3 mr-1" />
-              Add
-            </Button>
+            <div className="flex items-center gap-1">
+              {strategy.tool_url && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 w-8 p-0"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.open(strategy.tool_url!, '_blank');
+                  }}
+                  title={strategy.tool_name || 'Open Calculator'}
+                >
+                  <Calculator className="h-4 w-4 text-primary" />
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="outline"
+                className="opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setAddToClientModal({ open: true, strategy });
+                }}
+              >
+                <Plus className="h-3 w-3 mr-1" />
+                Add
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
