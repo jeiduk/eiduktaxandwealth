@@ -115,7 +115,7 @@ const ClientDetail = () => {
   const [creatingReview, setCreatingReview] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [latestReviewId, setLatestReviewId] = useState<string | null>(null);
-  const [lifetimeTaxSavings, setLifetimeTaxSavings] = useState(0);
+  const [totalTaxSavings, setTotalTaxSavings] = useState(0);
 
   const getCurrentQuarter = () => {
     const now = new Date();
@@ -218,7 +218,7 @@ const ClientDetail = () => {
             (cs) => cs.review_id && completedReviewIds.includes(cs.review_id)
           ) || [];
           const totalSavings = completedStrategies.reduce((sum, cs) => sum + (cs.tax_savings || 0), 0);
-          setLifetimeTaxSavings(totalSavings);
+          setTotalTaxSavings(totalSavings);
         }
 
         // Check if onboarding should be shown
@@ -565,8 +565,8 @@ const ClientDetail = () => {
               <p className="text-sm text-muted-foreground">Strategies</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-emerald-600 tabular-nums">{formatCurrency(lifetimeTaxSavings)}</p>
-              <p className="text-sm text-muted-foreground">Lifetime Tax Savings</p>
+              <p className="text-2xl font-bold text-emerald-600 tabular-nums">{formatCurrency(totalTaxSavings)}</p>
+              <p className="text-sm text-muted-foreground">Total Tax Savings</p>
             </div>
             <Button 
               variant="outline"
