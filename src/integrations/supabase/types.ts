@@ -181,6 +181,7 @@ export type Database = {
           last_name: string | null
           name: string
           next_review_date: string | null
+          next_steps: Json | null
           notes: string | null
           package_tier: string
           phase_status: Json | null
@@ -197,6 +198,7 @@ export type Database = {
           last_name?: string | null
           name: string
           next_review_date?: string | null
+          next_steps?: Json | null
           notes?: string | null
           package_tier?: string
           phase_status?: Json | null
@@ -213,6 +215,7 @@ export type Database = {
           last_name?: string | null
           name?: string
           next_review_date?: string | null
+          next_steps?: Json | null
           notes?: string | null
           package_tier?: string
           phase_status?: Json | null

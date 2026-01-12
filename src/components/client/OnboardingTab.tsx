@@ -85,9 +85,10 @@ export const OnboardingTab = ({ clientId, clientCreatedAt, hasCompletedReview = 
 
   const fetchData = async () => {
     try {
-      const [tasksRes, onboardingRes] = await Promise.all([
+      const [tasksRes, onboardingRes, clientRes] = await Promise.all([
         supabase.from("onboarding_tasks").select("*").order("sort_order"),
         supabase.from("client_onboarding").select("*").eq("client_id", clientId),
+        supabase.from("clients").select("next_steps").eq("id", clientId).maybeSingle(),
       ]);
 
       if (tasksRes.error) throw tasksRes.error;
@@ -95,6 +96,16 @@ export const OnboardingTab = ({ clientId, clientCreatedAt, hasCompletedReview = 
 
       setTasks(tasksRes.data || []);
       setClientOnboarding(onboardingRes.data || []);
+
+      // Load next steps from client record
+      if (clientRes.data?.next_steps) {
+        const savedNextSteps = clientRes.data.next_steps as typeof nextSteps;
+        setNextSteps({
+          firstQuarterlyReview: savedNextSteps.firstQuarterlyReview || { completed: false, notes: "" },
+          ongoingMonitoring: savedNextSteps.ongoingMonitoring || { completed: false, notes: "" },
+          onboardingComplete: savedNextSteps.onboardingComplete || { completed: false, notes: "" },
+        });
+      }
 
       // Initialize onboarding records if none exist
       if ((onboardingRes.data?.length || 0) === 0 && tasksRes.data && tasksRes.data.length > 0) {
@@ -116,6 +127,20 @@ export const OnboardingTab = ({ clientId, clientCreatedAt, hasCompletedReview = 
       console.error("Error fetching onboarding data:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const saveNextSteps = async (updatedNextSteps: typeof nextSteps) => {
+    try {
+      const { error } = await supabase
+        .from("clients")
+        .update({ next_steps: updatedNextSteps })
+        .eq("id", clientId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error("Error saving next steps:", error);
+      toast({ title: "Error", description: "Failed to save next steps", variant: "destructive" });
     }
   };
 
@@ -525,10 +550,14 @@ export const OnboardingTab = ({ clientId, clientCreatedAt, hasCompletedReview = 
               >
                 <Checkbox
                   checked={nextSteps.firstQuarterlyReview.completed || hasCompletedReview}
-                  onCheckedChange={() => setNextSteps(prev => ({
-                    ...prev,
-                    firstQuarterlyReview: { ...prev.firstQuarterlyReview, completed: !prev.firstQuarterlyReview.completed }
-                  }))}
+                  onCheckedChange={() => {
+                    const updated = {
+                      ...nextSteps,
+                      firstQuarterlyReview: { ...nextSteps.firstQuarterlyReview, completed: !nextSteps.firstQuarterlyReview.completed }
+                    };
+                    setNextSteps(updated);
+                    saveNextSteps(updated);
+                  }}
                   className="mt-1"
                 />
                 <div className="flex-1 min-w-0">
@@ -565,10 +594,12 @@ export const OnboardingTab = ({ clientId, clientCreatedAt, hasCompletedReview = 
                       />
                       <div className="flex gap-2">
                         <Button size="sm" onClick={() => {
-                          setNextSteps(prev => ({
-                            ...prev,
-                            firstQuarterlyReview: { ...prev.firstQuarterlyReview, notes: nextStepNoteText }
-                          }));
+                          const updated = {
+                            ...nextSteps,
+                            firstQuarterlyReview: { ...nextSteps.firstQuarterlyReview, notes: nextStepNoteText }
+                          };
+                          setNextSteps(updated);
+                          saveNextSteps(updated);
                           setNextStepNotesOpen(null);
                           toast({ title: "Notes saved" });
                         }}>
@@ -594,10 +625,14 @@ export const OnboardingTab = ({ clientId, clientCreatedAt, hasCompletedReview = 
               >
                 <Checkbox
                   checked={nextSteps.ongoingMonitoring.completed}
-                  onCheckedChange={() => setNextSteps(prev => ({
-                    ...prev,
-                    ongoingMonitoring: { ...prev.ongoingMonitoring, completed: !prev.ongoingMonitoring.completed }
-                  }))}
+                  onCheckedChange={() => {
+                    const updated = {
+                      ...nextSteps,
+                      ongoingMonitoring: { ...nextSteps.ongoingMonitoring, completed: !nextSteps.ongoingMonitoring.completed }
+                    };
+                    setNextSteps(updated);
+                    saveNextSteps(updated);
+                  }}
                   className="mt-1"
                 />
                 <div className="flex-1 min-w-0">
@@ -634,10 +669,12 @@ export const OnboardingTab = ({ clientId, clientCreatedAt, hasCompletedReview = 
                       />
                       <div className="flex gap-2">
                         <Button size="sm" onClick={() => {
-                          setNextSteps(prev => ({
-                            ...prev,
-                            ongoingMonitoring: { ...prev.ongoingMonitoring, notes: nextStepNoteText }
-                          }));
+                          const updated = {
+                            ...nextSteps,
+                            ongoingMonitoring: { ...nextSteps.ongoingMonitoring, notes: nextStepNoteText }
+                          };
+                          setNextSteps(updated);
+                          saveNextSteps(updated);
                           setNextStepNotesOpen(null);
                           toast({ title: "Notes saved" });
                         }}>
@@ -663,10 +700,14 @@ export const OnboardingTab = ({ clientId, clientCreatedAt, hasCompletedReview = 
               >
                 <Checkbox
                   checked={nextSteps.onboardingComplete.completed}
-                  onCheckedChange={() => setNextSteps(prev => ({
-                    ...prev,
-                    onboardingComplete: { ...prev.onboardingComplete, completed: !prev.onboardingComplete.completed }
-                  }))}
+                  onCheckedChange={() => {
+                    const updated = {
+                      ...nextSteps,
+                      onboardingComplete: { ...nextSteps.onboardingComplete, completed: !nextSteps.onboardingComplete.completed }
+                    };
+                    setNextSteps(updated);
+                    saveNextSteps(updated);
+                  }}
                   className="mt-1"
                 />
                 <div className="flex-1 min-w-0">
@@ -703,10 +744,12 @@ export const OnboardingTab = ({ clientId, clientCreatedAt, hasCompletedReview = 
                       />
                       <div className="flex gap-2">
                         <Button size="sm" onClick={() => {
-                          setNextSteps(prev => ({
-                            ...prev,
-                            onboardingComplete: { ...prev.onboardingComplete, notes: nextStepNoteText }
-                          }));
+                          const updated = {
+                            ...nextSteps,
+                            onboardingComplete: { ...nextSteps.onboardingComplete, notes: nextStepNoteText }
+                          };
+                          setNextSteps(updated);
+                          saveNextSteps(updated);
                           setNextStepNotesOpen(null);
                           toast({ title: "Notes saved" });
                         }}>
