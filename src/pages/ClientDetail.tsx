@@ -577,7 +577,7 @@ const ClientDetail = () => {
               asChild
             >
               <a 
-                href="https://tools.eiduktaxandwealth.com/downloads/4.2a_Annual_Meeting_Minutes_Dual_Entity-4.html" 
+                href="https://tools.eiduktaxandwealth.com/downloads/annual-meeting-minutes-dual-entity.html" 
                 target="_blank" 
                 rel="noopener noreferrer"
               >
