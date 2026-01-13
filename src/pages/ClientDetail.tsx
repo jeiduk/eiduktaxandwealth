@@ -779,6 +779,66 @@ const ClientDetail = () => {
                   </div>
                 </div>
 
+                {/* Status Summary Cards */}
+                {(() => {
+                  const inProgressStrategies = clientStrategies.filter(cs => cs.status === 'in_progress');
+                  const notStartedStrategies = clientStrategies.filter(cs => cs.status === 'not_started');
+                  
+                  const getEstimatedRange = (strategyIds: number[]) => {
+                    let lowTotal = 0;
+                    let highTotal = 0;
+                    strategyIds.forEach(id => {
+                      const strategy = strategies.find(s => s.id === id);
+                      if (strategy) {
+                        lowTotal += strategy.typical_savings_low || 0;
+                        highTotal += strategy.typical_savings_high || 0;
+                      }
+                    });
+                    return { low: lowTotal, high: highTotal };
+                  };
+                  
+                  const inProgressRange = getEstimatedRange(inProgressStrategies.map(cs => cs.strategy_id));
+                  const notStartedRange = getEstimatedRange(notStartedStrategies.map(cs => cs.strategy_id));
+                  
+                  const formatRange = (low: number, high: number) => {
+                    if (low === 0 && high === 0) return '$0';
+                    return `$${low.toLocaleString()} - $${high.toLocaleString()}`;
+                  };
+                  
+                  return (
+                    <div className="grid grid-cols-2 gap-4">
+                      <Card className="border-l-4 border-l-yellow-500">
+                        <CardContent className="py-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm text-muted-foreground">In Progress</p>
+                              <p className="text-2xl font-bold">{inProgressStrategies.length}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm text-muted-foreground">Est. Savings</p>
+                              <p className="text-sm font-medium">{formatRange(inProgressRange.low, inProgressRange.high)}</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <Card className="border-l-4 border-l-gray-400">
+                        <CardContent className="py-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm text-muted-foreground">Not Started</p>
+                              <p className="text-2xl font-bold">{notStartedStrategies.length}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm text-muted-foreground">Est. Savings</p>
+                              <p className="text-sm font-medium">{formatRange(notStartedRange.low, notStartedRange.high)}</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  );
+                })()}
+
                 {/* Phase Tabs - Always show all 8 phases */}
                 <div className="overflow-x-auto pb-2">
                   <div className="flex gap-2 min-w-max">
