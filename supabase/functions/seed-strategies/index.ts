@@ -94,14 +94,44 @@ const strategies = [
 ];
 
 Deno.serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    
+
+    // Verify authentication
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      console.error("Missing authorization header");
+      return new Response(
+        JSON.stringify({ success: false, error: "Missing authorization header" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Create client with user's auth token to verify they're authenticated
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const { data: { user }, error: authError } = await userClient.auth.getUser();
+
+    if (authError || !user) {
+      console.error("Authentication failed:", authError?.message || "No user found");
+      return new Response(
+        JSON.stringify({ success: false, error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("Authenticated user:", user.email);
+
+    // Use service role client for the actual seeding operation
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     // Check if strategies already exist
@@ -110,10 +140,11 @@ Deno.serve(async (req) => {
       .select("*", { count: "exact", head: true });
 
     if (count && count > 0) {
+      console.log(`Strategies table already has ${count} rows`);
       return new Response(
         JSON.stringify({ 
           success: false, 
-          message: `Strategies table already has ${count} rows. Clear the table first to re-seed.` 
+          message: `Strategies table already has data. Clear the table first to re-seed.` 
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -129,6 +160,7 @@ Deno.serve(async (req) => {
       throw error;
     }
 
+    console.log(`Successfully seeded ${data.length} strategies`);
     return new Response(
       JSON.stringify({ 
         success: true, 
