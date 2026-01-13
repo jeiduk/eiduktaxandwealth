@@ -884,7 +884,7 @@ const ClientDetail = () => {
                               "text-xs px-1.5 py-0.5 rounded",
                               isActive ? "bg-white/20" : "bg-background"
                             )}>
-                              {pStats.completed}/{pStats.total}
+                              ({pStats.total})
                             </span>
                           )}
                         </button>
