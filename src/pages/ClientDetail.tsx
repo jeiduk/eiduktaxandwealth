@@ -265,8 +265,9 @@ const ClientDetail = () => {
   const stats = useMemo(() => {
     const completed = clientStrategies.filter((cs) => cs.status === "complete").length;
     const total = clientStrategies.length; // Dynamic count based on actual assigned
+    // Include both complete and in_progress strategies in deductions/savings
     const totalDeductions = clientStrategies
-      .filter((cs) => cs.status === "complete")
+      .filter((cs) => cs.status === "complete" || cs.status === "in_progress")
       .reduce((sum, cs) => sum + (cs.deduction_amount || 0), 0);
     const taxRate = client?.tax_rate || 0.37;
     const totalSavings = Math.round(totalDeductions * taxRate);

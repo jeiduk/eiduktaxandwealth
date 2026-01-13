@@ -100,12 +100,13 @@ const Dashboard = () => {
       // Filter to completed strategies for count
       const completedStrategies = allClientStrategies?.filter(s => s.status === "complete") || [];
 
-      // Calculate stats - tax savings from strategies linked to completed reviews
+      // Calculate stats - tax savings from strategies linked to completed reviews OR in progress
       const activeClients = clients?.length || 0;
       
       // Calculate total savings: sum tax_savings from strategies linked to completed reviews
+      // OR strategies that are in_progress (work in progress throughout the year)
       const totalSavings = allClientStrategies
-        ?.filter(s => s.review_id && completedReviewIds.has(s.review_id))
+        ?.filter(s => (s.review_id && completedReviewIds.has(s.review_id)) || s.status === "in_progress")
         .reduce((sum, s) => sum + (s.tax_savings || 0), 0) || 0;
       
       const strategiesImplemented = completedStrategies?.length || 0;
@@ -135,13 +136,17 @@ const Dashboard = () => {
           const allClientStrategiesForClient = allClientStrategies?.filter(
             s => s.client_id === c.id
           ) || [];
+          // Include complete and in_progress strategies for savings calculation
+          const activeClientStrategies = allClientStrategiesForClient.filter(
+            s => s.status === "complete" || s.status === "in_progress"
+          );
           const completedClientStrategies = allClientStrategiesForClient.filter(
             s => s.status === "complete"
           );
           
           const reviewDate = new Date(c.next_review_date);
           const isOverdue = reviewDate < today;
-          const totalDeductions = completedClientStrategies.reduce(
+          const totalDeductions = activeClientStrategies.reduce(
             (sum, s) => sum + (s.deduction_amount || 0), 
             0
           );
