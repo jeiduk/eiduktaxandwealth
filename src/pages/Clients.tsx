@@ -515,15 +515,33 @@ const Clients = () => {
           </TabsList>
         </Tabs>
 
-        {/* Search */}
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search clients..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
+        {/* Search and Totals */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="relative max-w-md flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search clients..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          
+          {/* Portfolio Totals */}
+          <div className="flex items-center gap-6">
+            <div className="text-right">
+              <p className="text-sm text-muted-foreground">Total Deductions</p>
+              <p className="text-xl font-bold tabular-nums text-primary">
+                {formatCurrency(clients.reduce((sum, c) => sum + c.total_deductions, 0))}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-sm text-muted-foreground">Total Tax Savings</p>
+              <p className="text-xl font-bold tabular-nums text-emerald-600">
+                {formatCurrency(clients.reduce((sum, c) => sum + c.tax_savings, 0))}
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Client Table */}
@@ -553,7 +571,7 @@ const Clients = () => {
                   <TableHead>Strategies</TableHead>
                   <TableHead>Progress</TableHead>
                   <TableHead>Total Deductions</TableHead>
-                  <TableHead>Tax Savings</TableHead>
+                  <TableHead>Total Tax Savings</TableHead>
                   <TableHead>Next Review</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
