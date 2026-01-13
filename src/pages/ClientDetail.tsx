@@ -264,6 +264,9 @@ const ClientDetail = () => {
   // Calculate stats with tax rate - use actual assigned strategies count
   const stats = useMemo(() => {
     const completed = clientStrategies.filter((cs) => cs.status === "complete").length;
+    const inProgress = clientStrategies.filter((cs) => cs.status === "in_progress").length;
+    const notStarted = clientStrategies.filter((cs) => cs.status === "not_started").length;
+    const wontDo = clientStrategies.filter((cs) => cs.status === "wont_do").length;
     const total = clientStrategies.length; // Dynamic count based on actual assigned
     // Include both complete and in_progress strategies in deductions/savings
     const totalDeductions = clientStrategies
@@ -271,9 +274,12 @@ const ClientDetail = () => {
       .reduce((sum, cs) => sum + (cs.deduction_amount || 0), 0);
     const taxRate = client?.tax_rate || 0.37;
     const totalSavings = Math.round(totalDeductions * taxRate);
-    const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+    // Progress includes both complete and in_progress strategies
+    const activeStrategies = completed + inProgress;
+    const countableStrategies = total - wontDo; // Exclude won't do from progress calculation
+    const progress = countableStrategies > 0 ? Math.round((activeStrategies / countableStrategies) * 100) : 0;
 
-    return { completed, total, totalDeductions, totalSavings, progress, taxRate };
+    return { completed, inProgress, notStarted, wontDo, total, totalDeductions, totalSavings, progress, taxRate };
   }, [clientStrategies, client]);
 
   // Get phases that have assigned strategies - for highlighting, but show all 8 phases
@@ -645,19 +651,31 @@ const ClientDetail = () => {
             </div>
           </div>
 
-          {/* Right side - Stats */}
+          {/* Right side - Strategy Status Breakdown */}
           <div className="flex flex-wrap items-center gap-6">
-            <div className="text-center">
-              <p className="text-3xl font-bold text-primary tabular-nums">{stats.progress}%</p>
-              <p className="text-sm text-muted-foreground">Progress</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold tabular-nums">{stats.completed}/{stats.total}</p>
-              <p className="text-sm text-muted-foreground">Strategies</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-emerald-600 tabular-nums">{formatCurrency(totalTaxSavings)}</p>
-              <p className="text-sm text-muted-foreground">Total Tax Savings</p>
+            <div className="flex items-center gap-4 text-sm">
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                <span className="font-semibold">{stats.completed}</span>
+                <span className="text-muted-foreground">Complete</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                <span className="font-semibold">{stats.inProgress}</span>
+                <span className="text-muted-foreground">In Progress</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-full bg-gray-400" />
+                <span className="font-semibold">{stats.notStarted}</span>
+                <span className="text-muted-foreground">Not Started</span>
+              </div>
+              {stats.wontDo > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-slate-300" />
+                  <span className="font-semibold">{stats.wontDo}</span>
+                  <span className="text-muted-foreground">Won't Do</span>
+                </div>
+              )}
             </div>
             <Button 
               variant="outline"
@@ -749,41 +767,13 @@ const ClientDetail = () => {
                 <div className="flex flex-col gap-4">
                   {/* Top Row: Progress + Actions */}
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-6">
-                      <div className="flex items-center gap-3">
-                        <div className="w-24">
-                          <Progress value={stats.progress} className="h-2" />
-                        </div>
-                        <span className="text-sm font-semibold">
-                          {stats.progress}% Complete
-                        </span>
+                    <div className="flex items-center gap-3">
+                      <div className="w-24">
+                        <Progress value={stats.progress} className="h-2" />
                       </div>
-                      
-                      {/* Inline Status Counts */}
-                      <div className="flex items-center gap-4 text-sm">
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                          <span className="text-muted-foreground">Complete:</span>
-                          <span className="font-semibold">{stats.completed}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-                          <span className="text-muted-foreground">In Progress:</span>
-                          <span className="font-semibold">{clientStrategies.filter(cs => cs.status === 'in_progress').length}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-2.5 h-2.5 rounded-full bg-gray-400" />
-                          <span className="text-muted-foreground">Not Started:</span>
-                          <span className="font-semibold">{clientStrategies.filter(cs => cs.status === 'not_started').length}</span>
-                        </div>
-                        {clientStrategies.filter(cs => cs.status === 'wont_do').length > 0 && (
-                          <div className="flex items-center gap-1.5">
-                            <div className="w-2.5 h-2.5 rounded-full bg-slate-300" />
-                            <span className="text-muted-foreground">Won't Do:</span>
-                            <span className="font-semibold">{clientStrategies.filter(cs => cs.status === 'wont_do').length}</span>
-                          </div>
-                        )}
-                      </div>
+                      <span className="text-sm font-semibold">
+                        {stats.progress}% Active
+                      </span>
                     </div>
                     
                     <div className="flex gap-2">
