@@ -94,10 +94,10 @@ const Clients = () => {
 
       if (clientsError) throw clientsError;
 
-      // Fetch strategy stats for all clients (including tax_savings and review_id)
+      // Fetch strategy stats for all clients
       const { data: strategiesData, error: strategiesError } = await supabase
         .from("client_strategies")
-        .select("client_id, status, deduction_amount, tax_savings, review_id");
+        .select("client_id, status, deduction_amount");
 
       if (strategiesError) throw strategiesError;
 
@@ -106,8 +106,7 @@ const Clients = () => {
         completed: number; 
         inProgress: number;
         total: number; 
-        deductions: number; 
-        savings: number;
+        deductions: number;
       }>();
       
       strategiesData?.forEach((cs) => {
@@ -115,8 +114,7 @@ const Clients = () => {
           completed: 0, 
           inProgress: 0,
           total: 0, 
-          deductions: 0, 
-          savings: 0 
+          deductions: 0
         };
         current.total += 1;
         if (cs.status === "complete") {
@@ -125,10 +123,9 @@ const Clients = () => {
         if (cs.status === "in_progress") {
           current.inProgress += 1;
         }
-        // Sum deductions and savings for both complete and in_progress strategies (matches ClientDetail logic)
+        // Sum deductions for both complete and in_progress strategies (matches ClientDetail logic)
         if (cs.status === "complete" || cs.status === "in_progress") {
           current.deductions += cs.deduction_amount || 0;
-          current.savings += cs.tax_savings || 0;
         }
         statsMap.set(cs.client_id, current);
       });
@@ -138,15 +135,17 @@ const Clients = () => {
           completed: 0, 
           inProgress: 0,
           total: 0, 
-          deductions: 0, 
-          savings: 0 
+          deductions: 0
         };
+        // Calculate tax savings from deductions × tax_rate (same as ClientDetail)
+        const taxRate = client.tax_rate || 0.37;
+        const calculatedSavings = Math.round(clientStats.deductions * taxRate);
         return {
           ...client,
           completed_strategies: clientStats.completed,
           total_strategies: clientStats.total,
           total_deductions: clientStats.deductions,
-          tax_savings: clientStats.savings,
+          tax_savings: calculatedSavings,
         };
       });
 
