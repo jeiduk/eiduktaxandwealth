@@ -28,7 +28,8 @@ import {
   ExternalLink,
   Trash2,
   DollarSign,
-  X
+  X,
+  Calculator
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getPhaseColor } from "@/lib/strategy-constants";
@@ -259,6 +260,26 @@ export const StrategyCardCollapsible = ({
                 <DollarSign className="h-3 w-3" />
                 {savingsRange}
               </Badge>
+            )}
+
+            {/* Calculator Tool Link */}
+            {toolUrl && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <a
+                    href={toolUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="shrink-0 h-7 w-7 rounded-md flex items-center justify-center bg-blue-100 text-blue-700 hover:bg-blue-600 hover:text-white transition-colors"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Calculator className="h-4 w-4" />
+                  </a>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p>{toolName}</p>
+                </TooltipContent>
+              </Tooltip>
             )}
             
             {/* Status Selector */}
