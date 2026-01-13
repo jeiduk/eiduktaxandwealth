@@ -178,7 +178,7 @@ export const OverviewTab = ({ client, stats, onClientUpdate }: OverviewTabProps)
       breakdown: null,
     },
     {
-      label: "Tax Savings",
+      label: "Total Tax Savings",
       value: formatCurrency(stats.totalSavings),
       icon: TrendingUp,
       color: "text-emerald-600",
