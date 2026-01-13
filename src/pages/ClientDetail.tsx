@@ -113,7 +113,7 @@ const ClientDetail = () => {
   const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [clientStrategies, setClientStrategies] = useState<ClientStrategy[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activePhase, setActivePhase] = useState<number>(1);
+  const [activePhase, setActivePhase] = useState<number | null>(null); // null = View All
   const [deductionInputs, setDeductionInputs] = useState<Record<number, string>>({});
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "overview");
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -309,12 +309,17 @@ const ClientDetail = () => {
     return phaseStatsMap;
   }, [strategies, clientStrategies]);
 
-  // Get strategies for active phase (only assigned ones)
+  // Get strategies for active phase (only assigned ones) - null means all phases
   const phaseStrategies = useMemo(() => {
     const assignedIds = clientStrategies.map((cs) => cs.strategy_id);
-    return strategies.filter(
-      (s) => getPhaseNumber(s.phase) === activePhase && assignedIds.includes(s.id)
-    );
+    const assignedStrategies = strategies.filter((s) => assignedIds.includes(s.id));
+    
+    if (activePhase === null) {
+      // View All - return all assigned strategies sorted by phase
+      return assignedStrategies.sort((a, b) => getPhaseNumber(a.phase) - getPhaseNumber(b.phase));
+    }
+    
+    return assignedStrategies.filter((s) => getPhaseNumber(s.phase) === activePhase);
   }, [strategies, activePhase, clientStrategies]);
 
   const getClientStrategy = (strategyId: number) => {
@@ -842,9 +847,28 @@ const ClientDetail = () => {
                   </div>
                 </div>
 
-                {/* Phase Tabs - Always show all 8 phases */}
+                {/* Phase Tabs with View All */}
                 <div className="overflow-x-auto pb-2">
                   <div className="flex gap-2 min-w-max">
+                    {/* View All Button */}
+                    <button
+                      onClick={() => setActivePhase(null)}
+                      className={cn(
+                        "px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 whitespace-nowrap",
+                        activePhase === null
+                          ? "bg-slate-800 text-white shadow-md"
+                          : "bg-muted hover:bg-muted/80 text-foreground"
+                      )}
+                    >
+                      <span>All</span>
+                      <span className={cn(
+                        "text-xs px-1.5 py-0.5 rounded",
+                        activePhase === null ? "bg-white/20" : "bg-background"
+                      )}>
+                        ({stats.total})
+                      </span>
+                    </button>
+                    
                     {availablePhases.map((phase) => {
                       const pStats = phaseStats[phase.id] || { completed: 0, total: 0 };
                       const isActive = activePhase === phase.id;
@@ -883,14 +907,68 @@ const ClientDetail = () => {
                 {phaseStrategies.length === 0 ? (
                   <Card>
                     <CardContent className="py-12 text-center">
-                      <p className="text-muted-foreground mb-4">No strategies assigned in {PHASES.find(p => p.id === activePhase)?.displayId} {PHASES.find(p => p.id === activePhase)?.name}</p>
+                      <p className="text-muted-foreground mb-4">
+                        {activePhase === null 
+                          ? "No strategies assigned yet" 
+                          : `No strategies assigned in ${PHASES.find(p => p.id === activePhase)?.displayId} ${PHASES.find(p => p.id === activePhase)?.name}`
+                        }
+                      </p>
                       <Button variant="outline" onClick={() => setAddStrategyOpen(true)}>
                         <Plus className="h-4 w-4 mr-2" />
                         Add Strategy
                       </Button>
                     </CardContent>
                   </Card>
+                ) : activePhase === null ? (
+                  // View All - Group by phase with headers
+                  <div className="space-y-6">
+                    {PHASES.filter(phase => phaseStrategies.some(s => getPhaseNumber(s.phase) === phase.id)).map((phase) => {
+                      const strategiesInPhase = phaseStrategies.filter(s => getPhaseNumber(s.phase) === phase.id);
+                      return (
+                        <div key={phase.id} className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-3 h-3 rounded-full" 
+                              style={{ backgroundColor: phase.color }}
+                            />
+                            <h3 className="font-semibold text-sm text-slate-700">
+                              {phase.displayId} {phase.name}
+                            </h3>
+                            <span className="text-xs text-muted-foreground">
+                              ({strategiesInPhase.length})
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                            {strategiesInPhase.map((strategy) => {
+                              const cs = getClientStrategy(strategy.id);
+                              return (
+                                <StrategyCardCollapsible
+                                  key={strategy.id}
+                                  strategy={strategy}
+                                  clientStrategy={cs}
+                                  phaseColor={phase.color}
+                                  taxRate={stats.taxRate}
+                                  deductionInput={deductionInputs[strategy.id] || ""}
+                                  onStatusChange={updateStatus}
+                                  onDeductionChange={(strategyId, value) => 
+                                    setDeductionInputs((prev) => ({
+                                      ...prev,
+                                      [strategyId]: value,
+                                    }))
+                                  }
+                                  onDeductionBlur={updateDeduction}
+                                  onRemove={removeStrategy}
+                                  onDocumentStatusChange={updateDocumentStatus}
+                                />
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 ) : (
+                  // Single phase view
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                     {phaseStrategies.map((strategy) => {
                       const cs = getClientStrategy(strategy.id);
