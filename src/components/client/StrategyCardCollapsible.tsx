@@ -353,10 +353,17 @@ export const StrategyCardCollapsible = ({
         {/* Expanded Content */}
         <CollapsibleContent className="animate-accordion-down data-[state=closed]:animate-accordion-up">
           <div className="px-4 pb-4 pt-3 border-t border-slate-100 space-y-4">
-            {/* Full Strategy Name */}
-            <h3 className="text-base font-bold text-slate-900 uppercase tracking-wide">
-              {strategyNumber} {strategy.name}
-            </h3>
+            {/* Full Strategy Name + IRC Citation */}
+            <div className="flex items-start justify-between gap-3">
+              <h3 className="text-base font-bold text-slate-900 uppercase tracking-wide">
+                {strategyNumber} {strategy.name}
+              </h3>
+              {strategy.irc_citation && (
+                <Badge variant="outline" className="shrink-0 bg-slate-50 text-slate-600 border-slate-300 font-mono text-xs">
+                  {strategy.irc_citation}
+                </Badge>
+              )}
+            </div>
 
             {/* What It Is */}
             {strategy.what_it_is && (
