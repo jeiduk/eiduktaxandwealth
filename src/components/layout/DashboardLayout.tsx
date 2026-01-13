@@ -39,8 +39,8 @@ const dashboardNavItems: NavItem[] = [
 const toolsNavItems: NavItem[] = [
   { href: '/reasonable-comp', label: 'Reasonable Comp', icon: FileText },
   { href: 'https://tools.eiduktaxandwealth.com', label: 'Calculators', icon: Calculator, external: true },
-  { href: '/downloads', label: 'Downloads', icon: Download },
   { href: '/strategies', label: 'Strategy Library', icon: BookOpen },
+  { href: '/downloads', label: 'Downloads', icon: Download },
 ];
 
 const settingsNavItems: NavItem[] = [
