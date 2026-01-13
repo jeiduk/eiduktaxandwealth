@@ -78,6 +78,7 @@ interface StrategyCardCollapsibleProps {
   onDeductionBlur: (strategyId: number, value: string) => void;
   onRemove: (strategyId: number) => void;
   onDocumentStatusChange?: (clientStrategyId: string, documentId: string, status: "received" | "pending" | "needed") => void;
+  forceExpanded?: boolean;
 }
 
 export const StrategyCardCollapsible = ({
@@ -91,10 +92,14 @@ export const StrategyCardCollapsible = ({
   onDeductionBlur,
   onRemove,
   onDocumentStatusChange,
+  forceExpanded,
 }: StrategyCardCollapsibleProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [localDocStatuses, setLocalDocStatuses] = useState<Record<string, "received" | "pending" | "needed">>({});
+  
+  // Sync with forceExpanded prop
+  const effectiveIsOpen = forceExpanded !== undefined ? forceExpanded : isOpen;
   
   const status = clientStrategy?.status || "not_started";
   const deduction = clientStrategy?.deduction_amount || 0;
@@ -218,11 +223,11 @@ export const StrategyCardCollapsible = ({
   const dynamicPhaseColor = getPhaseColor(strategy.phase);
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+    <Collapsible open={effectiveIsOpen} onOpenChange={setIsOpen}>
       <div 
         className={cn(
           "bg-white rounded-xl overflow-hidden transition-all duration-300",
-          isOpen ? "shadow-lg" : "shadow-sm hover:shadow-md"
+          effectiveIsOpen ? "shadow-lg" : "shadow-sm hover:shadow-md"
         )}
         style={{ 
           borderLeft: `4px solid ${dynamicPhaseColor}`,
@@ -328,7 +333,7 @@ export const StrategyCardCollapsible = ({
             <ChevronDown 
               className={cn(
                 "h-4 w-4 text-slate-400 shrink-0 transition-transform duration-300",
-                isOpen && "rotate-180"
+                effectiveIsOpen && "rotate-180"
               )} 
             />
             
