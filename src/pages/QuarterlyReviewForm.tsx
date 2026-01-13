@@ -934,21 +934,20 @@ const QuarterlyReviewForm = () => {
                         const updates: Partial<QuarterlyReview> = {};
                         if (data.revenue !== null) {
                           updates.revenue_ytd = data.revenue;
-                          updateField("revenue_ytd", data.revenue);
                         }
                         if (data.netProfit !== null) {
                           updates.profit_ytd = data.netProfit;
-                          updateField("profit_ytd", data.netProfit);
                         }
                         if (data.cogs !== null) {
                           updates.cogs = data.cogs;
-                          updateField("cogs", data.cogs);
                         }
                         if (data.expenses !== null) {
                           updates.total_expenses = data.expenses;
-                          updateField("total_expenses", data.expenses);
                         }
                         if (Object.keys(updates).length > 0) {
+                          // Update local state with all fields at once
+                          setReview((prev) => prev ? { ...prev, ...updates } : null);
+                          // Save to database
                           saveReview(updates);
                         }
                       }}
