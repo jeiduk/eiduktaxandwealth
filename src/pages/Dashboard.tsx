@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useBackfillStrategies } from "@/hooks/useBackfillStrategies";
+
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -87,29 +87,30 @@ const Dashboard = () => {
 
       if (strategiesError) throw strategiesError;
 
-      // Fetch all completed quarterly reviews
-      const { data: completedReviews, error: reviewsError } = await supabase
-        .from("quarterly_reviews")
-        .select("id")
-        .eq("status", "complete");
+      // Build deductions map for strategies that count towards totals
+      // (matches Clients + ClientDetail logic)
+      const deductionsByClient = new Map<string, number>();
+      (allClientStrategies || []).forEach((s) => {
+        if (s.status !== "complete" && s.status !== "in_progress") return;
+        deductionsByClient.set(
+          s.client_id,
+          (deductionsByClient.get(s.client_id) || 0) + (s.deduction_amount || 0)
+        );
+      });
 
-      if (reviewsError) throw reviewsError;
-
-      const completedReviewIds = new Set(completedReviews?.map(r => r.id) || []);
-
-      // Calculate stats - tax savings from strategies linked to completed reviews OR in progress
       const activeClients = clients?.length || 0;
-      
-      // Filter strategies that count towards totals (linked to completed reviews OR in progress)
-      const countableStrategies = allClientStrategies?.filter(
-        s => (s.review_id && completedReviewIds.has(s.review_id)) || s.status === "in_progress"
-      ) || [];
-      
-      // Calculate total deductions
-      const totalDeductions = countableStrategies.reduce((sum, s) => sum + (s.deduction_amount || 0), 0);
-      
-      // Calculate total savings
-      const totalSavings = countableStrategies.reduce((sum, s) => sum + (s.tax_savings || 0), 0);
+
+      const totalDeductions = Array.from(deductionsByClient.values()).reduce(
+        (sum, v) => sum + v,
+        0
+      );
+
+      // Tax savings = sum over clients of (total deductions × that client's tax rate)
+      const totalSavings = (clients || []).reduce((sum, c) => {
+        const clientDeductions = deductionsByClient.get(c.id) || 0;
+        const taxRate = c.tax_rate || 0.37;
+        return sum + Math.round(clientDeductions * taxRate);
+      }, 0);
 
       const reviewsDueThisMonth = clients?.filter(c => {
         if (!c.next_review_date) return false;
