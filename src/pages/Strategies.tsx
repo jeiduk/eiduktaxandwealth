@@ -8,9 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Search, Plus, TrendingUp, Users, BookOpen, Check, X, ChevronDown, ChevronRight, ExternalLink, Calculator, Download } from 'lucide-react';
+import { Search, Plus, TrendingUp, Users, BookOpen, Check, X, ChevronDown, ChevronRight, ExternalLink, Calculator, Download, Upload } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { StrategyUpdateModal } from '@/components/settings/StrategyUpdateModal';
 
 // Phase configuration with colors, descriptions - matching database phase values
 const PHASES = [
@@ -77,6 +78,7 @@ export default function Strategies() {
   const [detailModal, setDetailModal] = useState<{ open: boolean; strategy: Strategy | null }>({ open: false, strategy: null });
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
   const [clientSearch, setClientSearch] = useState('');
+  const [updateModalOpen, setUpdateModalOpen] = useState(false);
   const [expandedPhases, setExpandedPhases] = useState<Record<string, boolean>>(() => {
     // Default all phases to expanded
     const expanded: Record<string, boolean> = {};
@@ -378,10 +380,16 @@ export default function Strategies() {
             <h1 className="text-3xl font-bold text-foreground">Strategy Library</h1>
             <p className="text-muted-foreground">80 Tax Reduction Strategies Across 9 Phases</p>
           </div>
-          <Button variant="outline" onClick={exportStrategiesWithTools}>
-            <Download className="h-4 w-4 mr-2" />
-            Export Tools CSV
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setUpdateModalOpen(true)}>
+              <Upload className="h-4 w-4 mr-2" />
+              Update Strategies
+            </Button>
+            <Button variant="outline" onClick={exportStrategiesWithTools}>
+              <Download className="h-4 w-4 mr-2" />
+              Export Tools CSV
+            </Button>
+          </div>
         </div>
 
         {/* Quick Stats */}
@@ -778,6 +786,13 @@ export default function Strategies() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Update Strategies Modal */}
+      <StrategyUpdateModal
+        open={updateModalOpen}
+        onOpenChange={setUpdateModalOpen}
+        onUpdateComplete={() => queryClient.invalidateQueries({ queryKey: ['strategies'] })}
+      />
     </DashboardLayout>
   );
 }
