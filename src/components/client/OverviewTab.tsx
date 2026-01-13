@@ -37,6 +37,9 @@ interface OverviewTabProps {
   client: Client;
   stats: {
     completed: number;
+    inProgress: number;
+    notStarted: number;
+    wontDo: number;
     total: number;
     totalDeductions: number;
     totalSavings: number;
@@ -172,6 +175,7 @@ export const OverviewTab = ({ client, stats, onClientUpdate }: OverviewTabProps)
       icon: DollarSign,
       color: "text-primary",
       bgColor: "bg-primary/10",
+      breakdown: null,
     },
     {
       label: "Tax Savings",
@@ -179,13 +183,19 @@ export const OverviewTab = ({ client, stats, onClientUpdate }: OverviewTabProps)
       icon: TrendingUp,
       color: "text-emerald-600",
       bgColor: "bg-emerald-500/10",
+      breakdown: null,
     },
     {
-      label: "Strategies Complete",
-      value: `${stats.completed} of ${stats.total}`,
+      label: "Strategies",
+      value: `${stats.total} Total`,
       icon: Target,
       color: "text-blue-600",
       bgColor: "bg-blue-500/10",
+      breakdown: [
+        { label: "Complete", count: stats.completed, color: "bg-emerald-500" },
+        { label: "In Progress", count: stats.inProgress, color: "bg-amber-500" },
+        { label: "Not Started", count: stats.notStarted, color: "bg-gray-400" },
+      ],
     },
     {
       label: "Progress",
@@ -193,6 +203,7 @@ export const OverviewTab = ({ client, stats, onClientUpdate }: OverviewTabProps)
       icon: Percent,
       color: "text-amber-600",
       bgColor: "bg-amber-500/10",
+      breakdown: null,
     },
   ];
 
@@ -207,9 +218,21 @@ export const OverviewTab = ({ client, stats, onClientUpdate }: OverviewTabProps)
                 <div className={`p-2 rounded-lg ${stat.bgColor}`}>
                   <stat.icon className={`h-5 w-5 ${stat.color}`} />
                 </div>
-                <div>
+                <div className="flex-1">
                   <p className="text-sm text-muted-foreground">{stat.label}</p>
-                  <p className={`text-xl font-bold tabular-nums ${stat.color}`}>{stat.value}</p>
+                  {stat.breakdown ? (
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
+                      {stat.breakdown.map((item) => (
+                        <div key={item.label} className="flex items-center gap-1 text-sm">
+                          <div className={`w-2 h-2 rounded-full ${item.color}`} />
+                          <span className="font-semibold">{item.count}</span>
+                          <span className="text-muted-foreground text-xs">{item.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className={`text-xl font-bold tabular-nums ${stat.color}`}>{stat.value}</p>
+                  )}
                 </div>
               </div>
             </CardContent>
