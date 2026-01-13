@@ -783,6 +783,7 @@ const ClientDetail = () => {
                 {(() => {
                   const inProgressStrategies = clientStrategies.filter(cs => cs.status === 'in_progress');
                   const notStartedStrategies = clientStrategies.filter(cs => cs.status === 'not_started');
+                  const wontDoStrategies = clientStrategies.filter(cs => cs.status === 'wont_do');
                   
                   const getEstimatedRange = (strategyIds: number[]) => {
                     let lowTotal = 0;
@@ -806,7 +807,7 @@ const ClientDetail = () => {
                   };
                   
                   return (
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-3 gap-4">
                       <Card className="border-l-4 border-l-yellow-500">
                         <CardContent className="py-4">
                           <div className="flex items-center justify-between">
@@ -835,6 +836,22 @@ const ClientDetail = () => {
                           </div>
                         </CardContent>
                       </Card>
+                      {wontDoStrategies.length > 0 && (
+                        <Card className="border-l-4 border-l-slate-300">
+                          <CardContent className="py-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm text-muted-foreground">Won't Do</p>
+                                <p className="text-2xl font-bold">{wontDoStrategies.length}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm text-muted-foreground">Excluded</p>
+                                <p className="text-sm font-medium text-slate-400">—</p>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
                     </div>
                   );
                 })()}

@@ -27,7 +27,8 @@ import {
   Circle, 
   ExternalLink,
   Trash2,
-  DollarSign
+  DollarSign,
+  X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getPhaseColor } from "@/lib/strategy-constants";
@@ -138,6 +139,12 @@ export const StrategyCardCollapsible = ({
           label: "In Progress", 
           icon: Clock, 
           className: "bg-amber-100 text-amber-700 border-amber-300" 
+        };
+      case "wont_do":
+        return { 
+          label: "Won't Do", 
+          icon: X, 
+          className: "bg-slate-100 text-slate-500 border-slate-300" 
         };
       default:
         return { 
@@ -286,6 +293,12 @@ export const StrategyCardCollapsible = ({
                   <div className="flex items-center gap-2">
                     <Check className="h-3 w-3 text-emerald-600" />
                     Complete
+                  </div>
+                </SelectItem>
+                <SelectItem value="wont_do">
+                  <div className="flex items-center gap-2">
+                    <X className="h-3 w-3 text-slate-500" />
+                    Won't Do
                   </div>
                 </SelectItem>
               </SelectContent>
