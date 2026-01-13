@@ -254,28 +254,46 @@ export const StrategyCardCollapsible = ({
               </TooltipContent>
             </Tooltip>
             
-            {/* Savings Range Badge */}
-            {savingsRange && (
+            {/* Savings Range Badge - show typical range OR actual tax savings if complete */}
+            {status === "complete" && taxSavings > 0 ? (
               <Badge className="bg-emerald-100 text-emerald-700 border-emerald-300 shrink-0 gap-1">
+                <DollarSign className="h-3 w-3" />
+                {formatCurrency(taxSavings)} saved
+              </Badge>
+            ) : savingsRange ? (
+              <Badge className="bg-slate-100 text-slate-600 border-slate-300 shrink-0 gap-1">
                 <DollarSign className="h-3 w-3" />
                 {savingsRange}
               </Badge>
-            )}
+            ) : null}
 
+            {/* Document Progress Indicator */}
+            {totalDocs > 0 && (
+              <Badge 
+                variant="outline" 
+                className={cn(
+                  "shrink-0 text-xs gap-1",
+                  receivedCount === totalDocs 
+                    ? "bg-emerald-50 text-emerald-600 border-emerald-200" 
+                    : "bg-slate-50 text-slate-500 border-slate-200"
+                )}
+              >
+                📄 {receivedCount}/{totalDocs}
+              </Badge>
+            )}
             
-            {/* Status Selector */}
+            {/* Status Selector - no duplicate icon */}
             <Select
               value={status}
               onValueChange={(value) => onStatusChange(strategy.id, value)}
             >
               <SelectTrigger 
                 className={cn(
-                  "h-7 w-[130px] text-xs border shrink-0",
+                  "h-7 w-[110px] text-xs border shrink-0 font-medium",
                   statusConfig.className
                 )}
                 onClick={(e) => e.stopPropagation()}
               >
-                <statusConfig.icon className="h-3 w-3 mr-1" />
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-white z-50">
