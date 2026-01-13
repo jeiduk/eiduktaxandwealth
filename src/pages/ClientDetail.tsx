@@ -221,15 +221,14 @@ const ClientDetail = () => {
           setLatestReviewId(latestReviewRes.data.id);
         }
 
-        // Calculate lifetime tax savings from all completed reviews
-        if (allReviewsRes.data && allReviewsRes.data.length > 0) {
-          const completedReviewIds = allReviewsRes.data.map(r => r.id);
-          const completedStrategies = clientStrategiesRes.data?.filter(
-            (cs) => cs.review_id && completedReviewIds.includes(cs.review_id)
-          ) || [];
-          const totalSavings = completedStrategies.reduce((sum, cs) => sum + (cs.tax_savings || 0), 0);
-          setTotalTaxSavings(totalSavings);
-        }
+        // Calculate lifetime tax savings: strategies linked to completed reviews OR in_progress
+        // This matches Dashboard logic
+        const completedReviewIds = new Set(allReviewsRes.data?.map(r => r.id) || []);
+        const countableStrategies = clientStrategiesRes.data?.filter(
+          (cs) => (cs.review_id && completedReviewIds.has(cs.review_id)) || cs.status === "in_progress"
+        ) || [];
+        const totalSavings = countableStrategies.reduce((sum, cs) => sum + (cs.tax_savings || 0), 0);
+        setTotalTaxSavings(totalSavings);
 
         // Check if onboarding should be shown
         if (clientRes.data) {
