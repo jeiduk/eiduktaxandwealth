@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Check, Clock, Circle, X, DollarSign, Rocket, Plus, Trash2, Target, Loader2, Edit, FileText, FolderOpen, ExternalLink } from "lucide-react";
+import { ArrowLeft, Check, Clock, Circle, X, DollarSign, Rocket, Plus, Trash2, Target, Loader2, Edit, FileText, FolderOpen, ExternalLink, ChevronsUpDown } from "lucide-react";
 import { StrategyCardCollapsible } from "@/components/client/StrategyCardCollapsible";
 import { AddStrategyModal } from "@/components/client/AddStrategyModal";
 import { ReviewsTab } from "@/components/client/ReviewsTab";
@@ -125,6 +125,7 @@ const ClientDetail = () => {
   const [latestReviewId, setLatestReviewId] = useState<string | null>(null);
   const [totalTaxSavings, setTotalTaxSavings] = useState(0);
   const [loadingDefaults, setLoadingDefaults] = useState(false);
+  const [allCardsExpanded, setAllCardsExpanded] = useState<boolean | undefined>(undefined);
 
   const getCurrentQuarter = () => {
     const now = new Date();
@@ -922,6 +923,19 @@ const ClientDetail = () => {
                 ) : activePhase === null ? (
                   // View All - Group by phase with headers
                   <div className="space-y-6">
+                    {/* Expand/Collapse All Button */}
+                    <div className="flex justify-end">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setAllCardsExpanded(prev => prev === true ? false : true)}
+                        className="gap-2"
+                      >
+                        <ChevronsUpDown className="h-4 w-4" />
+                        {allCardsExpanded ? "Collapse All" : "Expand All"}
+                      </Button>
+                    </div>
+                    
                     {PHASES.filter(phase => phaseStrategies.some(s => getPhaseNumber(s.phase) === phase.id)).map((phase) => {
                       const strategiesInPhase = phaseStrategies.filter(s => getPhaseNumber(s.phase) === phase.id);
                       return (
@@ -959,6 +973,7 @@ const ClientDetail = () => {
                                   onDeductionBlur={updateDeduction}
                                   onRemove={removeStrategy}
                                   onDocumentStatusChange={updateDocumentStatus}
+                                  forceExpanded={allCardsExpanded}
                                 />
                               );
                             })}
