@@ -101,39 +101,34 @@ const Clients = () => {
 
       if (strategiesError) throw strategiesError;
 
-      // Fetch completed quarterly reviews
-      const { data: completedReviews, error: reviewsError } = await supabase
-        .from("quarterly_reviews")
-        .select("id")
-        .eq("status", "complete");
-
-      if (reviewsError) throw reviewsError;
-
-      const completedReviewIds = new Set(completedReviews?.map(r => r.id) || []);
-
-      // Aggregate stats per client
+      // Aggregate stats per client - sum deductions for complete AND in_progress strategies
       const statsMap = new Map<string, { 
         completed: number; 
+        inProgress: number;
         total: number; 
         deductions: number; 
-        actualSavings: number;
+        savings: number;
       }>();
       
       strategiesData?.forEach((cs) => {
         const current = statsMap.get(cs.client_id) || { 
           completed: 0, 
+          inProgress: 0,
           total: 0, 
           deductions: 0, 
-          actualSavings: 0 
+          savings: 0 
         };
         current.total += 1;
         if (cs.status === "complete") {
           current.completed += 1;
-          current.deductions += cs.deduction_amount || 0;
         }
-        // Sum actual savings from strategies linked to completed reviews
-        if (cs.review_id && completedReviewIds.has(cs.review_id)) {
-          current.actualSavings += cs.tax_savings || 0;
+        if (cs.status === "in_progress") {
+          current.inProgress += 1;
+        }
+        // Sum deductions and savings for both complete and in_progress strategies (matches ClientDetail logic)
+        if (cs.status === "complete" || cs.status === "in_progress") {
+          current.deductions += cs.deduction_amount || 0;
+          current.savings += cs.tax_savings || 0;
         }
         statsMap.set(cs.client_id, current);
       });
@@ -141,16 +136,17 @@ const Clients = () => {
       const enrichedClients: ClientWithStats[] = (clientsData || []).map((client) => {
         const clientStats = statsMap.get(client.id) || { 
           completed: 0, 
+          inProgress: 0,
           total: 0, 
           deductions: 0, 
-          actualSavings: 0 
+          savings: 0 
         };
         return {
           ...client,
           completed_strategies: clientStats.completed,
           total_strategies: clientStats.total,
           total_deductions: clientStats.deductions,
-          tax_savings: clientStats.actualSavings,
+          tax_savings: clientStats.savings,
         };
       });
 
