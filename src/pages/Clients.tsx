@@ -45,6 +45,8 @@ interface ClientWithStats {
   created_at: string;
   tax_rate: number | null;
   completed_strategies: number;
+  in_progress_strategies: number;
+  wont_do_strategies: number;
   total_strategies: number;
   total_deductions: number;
   tax_savings: number;
@@ -105,6 +107,7 @@ const Clients = () => {
       const statsMap = new Map<string, { 
         completed: number; 
         inProgress: number;
+        wontDo: number;
         total: number; 
         deductions: number;
       }>();
@@ -113,6 +116,7 @@ const Clients = () => {
         const current = statsMap.get(cs.client_id) || { 
           completed: 0, 
           inProgress: 0,
+          wontDo: 0,
           total: 0, 
           deductions: 0
         };
@@ -122,6 +126,9 @@ const Clients = () => {
         }
         if (cs.status === "in_progress") {
           current.inProgress += 1;
+        }
+        if (cs.status === "wont_do") {
+          current.wontDo += 1;
         }
         // Sum deductions for both complete and in_progress strategies (matches ClientDetail logic)
         if (cs.status === "complete" || cs.status === "in_progress") {
@@ -134,6 +141,7 @@ const Clients = () => {
         const clientStats = statsMap.get(client.id) || { 
           completed: 0, 
           inProgress: 0,
+          wontDo: 0,
           total: 0, 
           deductions: 0
         };
@@ -143,6 +151,8 @@ const Clients = () => {
         return {
           ...client,
           completed_strategies: clientStats.completed,
+          in_progress_strategies: clientStats.inProgress,
+          wont_do_strategies: clientStats.wontDo,
           total_strategies: clientStats.total,
           total_deductions: clientStats.deductions,
           tax_savings: calculatedSavings,
@@ -550,10 +560,10 @@ const Clients = () => {
               </TableHeader>
               <TableBody>
                 {filteredClients.map((client, index) => {
-                  const progress =
-                    client.total_strategies > 0
-                      ? (client.completed_strategies / client.total_strategies) * 100
-                      : 0;
+                  // Progress calculation matches ClientDetail: (completed + inProgress) / (total - wontDo)
+                  const activeStrategies = client.completed_strategies + client.in_progress_strategies;
+                  const countableStrategies = client.total_strategies - client.wont_do_strategies;
+                  const progress = countableStrategies > 0 ? (activeStrategies / countableStrategies) * 100 : 0;
 
                   return (
                     <TableRow
@@ -573,7 +583,7 @@ const Clients = () => {
                       </TableCell>
                       <TableCell>
                         <span className="font-medium">
-                          {client.completed_strategies}/{client.total_strategies}
+                          {activeStrategies}/{countableStrategies}
                         </span>
                       </TableCell>
                       <TableCell>
