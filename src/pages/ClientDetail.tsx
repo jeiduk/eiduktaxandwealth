@@ -651,33 +651,9 @@ const ClientDetail = () => {
             </div>
           </div>
 
-          {/* Right side - Strategy Status Breakdown */}
-          <div className="flex flex-wrap items-center gap-6">
-            <div className="flex items-center gap-4 text-sm">
-              <div className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                <span className="font-semibold">{stats.completed}</span>
-                <span className="text-muted-foreground">Complete</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-                <span className="font-semibold">{stats.inProgress}</span>
-                <span className="text-muted-foreground">In Progress</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-full bg-gray-400" />
-                <span className="font-semibold">{stats.notStarted}</span>
-                <span className="text-muted-foreground">Not Started</span>
-              </div>
-              {stats.wontDo > 0 && (
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-slate-300" />
-                  <span className="font-semibold">{stats.wontDo}</span>
-                  <span className="text-muted-foreground">Won't Do</span>
-                </div>
-              )}
-            </div>
-            <Button 
+          {/* Right side - Actions */}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
               variant="outline"
               size="sm"
               onClick={() => setEditModalOpen(true)}
