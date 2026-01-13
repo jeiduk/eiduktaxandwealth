@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Search, Plus, TrendingUp, Users, BookOpen, Check, X, ChevronDown, ChevronRight, ExternalLink, Calculator } from 'lucide-react';
+import { Search, Plus, TrendingUp, Users, BookOpen, Check, X, ChevronDown, ChevronRight, ExternalLink, Calculator, Download } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -250,6 +250,28 @@ export default function Strategies() {
     });
   };
 
+  const exportStrategiesWithTools = () => {
+    const headers = ['id', 'strategy_number', 'name', 'phase', 'phase_name', 'tool_name', 'tool_url'];
+    const rows = strategies.map((s) => [
+      s.id,
+      s.strategy_number || '',
+      `"${(s.name || '').replace(/"/g, '""')}"`,
+      s.phase,
+      `"${(s.phase_name || '').replace(/"/g, '""')}"`,
+      `"${(s.tool_name || '').replace(/"/g, '""')}"`,
+      s.tool_url || '',
+    ]);
+
+    const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'strategies-tools.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const formatCurrency = (value: number | null) => {
     if (value === null || value === 0) return '$0';
     return new Intl.NumberFormat('en-US', {
@@ -351,9 +373,15 @@ export default function Strategies() {
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Strategy Library</h1>
-          <p className="text-muted-foreground">80 Tax Reduction Strategies Across 9 Phases</p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Strategy Library</h1>
+            <p className="text-muted-foreground">80 Tax Reduction Strategies Across 9 Phases</p>
+          </div>
+          <Button variant="outline" onClick={exportStrategiesWithTools}>
+            <Download className="h-4 w-4 mr-2" />
+            Export Tools CSV
+          </Button>
         </div>
 
         {/* Quick Stats */}
