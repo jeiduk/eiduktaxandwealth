@@ -26,8 +26,8 @@ import { format, startOfMonth, endOfMonth, addDays } from "date-fns";
 
 interface DashboardStats {
   activeClients: number;
+  totalDeductions: number;
   totalSavings: number;
-  strategiesImplemented: number;
   reviewsDueThisMonth: number;
 }
 
@@ -48,8 +48,8 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats>({
     activeClients: 0,
+    totalDeductions: 0,
     totalSavings: 0,
-    strategiesImplemented: 0,
     reviewsDueThisMonth: 0,
   });
   const [upcomingReviews, setUpcomingReviews] = useState<ClientReview[]>([]);
@@ -97,19 +97,19 @@ const Dashboard = () => {
 
       const completedReviewIds = new Set(completedReviews?.map(r => r.id) || []);
 
-      // Filter to completed strategies for count
-      const completedStrategies = allClientStrategies?.filter(s => s.status === "complete") || [];
-
       // Calculate stats - tax savings from strategies linked to completed reviews OR in progress
       const activeClients = clients?.length || 0;
       
-      // Calculate total savings: sum tax_savings from strategies linked to completed reviews
-      // OR strategies that are in_progress (work in progress throughout the year)
-      const totalSavings = allClientStrategies
-        ?.filter(s => (s.review_id && completedReviewIds.has(s.review_id)) || s.status === "in_progress")
-        .reduce((sum, s) => sum + (s.tax_savings || 0), 0) || 0;
+      // Filter strategies that count towards totals (linked to completed reviews OR in progress)
+      const countableStrategies = allClientStrategies?.filter(
+        s => (s.review_id && completedReviewIds.has(s.review_id)) || s.status === "in_progress"
+      ) || [];
       
-      const strategiesImplemented = completedStrategies?.length || 0;
+      // Calculate total deductions
+      const totalDeductions = countableStrategies.reduce((sum, s) => sum + (s.deduction_amount || 0), 0);
+      
+      // Calculate total savings
+      const totalSavings = countableStrategies.reduce((sum, s) => sum + (s.tax_savings || 0), 0);
 
       const reviewsDueThisMonth = clients?.filter(c => {
         if (!c.next_review_date) return false;
@@ -119,8 +119,8 @@ const Dashboard = () => {
 
       setStats({
         activeClients,
+        totalDeductions,
         totalSavings,
-        strategiesImplemented,
         reviewsDueThisMonth,
       });
 
@@ -240,18 +240,18 @@ const Dashboard = () => {
       bgColor: "bg-eiduk-blue/10",
     },
     {
+      title: "Total Deductions",
+      value: formatCurrency(stats.totalDeductions),
+      icon: CheckCircle,
+      color: "text-success",
+      bgColor: "bg-success/10",
+    },
+    {
       title: "Total Tax Savings",
       value: formatCurrency(stats.totalSavings),
       icon: TrendingUp,
       color: "text-eiduk-gold",
       bgColor: "bg-eiduk-gold/10",
-    },
-    {
-      title: "Strategies Implemented",
-      value: stats.strategiesImplemented,
-      icon: CheckCircle,
-      color: "text-success",
-      bgColor: "bg-success/10",
     },
     {
       title: "Reviews Due This Month",
