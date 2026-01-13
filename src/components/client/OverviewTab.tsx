@@ -3,11 +3,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Calendar, DollarSign, Target, TrendingUp, Building2, Percent, Wallet, Pencil } from "lucide-react";
-import { useState } from "react";
+import { Calendar, DollarSign, Target, TrendingUp, Building2, Percent, Wallet, Pencil, Plus, Trash2, MessageSquare } from "lucide-react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { useAuth } from "@/hooks/useAuth";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -58,10 +60,19 @@ const TAX_RATE_OPTIONS = [
   { value: "custom", label: "Custom", description: "" },
 ];
 
+interface ClientNote {
+  id: string;
+  content: string;
+  created_at: string;
+}
+
 export const OverviewTab = ({ client, stats, onClientUpdate }: OverviewTabProps) => {
   const { toast } = useToast();
-  const [notes, setNotes] = useState(client.notes || "");
+  const { user } = useAuth();
+  const [newNote, setNewNote] = useState("");
   const [saving, setSaving] = useState(false);
+  const [savedNotes, setSavedNotes] = useState<ClientNote[]>([]);
+  const [loadingNotes, setLoadingNotes] = useState(true);
   const [taxRateOpen, setTaxRateOpen] = useState(false);
   const [customTaxRate, setCustomTaxRate] = useState("");
   const [selectedTaxRate, setSelectedTaxRate] = useState<string>(() => {
@@ -69,6 +80,27 @@ export const OverviewTab = ({ client, stats, onClientUpdate }: OverviewTabProps)
     const match = TAX_RATE_OPTIONS.find(o => parseFloat(o.value) === rate);
     return match ? match.value : "custom";
   });
+
+  // Fetch saved notes
+  useEffect(() => {
+    const fetchNotes = async () => {
+      setLoadingNotes(true);
+      const { data, error } = await supabase
+        .from("client_notes")
+        .select("*")
+        .eq("client_id", client.id)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Error fetching notes:", error);
+      } else {
+        setSavedNotes(data || []);
+      }
+      setLoadingNotes(false);
+    };
+
+    fetchNotes();
+  }, [client.id]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {
@@ -96,23 +128,48 @@ export const OverviewTab = ({ client, stats, onClientUpdate }: OverviewTabProps)
     }
   };
 
-  const saveNotes = async () => {
+  const saveNote = async () => {
+    if (!newNote.trim() || !user) return;
+    
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from("clients")
-        .update({ notes })
-        .eq("id", client.id);
+      const { data, error } = await supabase
+        .from("client_notes")
+        .insert({
+          client_id: client.id,
+          user_id: user.id,
+          content: newNote.trim(),
+        })
+        .select()
+        .single();
 
       if (error) throw error;
       
-      onClientUpdate({ notes });
-      toast({ title: "Notes saved" });
+      setSavedNotes([data, ...savedNotes]);
+      setNewNote("");
+      toast({ title: "Note saved" });
     } catch (error) {
-      console.error("Error saving notes:", error);
-      toast({ title: "Error", description: "Failed to save notes", variant: "destructive" });
+      console.error("Error saving note:", error);
+      toast({ title: "Error", description: "Failed to save note", variant: "destructive" });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const deleteNote = async (noteId: string) => {
+    try {
+      const { error } = await supabase
+        .from("client_notes")
+        .delete()
+        .eq("id", noteId);
+
+      if (error) throw error;
+      
+      setSavedNotes(savedNotes.filter(n => n.id !== noteId));
+      toast({ title: "Note deleted" });
+    } catch (error) {
+      console.error("Error deleting note:", error);
+      toast({ title: "Error", description: "Failed to delete note", variant: "destructive" });
     }
   };
 
@@ -337,23 +394,61 @@ export const OverviewTab = ({ client, stats, onClientUpdate }: OverviewTabProps)
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Wallet className="h-5 w-5 text-primary" />
-            Quick Notes
+            <MessageSquare className="h-5 w-5 text-primary" />
+            Client Notes
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Add notes about this client..."
-            rows={4}
-          />
-          <Button 
-            onClick={saveNotes} 
-            disabled={saving || notes === (client.notes || "")}
-          >
-            {saving ? "Saving..." : "Save Notes"}
-          </Button>
+          {/* Add new note */}
+          <div className="space-y-2">
+            <Textarea
+              value={newNote}
+              onChange={(e) => setNewNote(e.target.value)}
+              placeholder="Add a new note..."
+              rows={3}
+            />
+            <Button 
+              onClick={saveNote} 
+              disabled={saving || !newNote.trim()}
+              size="sm"
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              {saving ? "Saving..." : "Add Note"}
+            </Button>
+          </div>
+
+          {/* Saved notes history */}
+          {loadingNotes ? (
+            <p className="text-sm text-muted-foreground">Loading notes...</p>
+          ) : savedNotes.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No notes yet. Add your first note above.</p>
+          ) : (
+            <ScrollArea className="h-[300px] pr-4">
+              <div className="space-y-3">
+                {savedNotes.map((note) => (
+                  <div 
+                    key={note.id} 
+                    className="p-3 rounded-lg border bg-muted/30 group"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm whitespace-pre-wrap flex-1">{note.content}</p>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                        onClick={() => deleteNote(note.id)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {format(new Date(note.created_at), "MMM d, yyyy 'at' h:mm a")}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          )}
         </CardContent>
       </Card>
     </div>
