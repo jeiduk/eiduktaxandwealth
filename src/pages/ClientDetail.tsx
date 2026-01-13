@@ -738,123 +738,109 @@ const ClientDetail = () => {
               </Card>
             ) : (
               <>
-                {/* Progress Header */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Strategy Progress</p>
-                      <p className="text-xl font-bold">
-                        {stats.completed} of {stats.total} strategies complete
-                      </p>
+                {/* Compact Header with Status Summary */}
+                <div className="flex flex-col gap-4">
+                  {/* Top Row: Progress + Actions */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-6">
+                      <div className="flex items-center gap-3">
+                        <div className="w-24">
+                          <Progress value={stats.progress} className="h-2" />
+                        </div>
+                        <span className="text-sm font-semibold">
+                          {stats.progress}% Complete
+                        </span>
+                      </div>
+                      
+                      {/* Inline Status Counts */}
+                      <div className="flex items-center gap-4 text-sm">
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                          <span className="text-muted-foreground">Complete:</span>
+                          <span className="font-semibold">{stats.completed}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                          <span className="text-muted-foreground">In Progress:</span>
+                          <span className="font-semibold">{clientStrategies.filter(cs => cs.status === 'in_progress').length}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-2.5 h-2.5 rounded-full bg-gray-400" />
+                          <span className="text-muted-foreground">Not Started:</span>
+                          <span className="font-semibold">{clientStrategies.filter(cs => cs.status === 'not_started').length}</span>
+                        </div>
+                        {clientStrategies.filter(cs => cs.status === 'wont_do').length > 0 && (
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-2.5 h-2.5 rounded-full bg-slate-300" />
+                            <span className="text-muted-foreground">Won't Do:</span>
+                            <span className="font-semibold">{clientStrategies.filter(cs => cs.status === 'wont_do').length}</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className="w-32">
-                      <Progress value={stats.progress} className="h-2" />
+                    
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={loadDefaultStrategies}
+                        disabled={loadingDefaults}
+                      >
+                        {loadingDefaults ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <FolderOpen className="h-4 w-4 mr-2" />
+                        )}
+                        Load Defaults
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setAddStrategyOpen(true)}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add
+                      </Button>
                     </div>
-                    <span className="text-sm font-medium text-muted-foreground">
-                      {stats.progress}%
-                    </span>
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={loadDefaultStrategies}
-                      disabled={loadingDefaults}
-                    >
-                      {loadingDefaults ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                        <FolderOpen className="h-4 w-4 mr-2" />
-                      )}
-                      Load {client?.package_tier} Defaults
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setAddStrategyOpen(true)}
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Strategy
-                    </Button>
+
+                  {/* Savings Summary - Compact */}
+                  <div className="flex items-center gap-6 p-3 bg-emerald-50 rounded-lg border border-emerald-100">
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-5 w-5 text-emerald-600" />
+                      <span className="text-sm font-medium text-emerald-700">Total Tax Savings:</span>
+                      <span className="text-lg font-bold text-emerald-700">{formatCurrency(stats.totalSavings)}</span>
+                    </div>
+                    {(() => {
+                      const inProgressStrategies = clientStrategies.filter(cs => cs.status === 'in_progress');
+                      const notStartedStrategies = clientStrategies.filter(cs => cs.status === 'not_started');
+                      
+                      const getEstimatedRange = (strategyIds: number[]) => {
+                        let lowTotal = 0;
+                        let highTotal = 0;
+                        strategyIds.forEach(id => {
+                          const strategy = strategies.find(s => s.id === id);
+                          if (strategy) {
+                            lowTotal += strategy.typical_savings_low || 0;
+                            highTotal += strategy.typical_savings_high || 0;
+                          }
+                        });
+                        return { low: lowTotal, high: highTotal };
+                      };
+                      
+                      const inProgressRange = getEstimatedRange(inProgressStrategies.map(cs => cs.strategy_id));
+                      const notStartedRange = getEstimatedRange(notStartedStrategies.map(cs => cs.strategy_id));
+                      const totalPotential = inProgressRange.high + notStartedRange.high;
+                      
+                      return totalPotential > 0 ? (
+                        <div className="flex items-center gap-2 text-sm text-emerald-600">
+                          <span>|</span>
+                          <span>Potential from remaining: up to {formatCurrency(totalPotential)}</span>
+                        </div>
+                      ) : null;
+                    })()}
                   </div>
                 </div>
-
-                {/* Status Summary Cards */}
-                {(() => {
-                  const inProgressStrategies = clientStrategies.filter(cs => cs.status === 'in_progress');
-                  const notStartedStrategies = clientStrategies.filter(cs => cs.status === 'not_started');
-                  const wontDoStrategies = clientStrategies.filter(cs => cs.status === 'wont_do');
-                  
-                  const getEstimatedRange = (strategyIds: number[]) => {
-                    let lowTotal = 0;
-                    let highTotal = 0;
-                    strategyIds.forEach(id => {
-                      const strategy = strategies.find(s => s.id === id);
-                      if (strategy) {
-                        lowTotal += strategy.typical_savings_low || 0;
-                        highTotal += strategy.typical_savings_high || 0;
-                      }
-                    });
-                    return { low: lowTotal, high: highTotal };
-                  };
-                  
-                  const inProgressRange = getEstimatedRange(inProgressStrategies.map(cs => cs.strategy_id));
-                  const notStartedRange = getEstimatedRange(notStartedStrategies.map(cs => cs.strategy_id));
-                  
-                  const formatRange = (low: number, high: number) => {
-                    if (low === 0 && high === 0) return '$0';
-                    return `$${low.toLocaleString()} - $${high.toLocaleString()}`;
-                  };
-                  
-                  return (
-                    <div className="grid grid-cols-3 gap-4">
-                      <Card className="border-l-4 border-l-yellow-500">
-                        <CardContent className="py-4">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-sm text-muted-foreground">In Progress</p>
-                              <p className="text-2xl font-bold">{inProgressStrategies.length}</p>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-sm text-muted-foreground">Est. Savings</p>
-                              <p className="text-sm font-medium">{formatRange(inProgressRange.low, inProgressRange.high)}</p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                      <Card className="border-l-4 border-l-gray-400">
-                        <CardContent className="py-4">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-sm text-muted-foreground">Not Started</p>
-                              <p className="text-2xl font-bold">{notStartedStrategies.length}</p>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-sm text-muted-foreground">Est. Savings</p>
-                              <p className="text-sm font-medium">{formatRange(notStartedRange.low, notStartedRange.high)}</p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                      {wontDoStrategies.length > 0 && (
-                        <Card className="border-l-4 border-l-slate-300">
-                          <CardContent className="py-4">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="text-sm text-muted-foreground">Won't Do</p>
-                                <p className="text-2xl font-bold">{wontDoStrategies.length}</p>
-                              </div>
-                              <div className="text-right">
-                                <p className="text-sm text-muted-foreground">Excluded</p>
-                                <p className="text-sm font-medium text-slate-400">—</p>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )}
-                    </div>
-                  );
-                })()}
 
                 {/* Phase Tabs - Always show all 8 phases */}
                 <div className="overflow-x-auto pb-2">
@@ -905,7 +891,7 @@ const ClientDetail = () => {
                     </CardContent>
                   </Card>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                     {phaseStrategies.map((strategy) => {
                       const cs = getClientStrategy(strategy.id);
                       const phase = PHASES.find((p) => p.id === getPhaseNumber(strategy.phase));
