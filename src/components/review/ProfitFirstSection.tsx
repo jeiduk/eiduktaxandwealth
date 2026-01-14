@@ -111,8 +111,34 @@ export const ProfitFirstSection = ({
 
   const benchmark = industryBenchmark || defaultBenchmark;
 
-  const calculatedData = useMemo<CalculatedData | null>(() => {
-    if (!revenue || revenue === 0) return null;
+  const hasRevenue = revenue && revenue > 0;
+
+  const calculatedData = useMemo<CalculatedData>(() => {
+    if (!hasRevenue) {
+      // Return structure with null-like actuals when no revenue
+      return {
+        profit: {
+          actual: null as unknown as number,
+          target: targets.profit,
+          industryTarget: benchmark.profit_target,
+        },
+        ownerPay: {
+          actual: null as unknown as number,
+          target: targets.ownerPay,
+          industryTarget: benchmark.owner_pay_target,
+        },
+        tax: {
+          actual: null as unknown as number,
+          target: targets.tax,
+          industryTarget: benchmark.tax_target,
+        },
+        opEx: {
+          actual: null as unknown as number,
+          target: targets.opEx,
+          industryTarget: benchmark.opex_target,
+        },
+      };
+    }
 
     const profitValue = profit || 0;
     const ownerPayValue = ownerPay || 0;
@@ -141,7 +167,7 @@ export const ProfitFirstSection = ({
         industryTarget: benchmark.opex_target,
       },
     };
-  }, [revenue, profit, ownerPay, targets, benchmark]);
+  }, [revenue, profit, ownerPay, targets, benchmark, hasRevenue]);
 
   const handleTargetBlur = (key: keyof ProfitFirstTargets) => {
     const value = localTargets[key];
@@ -165,27 +191,6 @@ export const ProfitFirstSection = ({
     { key: 'tax', title: 'TAX' },
     { key: 'opEx', title: 'OPEX', isLowerBetter: true },
   ];
-
-  const emptyState = (
-    <div className="bg-slate-50 rounded-lg p-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-1">
-        <div className="flex items-center gap-2">
-          <span className="text-lg">💰</span>
-          <h3 className="font-semibold text-lg">Profit First Health Check</h3>
-        </div>
-      </div>
-      <p className="text-sm text-muted-foreground italic mb-6">
-        Based on Mike Michalowicz's Profit First methodology
-      </p>
-      <p className="text-center text-muted-foreground py-8">
-        Enter revenue to see Profit First analysis
-      </p>
-    </div>
-  );
-
-  if (!calculatedData) {
-    return emptyState;
-  }
 
   return (
     <div className="bg-slate-50 rounded-lg p-6">
@@ -229,8 +234,10 @@ export const ProfitFirstSection = ({
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {buckets.map(({ key, title, isLowerBetter }) => {
           const data = calculatedData[key];
-          const status = getStatus(data.actual, data.target, isLowerBetter);
-          const config = statusConfig[status];
+          const actualValue = data.actual;
+          const hasActual = actualValue !== null && !isNaN(actualValue);
+          const status = hasActual ? getStatus(actualValue, data.target, isLowerBetter) : null;
+          const config = status ? statusConfig[status] : { borderColor: 'border-slate-300', color: 'text-muted-foreground', icon: '—', bgColor: 'bg-slate-50' };
           const targetKey = key === 'ownerPay' ? 'ownerPay' : key as keyof ProfitFirstTargets;
 
           return (
@@ -268,14 +275,20 @@ export const ProfitFirstSection = ({
                 <div>
                   <label className="text-xs text-muted-foreground">Actual:</label>
                   <p className={cn("text-lg font-bold", config.color)}>
-                    {data.actual.toFixed(1)}%
+                    {hasActual ? `${actualValue.toFixed(1)}%` : '—'}
                   </p>
                 </div>
 
-                <div className={cn("flex items-center gap-1 text-sm", config.color)}>
-                  <span>{config.icon}</span>
-                  <span>{getStatusLabel(status, isLowerBetter, data.actual, data.industryTarget)}</span>
-                </div>
+                {hasActual && status ? (
+                  <div className={cn("flex items-center gap-1 text-sm", config.color)}>
+                    <span>{config.icon}</span>
+                    <span>{getStatusLabel(status, isLowerBetter, actualValue, data.industryTarget)}</span>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic">
+                    Enter revenue to see status
+                  </p>
+                )}
               </div>
             </div>
           );
