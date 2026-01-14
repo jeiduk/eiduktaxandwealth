@@ -57,21 +57,7 @@ export const StrategyCard = ({
   onUpdate,
   onDelete,
 }: StrategyCardProps) => {
-  const [deductionInput, setDeductionInput] = useState(
-    clientStrategy.deduction_amount ? String(clientStrategy.deduction_amount) : ""
-  );
-  const [notes, setNotes] = useState(clientStrategy.notes || "");
-
-  useEffect(() => {
-    setDeductionInput(
-      clientStrategy.deduction_amount ? String(clientStrategy.deduction_amount) : ""
-    );
-    setNotes(clientStrategy.notes || "");
-  }, [clientStrategy.deduction_amount, clientStrategy.notes]);
-
-  const phaseColor = PHASE_COLORS[strategy.phase] || "#1e40af";
-
-  const formatCurrency = (value: number): string => {
+  const formatCurrencyValue = (value: number): string => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
@@ -80,10 +66,24 @@ export const StrategyCard = ({
     }).format(value);
   };
 
+  const [deductionInput, setDeductionInput] = useState(
+    clientStrategy.deduction_amount ? formatCurrencyValue(clientStrategy.deduction_amount) : ""
+  );
+  const [notes, setNotes] = useState(clientStrategy.notes || "");
+
+  useEffect(() => {
+    setDeductionInput(
+      clientStrategy.deduction_amount ? formatCurrencyValue(clientStrategy.deduction_amount) : ""
+    );
+    setNotes(clientStrategy.notes || "");
+  }, [clientStrategy.deduction_amount, clientStrategy.notes]);
+
+  const phaseColor = PHASE_COLORS[strategy.phase] || "#1e40af";
+
   const handleDeductionBlur = () => {
     const num = parseInt(deductionInput.replace(/[^0-9]/g, "")) || 0;
     const taxSavings = Math.round(num * taxRate);
-    setDeductionInput(num ? formatCurrency(num) : "");
+    setDeductionInput(num ? formatCurrencyValue(num) : "");
     onUpdate(clientStrategy.id, {
       deduction_amount: num || null,
       tax_savings: taxSavings || null,
@@ -187,7 +187,7 @@ export const StrategyCard = ({
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">Tax Savings:</span>
           <span className="text-lg font-bold text-emerald-600">
-            {formatCurrency(calculatedSavings)}
+            {formatCurrencyValue(calculatedSavings)}
           </span>
         </div>
       </div>
