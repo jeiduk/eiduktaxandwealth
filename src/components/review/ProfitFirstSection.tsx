@@ -445,8 +445,15 @@ export const ProfitFirstSection = ({
           </Button>
         </div>
 
-        <p className="text-sm text-muted-foreground mb-6">
-          Based on your revenue of {formatCurrency(summaryData.revenue)}, here are the recommended Profit First allocations
+        {/* Profit First Explainer */}
+        <div className="bg-white/60 border border-slate-200 rounded-md p-4 mb-6">
+          <p className="text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">Profit First</span> is a cash management system where you allocate revenue into specific "buckets" before paying expenses—ensuring profit, owner compensation, and taxes are prioritized. Instead of Revenue − Expenses = Profit, we flip it: <span className="font-medium text-foreground">Revenue − Profit = Expenses</span>. This approach helps build financial discipline and ensures your business is truly profitable.
+          </p>
+        </div>
+
+        <p className="text-sm text-muted-foreground mb-4">
+          Based on your revenue of {formatCurrency(summaryData.revenue)}, here are the recommended allocations:
         </p>
 
         {/* Profit First Bucket Cards */}
