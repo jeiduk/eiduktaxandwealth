@@ -960,7 +960,6 @@ const QuarterlyReviewForm = () => {
                       revenue={review.revenue_ytd}
                       profit={review.profit_ytd}
                       ownerPay={review.draw_ytd}
-                      cogs={review.cogs}
                       totalExpenses={review.total_expenses}
                       targets={{
                         profit: review.profit_first_profit_target ?? 10,
@@ -969,6 +968,22 @@ const QuarterlyReviewForm = () => {
                         opEx: review.profit_first_opex_target ?? 25,
                       }}
                       industryBenchmark={industryBenchmark}
+                      onRevenueChange={(value) => {
+                        updateField("revenue_ytd", value);
+                        saveReview({ revenue_ytd: value });
+                      }}
+                      onProfitChange={(value) => {
+                        updateField("profit_ytd", value);
+                        saveReview({ profit_ytd: value });
+                      }}
+                      onOwnerPayChange={(value) => {
+                        updateField("draw_ytd", value);
+                        saveReview({ draw_ytd: value });
+                      }}
+                      onExpensesChange={(value) => {
+                        updateField("total_expenses", value);
+                        saveReview({ total_expenses: value });
+                      }}
                       onTargetChange={(target, value) => {
                         const fieldMap = {
                           profit: 'profit_first_profit_target',
