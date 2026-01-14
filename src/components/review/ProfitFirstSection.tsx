@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { RotateCcw, BarChart3 } from "lucide-react";
+import { RotateCcw, TrendingUp, TrendingDown, DollarSign, CheckCircle, XCircle, Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface ProfitFirstTargets {
   profit: number;
@@ -24,6 +25,8 @@ interface ProfitFirstSectionProps {
   revenue: number | null;
   profit: number | null;
   ownerPay: number | null;
+  cogs?: number | null;
+  totalExpenses?: number | null;
   targets: ProfitFirstTargets;
   industryBenchmark: IndustryBenchmark | null;
   onTargetChange: (target: keyof ProfitFirstTargets, value: number) => void;
@@ -32,8 +35,11 @@ interface ProfitFirstSectionProps {
 
 interface BucketData {
   actual: number;
+  actualDollars: number;
   target: number;
+  targetDollars: number;
   industryTarget: number;
+  variance: number;
 }
 
 interface CalculatedData {
@@ -43,52 +49,44 @@ interface CalculatedData {
   opEx: BucketData;
 }
 
-type Status = 'good' | 'on-track' | 'review';
+type Status = 'good' | 'review';
 
-const statusConfig = {
-  'good': {
-    color: 'text-emerald-700',
-    bgColor: 'bg-emerald-50',
-    borderColor: 'border-emerald-500',
-    icon: '✓',
-  },
-  'on-track': {
-    color: 'text-amber-700',
-    bgColor: 'bg-amber-50',
-    borderColor: 'border-amber-500',
-    icon: '●',
-  },
-  'review': {
-    color: 'text-red-700',
-    bgColor: 'bg-red-50',
-    borderColor: 'border-red-500',
-    icon: '⚠',
-  },
-};
+function formatCurrency(value: number | null): string {
+  if (value === null || isNaN(value)) return '$0';
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function formatCurrencyDecimal(value: number | null): string {
+  if (value === null || isNaN(value)) return '$0.00';
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+function formatPercent(value: number | null): string {
+  if (value === null || isNaN(value)) return '0.0%';
+  return `${value.toFixed(1)}%`;
+}
 
 function getStatus(actual: number, target: number, isLowerBetter = false): Status {
   const diff = isLowerBetter ? target - actual : actual - target;
-
-  if (diff >= 0) return 'good';           // At or better than target
-  if (diff >= -5) return 'on-track';      // Within 5%
-  return 'review';                         // More than 5% off
-}
-
-function getStatusLabel(status: Status, isOpEx = false, actual: number, industryTarget: number): string {
-  if (isOpEx) {
-    if (status === 'good') return actual <= industryTarget ? 'Below Industry' : 'Good';
-    if (status === 'on-track') return 'On Track';
-    return 'Review';
-  }
-  if (status === 'good') return actual >= industryTarget ? 'Above Industry' : 'Above Target';
-  if (status === 'on-track') return 'On Track';
-  return 'Below Target';
+  return diff >= 0 ? 'good' : 'review';
 }
 
 export const ProfitFirstSection = ({
   revenue,
   profit,
   ownerPay,
+  cogs,
+  totalExpenses,
   targets,
   industryBenchmark,
   onTargetChange,
@@ -110,61 +108,89 @@ export const ProfitFirstSection = ({
   };
 
   const benchmark = industryBenchmark || defaultBenchmark;
-
   const hasRevenue = revenue && revenue > 0;
 
+  // Calculate summary metrics
+  const summaryData = useMemo(() => {
+    const rev = revenue || 0;
+    const netProfit = profit || 0;
+    const expenses = totalExpenses || 0;
+    const cogsValue = cogs || 0;
+    const totalExp = expenses + cogsValue;
+    const profitMargin = rev > 0 ? (netProfit / rev) * 100 : 0;
+    
+    return {
+      revenue: rev,
+      totalExpenses: totalExp,
+      netProfit,
+      profitMargin,
+      isProfitable: netProfit > 0,
+      isHealthyMargin: profitMargin >= 15,
+    };
+  }, [revenue, profit, totalExpenses, cogs]);
+
   const calculatedData = useMemo<CalculatedData>(() => {
+    const emptyBucket = (target: number, industryTarget: number): BucketData => ({
+      actual: 0,
+      actualDollars: 0,
+      target,
+      targetDollars: 0,
+      industryTarget,
+      variance: 0,
+    });
+
     if (!hasRevenue) {
-      // Return structure with null-like actuals when no revenue
       return {
-        profit: {
-          actual: null as unknown as number,
-          target: targets.profit,
-          industryTarget: benchmark.profit_target,
-        },
-        ownerPay: {
-          actual: null as unknown as number,
-          target: targets.ownerPay,
-          industryTarget: benchmark.owner_pay_target,
-        },
-        tax: {
-          actual: null as unknown as number,
-          target: targets.tax,
-          industryTarget: benchmark.tax_target,
-        },
-        opEx: {
-          actual: null as unknown as number,
-          target: targets.opEx,
-          industryTarget: benchmark.opex_target,
-        },
+        profit: emptyBucket(targets.profit, benchmark.profit_target),
+        ownerPay: emptyBucket(targets.ownerPay, benchmark.owner_pay_target),
+        tax: emptyBucket(targets.tax, benchmark.tax_target),
+        opEx: emptyBucket(targets.opEx, benchmark.opex_target),
       };
     }
 
+    const rev = revenue!;
     const profitValue = profit || 0;
     const ownerPayValue = ownerPay || 0;
-    const taxReserve = revenue * (targets.tax / 100);
-    const opExValue = revenue - profitValue - ownerPayValue - taxReserve;
+    const taxReserve = rev * (targets.tax / 100);
+    const opExValue = rev - profitValue - ownerPayValue - taxReserve;
+
+    const profitActual = (profitValue / rev) * 100;
+    const ownerPayActual = (ownerPayValue / rev) * 100;
+    const taxActual = (taxReserve / rev) * 100;
+    const opExActual = Math.max(0, (opExValue / rev) * 100);
 
     return {
       profit: {
-        actual: (profitValue / revenue) * 100,
+        actual: profitActual,
+        actualDollars: profitValue,
         target: targets.profit,
+        targetDollars: rev * (targets.profit / 100),
         industryTarget: benchmark.profit_target,
+        variance: profitActual - targets.profit,
       },
       ownerPay: {
-        actual: (ownerPayValue / revenue) * 100,
+        actual: ownerPayActual,
+        actualDollars: ownerPayValue,
         target: targets.ownerPay,
+        targetDollars: rev * (targets.ownerPay / 100),
         industryTarget: benchmark.owner_pay_target,
+        variance: ownerPayActual - targets.ownerPay,
       },
       tax: {
-        actual: (taxReserve / revenue) * 100,
+        actual: taxActual,
+        actualDollars: taxReserve,
         target: targets.tax,
+        targetDollars: rev * (targets.tax / 100),
         industryTarget: benchmark.tax_target,
+        variance: taxActual - targets.tax,
       },
       opEx: {
-        actual: Math.max(0, (opExValue / revenue) * 100),
+        actual: opExActual,
+        actualDollars: Math.max(0, opExValue),
         target: targets.opEx,
+        targetDollars: rev * (targets.opEx / 100),
         industryTarget: benchmark.opex_target,
+        variance: targets.opEx - opExActual, // Inverted for OpEx (lower is better)
       },
     };
   }, [revenue, profit, ownerPay, targets, benchmark, hasRevenue]);
@@ -186,24 +212,108 @@ export const ProfitFirstSection = ({
     title: string;
     isLowerBetter?: boolean;
   }> = [
-    { key: 'profit', title: 'PROFIT' },
-    { key: 'ownerPay', title: "OWNER'S PAY" },
-    { key: 'tax', title: 'TAX' },
-    { key: 'opEx', title: 'OPEX', isLowerBetter: true },
+    { key: 'profit', title: 'Profit' },
+    { key: 'ownerPay', title: "Owner's Pay" },
+    { key: 'tax', title: 'Tax' },
+    { key: 'opEx', title: 'Operating Expenses', isLowerBetter: true },
   ];
 
   return (
-    <div className="bg-slate-50 rounded-lg p-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-1">
-        <div className="flex items-center gap-2">
-          <span className="text-lg">💰</span>
-          <h3 className="font-semibold text-lg">Profit First Health Check</h3>
+    <div className="space-y-6">
+      {/* Summary Cards - Top Row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total Revenue */}
+        <div className="bg-card border rounded-lg p-4 shadow-sm">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Total Revenue</p>
+              <p className="text-2xl font-bold text-foreground mt-1">
+                {formatCurrencyDecimal(summaryData.revenue)}
+              </p>
+              <p className="text-xs text-primary mt-1">Gross receipts</p>
+            </div>
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <DollarSign className="h-5 w-5 text-primary" />
+            </div>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-muted-foreground">
-            Industry: <span className="font-medium text-foreground">{benchmark.display_name}</span>
-          </span>
+
+        {/* Total Expenses */}
+        <div className="bg-card border rounded-lg p-4 shadow-sm">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Total Expenses</p>
+              <p className="text-2xl font-bold text-foreground mt-1">
+                {formatCurrencyDecimal(summaryData.totalExpenses)}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">Including COGS</p>
+            </div>
+            <div className="w-10 h-10 rounded-lg bg-destructive/10 flex items-center justify-center">
+              <TrendingDown className="h-5 w-5 text-destructive" />
+            </div>
+          </div>
+        </div>
+
+        {/* Net Profit */}
+        <div className="bg-card border rounded-lg p-4 shadow-sm">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Net Profit</p>
+              <p className="text-2xl font-bold text-foreground mt-1">
+                {formatCurrencyDecimal(summaryData.netProfit)}
+              </p>
+              <p className={cn("text-xs mt-1", summaryData.isProfitable ? "text-emerald-600" : "text-destructive")}>
+                {summaryData.isProfitable ? "Profitable" : "Not profitable"}
+              </p>
+            </div>
+            <div className={cn(
+              "w-10 h-10 rounded-lg flex items-center justify-center",
+              summaryData.isProfitable ? "bg-emerald-500/10" : "bg-destructive/10"
+            )}>
+              <TrendingUp className={cn("h-5 w-5", summaryData.isProfitable ? "text-emerald-600" : "text-destructive")} />
+            </div>
+          </div>
+        </div>
+
+        {/* Profit Margin */}
+        <div className="bg-card border rounded-lg p-4 shadow-sm">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Profit Margin</p>
+              <p className="text-2xl font-bold text-foreground mt-1">
+                {formatPercent(summaryData.profitMargin)}
+              </p>
+              <p className={cn("text-xs mt-1", summaryData.isHealthyMargin ? "text-emerald-600" : "text-amber-600")}>
+                {summaryData.isHealthyMargin ? "Healthy margin" : "Below target"}
+              </p>
+            </div>
+            <div className={cn(
+              "w-10 h-10 rounded-lg flex items-center justify-center",
+              summaryData.isHealthyMargin ? "bg-emerald-500/10" : "bg-amber-500/10"
+            )}>
+              <CheckCircle className={cn("h-5 w-5", summaryData.isHealthyMargin ? "text-emerald-600" : "text-amber-600")} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Profit First Methodology Section */}
+      <div className="bg-slate-50 rounded-lg p-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold text-lg">Profit First Methodology</h3>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Info className="h-4 w-4 text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="max-w-xs">Based on Mike Michalowicz's Profit First methodology</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
           <Button 
             variant="outline" 
             size="sm" 
@@ -211,88 +321,100 @@ export const ProfitFirstSection = ({
             className="h-8"
           >
             <RotateCcw className="h-3 w-3 mr-1" />
-            Reset to Industry Defaults
+            Reset to Defaults
           </Button>
         </div>
-      </div>
-      <p className="text-sm text-muted-foreground italic mb-4">
-        Based on Mike Michalowicz's Profit First methodology
-      </p>
 
-      {/* Industry Benchmark Reference */}
-      <div className="flex items-center gap-2 text-xs text-muted-foreground bg-white/50 px-3 py-2 rounded-md mb-6">
-        <BarChart3 className="h-3.5 w-3.5" />
-        <span>
-          Industry benchmarks for {benchmark.display_name}: 
-          <span className="font-medium ml-1">
-            Profit {benchmark.profit_target}% | Owner {benchmark.owner_pay_target}% | Tax {benchmark.tax_target}% | OpEx {benchmark.opex_target}%
-          </span>
-        </span>
-      </div>
+        <p className="text-sm text-muted-foreground mb-6">
+          Based on your revenue of {formatCurrencyDecimal(summaryData.revenue)}, here are the recommended Profit First allocations
+        </p>
 
-      {/* Bucket Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {buckets.map(({ key, title, isLowerBetter }) => {
-          const data = calculatedData[key];
-          const actualValue = data.actual;
-          const hasActual = actualValue !== null && !isNaN(actualValue);
-          const status = hasActual ? getStatus(actualValue, data.target, isLowerBetter) : null;
-          const config = status ? statusConfig[status] : { borderColor: 'border-slate-300', color: 'text-muted-foreground', icon: '—', bgColor: 'bg-slate-50' };
-          const targetKey = key === 'ownerPay' ? 'ownerPay' : key as keyof ProfitFirstTargets;
+        {/* Profit First Bucket Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {buckets.map(({ key, title, isLowerBetter }) => {
+            const data = calculatedData[key];
+            const status = hasRevenue ? getStatus(data.actual, data.target, isLowerBetter) : null;
+            const isGood = status === 'good';
+            const varianceValue = isLowerBetter ? data.variance : data.actual - data.target;
+            const showPositive = varianceValue >= 0;
+            const targetKey = key === 'ownerPay' ? 'ownerPay' : key as keyof ProfitFirstTargets;
 
-          return (
-            <div
-              key={key}
-              className={cn(
-                "bg-white rounded-lg p-4 shadow-sm border-t-4",
-                config.borderColor
-              )}
-            >
-              <h4 className="text-xs font-bold uppercase text-muted-foreground tracking-wide mb-3">
-                {title}
-              </h4>
-
-              <div className="space-y-3">
-                <div>
-                  <label className="text-xs text-muted-foreground">Target:</label>
-                  <div className="flex items-center gap-1">
-                    <Input
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={localTargets[targetKey]}
-                      onChange={(e) => handleTargetInputChange(targetKey, e.target.value)}
-                      onBlur={() => handleTargetBlur(targetKey)}
-                      className="w-16 h-8 text-center text-sm"
-                    />
-                    <span className="text-sm text-muted-foreground">%</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    (ind: {data.industryTarget}%)
-                  </p>
+            return (
+              <div
+                key={key}
+                className="bg-card rounded-lg p-4 border shadow-sm"
+              >
+                {/* Header with title and status icon */}
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-medium text-muted-foreground">
+                    {title}
+                  </h4>
+                  {hasRevenue && (
+                    <div className={cn(
+                      "w-6 h-6 rounded-full flex items-center justify-center",
+                      isGood ? "bg-emerald-100" : "bg-destructive/10"
+                    )}>
+                      {isGood ? (
+                        <CheckCircle className="h-4 w-4 text-emerald-600" />
+                      ) : (
+                        <XCircle className="h-4 w-4 text-destructive" />
+                      )}
+                    </div>
+                  )}
                 </div>
 
-                <div>
-                  <label className="text-xs text-muted-foreground">Actual:</label>
-                  <p className={cn("text-lg font-bold", config.color)}>
-                    {hasActual ? `${actualValue.toFixed(1)}%` : '—'}
-                  </p>
+                {/* Main percentage and variance */}
+                <div className="flex items-baseline gap-2 mb-1">
+                  <span className={cn(
+                    "text-2xl font-bold",
+                    hasRevenue ? (isGood ? "text-emerald-600" : "text-destructive") : "text-foreground"
+                  )}>
+                    {hasRevenue ? formatPercent(data.actual) : '—'}
+                  </span>
+                  {hasRevenue && (
+                    <span className={cn(
+                      "text-sm font-medium",
+                      showPositive ? "text-emerald-600" : "text-destructive"
+                    )}>
+                      {showPositive ? '+' : ''}{varianceValue.toFixed(1)}%
+                    </span>
+                  )}
                 </div>
 
-                {hasActual && status ? (
-                  <div className={cn("flex items-center gap-1 text-sm", config.color)}>
-                    <span>{config.icon}</span>
-                    <span>{getStatusLabel(status, isLowerBetter, actualValue, data.industryTarget)}</span>
+                {/* Target with editable input */}
+                <div className="flex items-center gap-1 text-sm text-muted-foreground mb-4">
+                  <span>Target:</span>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={localTargets[targetKey]}
+                    onChange={(e) => handleTargetInputChange(targetKey, e.target.value)}
+                    onBlur={() => handleTargetBlur(targetKey)}
+                    className="w-14 h-6 text-center text-xs px-1"
+                  />
+                  <span>%</span>
+                </div>
+
+                {/* Actual and Target dollar amounts */}
+                <div className="space-y-1 text-sm border-t pt-3">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Actual</span>
+                    <span className="font-medium tabular-nums">
+                      {hasRevenue ? formatCurrency(data.actualDollars) : '—'}
+                    </span>
                   </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground italic">
-                    Enter revenue to see status
-                  </p>
-                )}
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Target</span>
+                    <span className="font-medium tabular-nums">
+                      {hasRevenue ? formatCurrency(data.targetDollars) : '—'}
+                    </span>
+                  </div>
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );
