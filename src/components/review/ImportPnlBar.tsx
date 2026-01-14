@@ -75,23 +75,23 @@ function extractFinancials(text: string): ImportedData {
   for (const line of lines) {
     const lower = line.toLowerCase();
 
-    // Revenue patterns - look for "Total for Income" or similar
+    // Revenue patterns - map from Gross Profit
     if (!result.revenue && (
+      lower.includes('gross profit') ||
       lower.includes('total for income') ||
       lower.includes('total income') ||
       lower.includes('gross revenue') ||
-      lower.includes('total revenue') ||
-      (lower.match(/^revenue\b/) && !lower.includes('net'))
+      lower.includes('total revenue')
     )) {
       result.revenue = getNumber(line);
     }
 
-    // Net Profit patterns
+    // Net Profit patterns - map from Net Operating Income
     if (!result.netProfit && (
-      lower.includes('net income') ||
-      lower.includes('net profit') ||
+      lower.includes('net operating income') ||
       lower.includes('net ordinary income') ||
-      lower.includes('net operating income')
+      lower.includes('net income') ||
+      lower.includes('net profit')
     )) {
       result.netProfit = getNumber(line);
     }
@@ -216,22 +216,22 @@ function extractFinancialsFromWorkbook(workbook: XLSX.WorkBook): ImportedData {
 
     if (value === null) continue;
 
-    // Revenue patterns
+    // Revenue patterns - map from Gross Profit
     if (!result.revenue && (
+      label.includes('gross profit') ||
       label.includes('total income') ||
       label.includes('gross revenue') ||
-      label.includes('total revenue') ||
-      (label.includes('revenue') && !label.includes('net'))
+      label.includes('total revenue')
     )) {
       result.revenue = value;
     }
 
-    // Net Profit patterns
+    // Net Profit patterns - map from Net Operating Income
     if (!result.netProfit && (
-      label.includes('net income') ||
-      label.includes('net profit') ||
+      label.includes('net operating income') ||
       label.includes('net ordinary income') ||
-      label.includes('net operating income')
+      label.includes('net income') ||
+      label.includes('net profit')
     )) {
       result.netProfit = value;
     }
