@@ -25,10 +25,13 @@ interface ProfitFirstSectionProps {
   revenue: number | null;
   profit: number | null;
   ownerPay: number | null;
-  cogs?: number | null;
-  totalExpenses?: number | null;
+  totalExpenses: number | null;
   targets: ProfitFirstTargets;
   industryBenchmark: IndustryBenchmark | null;
+  onRevenueChange: (value: number | null) => void;
+  onProfitChange: (value: number | null) => void;
+  onOwnerPayChange: (value: number | null) => void;
+  onExpensesChange: (value: number | null) => void;
   onTargetChange: (target: keyof ProfitFirstTargets, value: number) => void;
   onResetToDefaults: () => void;
 }
@@ -61,16 +64,6 @@ function formatCurrency(value: number | null): string {
   }).format(value);
 }
 
-function formatCurrencyDecimal(value: number | null): string {
-  if (value === null || isNaN(value)) return '$0.00';
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
-
 function formatPercent(value: number | null): string {
   if (value === null || isNaN(value)) return '0.0%';
   return `${value.toFixed(1)}%`;
@@ -81,14 +74,60 @@ function getStatus(actual: number, target: number, isLowerBetter = false): Statu
   return diff >= 0 ? 'good' : 'review';
 }
 
+// Editable currency input component
+function CurrencyInput({ 
+  value, 
+  onChange, 
+  onBlur,
+  placeholder = "0"
+}: { 
+  value: number | null; 
+  onChange: (value: number | null) => void;
+  onBlur?: (value: number | null) => void;
+  placeholder?: string;
+}) {
+  const [localValue, setLocalValue] = useState(value?.toString() ?? '');
+
+  useEffect(() => {
+    setLocalValue(value?.toString() ?? '');
+  }, [value]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setLocalValue(val);
+    const num = parseFloat(val);
+    onChange(isNaN(num) ? null : num);
+  };
+
+  const handleBlur = () => {
+    const num = parseFloat(localValue);
+    const finalValue = isNaN(num) ? null : num;
+    onBlur?.(finalValue);
+  };
+
+  return (
+    <Input
+      type="number"
+      value={localValue}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      placeholder={placeholder}
+      className="h-10 text-xl font-bold bg-transparent border-0 border-b-2 border-dashed border-muted-foreground/30 rounded-none px-0 focus-visible:ring-0 focus-visible:border-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+    />
+  );
+}
+
 export const ProfitFirstSection = ({
   revenue,
   profit,
   ownerPay,
-  cogs,
   totalExpenses,
   targets,
   industryBenchmark,
+  onRevenueChange,
+  onProfitChange,
+  onOwnerPayChange,
+  onExpensesChange,
   onTargetChange,
   onResetToDefaults,
 }: ProfitFirstSectionProps) => {
@@ -115,19 +154,17 @@ export const ProfitFirstSection = ({
     const rev = revenue || 0;
     const netProfit = profit || 0;
     const expenses = totalExpenses || 0;
-    const cogsValue = cogs || 0;
-    const totalExp = expenses + cogsValue;
     const profitMargin = rev > 0 ? (netProfit / rev) * 100 : 0;
     
     return {
       revenue: rev,
-      totalExpenses: totalExp,
+      totalExpenses: expenses,
       netProfit,
       profitMargin,
       isProfitable: netProfit > 0,
       isHealthyMargin: profitMargin >= 15,
     };
-  }, [revenue, profit, totalExpenses, cogs]);
+  }, [revenue, profit, totalExpenses]);
 
   const calculatedData = useMemo<CalculatedData>(() => {
     const emptyBucket = (target: number, industryTarget: number): BucketData => ({
@@ -152,7 +189,7 @@ export const ProfitFirstSection = ({
     const profitValue = profit || 0;
     const ownerPayValue = ownerPay || 0;
     const taxReserve = rev * (targets.tax / 100);
-    const opExValue = rev - profitValue - ownerPayValue - taxReserve;
+    const opExValue = totalExpenses || (rev - profitValue - ownerPayValue - taxReserve);
 
     const profitActual = (profitValue / rev) * 100;
     const ownerPayActual = (ownerPayValue / rev) * 100;
@@ -193,7 +230,7 @@ export const ProfitFirstSection = ({
         variance: targets.opEx - opExActual, // Inverted for OpEx (lower is better)
       },
     };
-  }, [revenue, profit, ownerPay, targets, benchmark, hasRevenue]);
+  }, [revenue, profit, ownerPay, totalExpenses, targets, benchmark, hasRevenue]);
 
   const handleTargetBlur = (key: keyof ProfitFirstTargets) => {
     const value = localTargets[key];
@@ -211,25 +248,32 @@ export const ProfitFirstSection = ({
     key: keyof CalculatedData;
     title: string;
     isLowerBetter?: boolean;
+    isEditable?: boolean;
+    onActualChange?: (value: number | null) => void;
   }> = [
-    { key: 'profit', title: 'Profit' },
-    { key: 'ownerPay', title: "Owner's Pay" },
-    { key: 'tax', title: 'Tax' },
-    { key: 'opEx', title: 'Operating Expenses', isLowerBetter: true },
+    { key: 'profit', title: 'Profit', isEditable: false },
+    { key: 'ownerPay', title: "Owner's Pay", isEditable: true, onActualChange: onOwnerPayChange },
+    { key: 'tax', title: 'Tax', isEditable: false },
+    { key: 'opEx', title: 'Operating Expenses', isLowerBetter: true, isEditable: false },
   ];
 
   return (
     <div className="space-y-6">
-      {/* Summary Cards - Top Row */}
+      {/* Summary Cards - Top Row (Editable) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Revenue */}
         <div className="bg-card border rounded-lg p-4 shadow-sm">
           <div className="flex items-start justify-between">
-            <div>
+            <div className="flex-1">
               <p className="text-sm text-muted-foreground">Total Revenue</p>
-              <p className="text-2xl font-bold text-foreground mt-1">
-                {formatCurrencyDecimal(summaryData.revenue)}
-              </p>
+              <div className="flex items-center mt-1">
+                <span className="text-muted-foreground mr-1">$</span>
+                <CurrencyInput 
+                  value={revenue} 
+                  onChange={onRevenueChange}
+                  onBlur={onRevenueChange}
+                />
+              </div>
               <p className="text-xs text-primary mt-1">Gross receipts</p>
             </div>
             <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -241,12 +285,17 @@ export const ProfitFirstSection = ({
         {/* Total Expenses */}
         <div className="bg-card border rounded-lg p-4 shadow-sm">
           <div className="flex items-start justify-between">
-            <div>
+            <div className="flex-1">
               <p className="text-sm text-muted-foreground">Total Expenses</p>
-              <p className="text-2xl font-bold text-foreground mt-1">
-                {formatCurrencyDecimal(summaryData.totalExpenses)}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">Including COGS</p>
+              <div className="flex items-center mt-1">
+                <span className="text-muted-foreground mr-1">$</span>
+                <CurrencyInput 
+                  value={totalExpenses} 
+                  onChange={onExpensesChange}
+                  onBlur={onExpensesChange}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Operating expenses</p>
             </div>
             <div className="w-10 h-10 rounded-lg bg-destructive/10 flex items-center justify-center">
               <TrendingDown className="h-5 w-5 text-destructive" />
@@ -257,11 +306,16 @@ export const ProfitFirstSection = ({
         {/* Net Profit */}
         <div className="bg-card border rounded-lg p-4 shadow-sm">
           <div className="flex items-start justify-between">
-            <div>
+            <div className="flex-1">
               <p className="text-sm text-muted-foreground">Net Profit</p>
-              <p className="text-2xl font-bold text-foreground mt-1">
-                {formatCurrencyDecimal(summaryData.netProfit)}
-              </p>
+              <div className="flex items-center mt-1">
+                <span className="text-muted-foreground mr-1">$</span>
+                <CurrencyInput 
+                  value={profit} 
+                  onChange={onProfitChange}
+                  onBlur={onProfitChange}
+                />
+              </div>
               <p className={cn("text-xs mt-1", summaryData.isProfitable ? "text-emerald-600" : "text-destructive")}>
                 {summaryData.isProfitable ? "Profitable" : "Not profitable"}
               </p>
@@ -275,7 +329,7 @@ export const ProfitFirstSection = ({
           </div>
         </div>
 
-        {/* Profit Margin */}
+        {/* Profit Margin (calculated) */}
         <div className="bg-card border rounded-lg p-4 shadow-sm">
           <div className="flex items-start justify-between">
             <div>
@@ -326,12 +380,12 @@ export const ProfitFirstSection = ({
         </div>
 
         <p className="text-sm text-muted-foreground mb-6">
-          Based on your revenue of {formatCurrencyDecimal(summaryData.revenue)}, here are the recommended Profit First allocations
+          Based on your revenue of {formatCurrency(summaryData.revenue)}, here are the recommended Profit First allocations
         </p>
 
         {/* Profit First Bucket Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {buckets.map(({ key, title, isLowerBetter }) => {
+          {buckets.map(({ key, title, isLowerBetter, isEditable, onActualChange }) => {
             const data = calculatedData[key];
             const status = hasRevenue ? getStatus(data.actual, data.target, isLowerBetter) : null;
             const isGood = status === 'good';
@@ -398,11 +452,27 @@ export const ProfitFirstSection = ({
 
                 {/* Actual and Target dollar amounts */}
                 <div className="space-y-1 text-sm border-t pt-3">
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Actual</span>
-                    <span className="font-medium tabular-nums">
-                      {hasRevenue ? formatCurrency(data.actualDollars) : '—'}
-                    </span>
+                    {isEditable && onActualChange ? (
+                      <div className="flex items-center">
+                        <span className="text-muted-foreground text-xs mr-1">$</span>
+                        <Input
+                          type="number"
+                          value={data.actualDollars || ''}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value);
+                            onActualChange(isNaN(val) ? null : val);
+                          }}
+                          className="w-20 h-6 text-right text-xs px-1"
+                          placeholder="0"
+                        />
+                      </div>
+                    ) : (
+                      <span className="font-medium tabular-nums">
+                        {hasRevenue ? formatCurrency(data.actualDollars) : '—'}
+                      </span>
+                    )}
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Target</span>
