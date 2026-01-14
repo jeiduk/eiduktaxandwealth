@@ -18,11 +18,28 @@ interface ImportedData {
   netProfit: number | null;
   cogs: number | null;
   expenses: number | null;
+  ownerPay: number | null;
 }
 
 interface ImportPnlBarProps {
   onImport: (data: ImportedData) => void;
 }
+
+// Helper to extract number from a string
+const extractNumber = (text: string): number | null => {
+  // Match numbers with optional $ and commas, including negative numbers in parentheses
+  const match = text.match(/\(?\$?\s*([\d,]+\.?\d*)\)?/);
+  if (match) {
+    const numStr = match[1].replace(/,/g, '');
+    const num = parseFloat(numStr);
+    // Check if it was a negative number in parentheses
+    if (text.includes('(') && text.includes(')')) {
+      return -num;
+    }
+    return num;
+  }
+  return null;
+};
 
 function extractFinancials(text: string): ImportedData {
   const result: ImportedData = {
@@ -30,25 +47,10 @@ function extractFinancials(text: string): ImportedData {
     netProfit: null,
     cogs: null,
     expenses: null,
+    ownerPay: null,
   };
 
   const lines = text.split('\n');
-
-  // Helper to extract number from line
-  const extractNumber = (line: string): number | null => {
-    // Match numbers with optional $ and commas, including negative numbers in parentheses
-    const match = line.match(/\(?\$?\s*([\d,]+\.?\d*)\)?/);
-    if (match) {
-      const numStr = match[1].replace(/,/g, '');
-      const num = parseFloat(numStr);
-      // Check if it was a negative number in parentheses
-      if (line.includes('(') && line.includes(')')) {
-        return -num;
-      }
-      return num;
-    }
-    return null;
-  };
 
   for (const line of lines) {
     const lower = line.toLowerCase();
@@ -89,6 +91,166 @@ function extractFinancials(text: string): ImportedData {
     )) {
       result.expenses = extractNumber(line);
     }
+
+    // Owner Pay / Personal Draw patterns
+    if (!result.ownerPay && (
+      lower.includes('owner pay') ||
+      lower.includes('owner\'s pay') ||
+      lower.includes('owners pay') ||
+      lower.includes('personal draw') ||
+      lower.includes('owner draw') ||
+      lower.includes('owner\'s draw') ||
+      lower.includes('owners draw') ||
+      lower.includes('shareholder distribution') ||
+      lower.includes('officer compensation') ||
+      lower.includes('owner compensation')
+    )) {
+      result.ownerPay = extractNumber(line);
+    }
+  }
+
+  return result;
+}
+
+// Extract financials from Excel with Total column fallback
+function extractFinancialsFromWorkbook(workbook: XLSX.WorkBook): ImportedData {
+  const result: ImportedData = {
+    revenue: null,
+    netProfit: null,
+    cogs: null,
+    expenses: null,
+    ownerPay: null,
+  };
+
+  const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+  const rawData = XLSX.utils.sheet_to_json<unknown[]>(firstSheet, { header: 1 });
+  const data: unknown[][] = rawData as unknown[][];
+  
+  if (data.length === 0) return result;
+
+  // Find header row and identify "Total" column (usually last numeric column)
+  let totalColIndex = -1;
+  let headerRowIndex = -1;
+  
+  // Look for header row (first row with text that looks like column headers)
+  for (let i = 0; i < Math.min(data.length, 10); i++) {
+    const row = data[i];
+    if (!row || row.length === 0) continue;
+    
+    // Check if this row has column headers like "Total", "YTD", month names, etc.
+    for (let j = row.length - 1; j >= 0; j--) {
+      const cell = String(row[j] || '').toLowerCase().trim();
+      if (cell === 'total' || cell === 'ytd' || cell === 'year to date' || cell === 'ytd total') {
+        totalColIndex = j;
+        headerRowIndex = i;
+        break;
+      }
+    }
+    if (totalColIndex >= 0) break;
+  }
+
+  // If no "Total" header found, use the last column as fallback
+  if (totalColIndex === -1) {
+    // Find the rightmost column with numeric data
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+      if (!row) continue;
+      for (let j = row.length - 1; j >= 0; j--) {
+        const cell = row[j];
+        if (cell !== undefined && cell !== null && cell !== '') {
+          const num = extractNumber(String(cell));
+          if (num !== null) {
+            totalColIndex = j;
+            break;
+          }
+        }
+      }
+      if (totalColIndex >= 0) break;
+    }
+  }
+
+  // Now scan rows for financial line items
+  for (let i = headerRowIndex + 1; i < data.length; i++) {
+    const row = data[i];
+    if (!row || row.length === 0) continue;
+    
+    const label = String(row[0] || '').toLowerCase().trim();
+    
+    // Get value from total column, or fallback to last non-empty cell
+    let value: number | null = null;
+    if (totalColIndex >= 0 && row[totalColIndex] !== undefined) {
+      value = extractNumber(String(row[totalColIndex]));
+    }
+    if (value === null) {
+      // Fallback: find last numeric value in the row
+      for (let j = row.length - 1; j >= 1; j--) {
+        if (row[j] !== undefined && row[j] !== null && row[j] !== '') {
+          value = extractNumber(String(row[j]));
+          if (value !== null) break;
+        }
+      }
+    }
+
+    if (value === null) continue;
+
+    // Revenue patterns
+    if (!result.revenue && (
+      label.includes('total income') ||
+      label.includes('gross revenue') ||
+      label.includes('total revenue') ||
+      (label.includes('revenue') && !label.includes('net'))
+    )) {
+      result.revenue = value;
+    }
+
+    // Net Profit patterns
+    if (!result.netProfit && (
+      label.includes('net income') ||
+      label.includes('net profit') ||
+      label.includes('net ordinary income') ||
+      label.includes('net operating income')
+    )) {
+      result.netProfit = value;
+    }
+
+    // COGS patterns
+    if (!result.cogs && (
+      label.includes('cost of goods sold') ||
+      label.includes('cost of sales') ||
+      label === 'cogs'
+    )) {
+      result.cogs = value;
+    }
+
+    // Expenses patterns
+    if (!result.expenses && (
+      label.includes('total expenses') ||
+      label.includes('total operating expenses')
+    )) {
+      result.expenses = value;
+    }
+
+    // Owner Pay patterns
+    if (!result.ownerPay && (
+      label.includes('owner pay') ||
+      label.includes('owner\'s pay') ||
+      label.includes('owners pay') ||
+      label.includes('personal draw') ||
+      label.includes('owner draw') ||
+      label.includes('owner\'s draw') ||
+      label.includes('owners draw') ||
+      label.includes('shareholder distribution') ||
+      label.includes('officer compensation') ||
+      label.includes('owner compensation')
+    )) {
+      result.ownerPay = value;
+    }
+  }
+
+  // If Excel parsing didn't find data, fallback to CSV text parsing
+  if (!result.revenue && !result.netProfit && !result.cogs && !result.expenses && !result.ownerPay) {
+    const csvText = XLSX.utils.sheet_to_csv(firstSheet);
+    return extractFinancials(csvText);
   }
 
   return result;
@@ -116,7 +278,7 @@ export const ImportPnlBar = ({ onImport }: ImportPnlBarProps) => {
       const data = extractFinancials(pastedText);
       
       // Check if we found anything
-      if (!data.revenue && !data.netProfit && !data.cogs && !data.expenses) {
+      if (!data.revenue && !data.netProfit && !data.cogs && !data.expenses && !data.ownerPay) {
         toast({
           title: "No Data Found",
           description: "Could not find financial data. Please check the format.",
@@ -132,6 +294,7 @@ export const ImportPnlBar = ({ onImport }: ImportPnlBarProps) => {
       if (data.netProfit) found.push(`Net Profit ${formatCurrency(data.netProfit)}`);
       if (data.cogs) found.push(`COGS ${formatCurrency(data.cogs)}`);
       if (data.expenses) found.push(`Expenses ${formatCurrency(data.expenses)}`);
+      if (data.ownerPay) found.push(`Owner Pay ${formatCurrency(data.ownerPay)}`);
 
       onImport(data);
       setShowPasteModal(false);
@@ -160,22 +323,20 @@ export const ImportPnlBar = ({ onImport }: ImportPnlBarProps) => {
 
     try {
       const extension = file.name.split('.').pop()?.toLowerCase();
-      let text = "";
+      let data: ImportedData;
 
       if (extension === 'xlsx' || extension === 'xls') {
-        // Handle Excel files
+        // Handle Excel files with smart column detection
         const arrayBuffer = await file.arrayBuffer();
         const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        text = XLSX.utils.sheet_to_csv(firstSheet);
+        data = extractFinancialsFromWorkbook(workbook);
       } else {
         // Handle text/csv files
-        text = await file.text();
+        const text = await file.text();
+        data = extractFinancials(text);
       }
 
-      const data = extractFinancials(text);
-
-      if (!data.revenue && !data.netProfit && !data.cogs && !data.expenses) {
+      if (!data.revenue && !data.netProfit && !data.cogs && !data.expenses && !data.ownerPay) {
         toast({
           title: "No Data Found",
           description: "Could not find financial data in the file. Please check the format.",
@@ -190,6 +351,7 @@ export const ImportPnlBar = ({ onImport }: ImportPnlBarProps) => {
       if (data.netProfit) found.push(`Net Profit ${formatCurrency(data.netProfit)}`);
       if (data.cogs) found.push(`COGS ${formatCurrency(data.cogs)}`);
       if (data.expenses) found.push(`Expenses ${formatCurrency(data.expenses)}`);
+      if (data.ownerPay) found.push(`Owner Pay ${formatCurrency(data.ownerPay)}`);
 
       onImport(data);
       

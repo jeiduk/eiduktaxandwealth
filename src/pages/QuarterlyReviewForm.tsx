@@ -944,6 +944,9 @@ const QuarterlyReviewForm = () => {
                         if (data.expenses !== null) {
                           updates.total_expenses = data.expenses;
                         }
+                        if (data.ownerPay !== null) {
+                          updates.draw_ytd = data.ownerPay;
+                        }
                         if (Object.keys(updates).length > 0) {
                           // Update local state with all fields at once
                           setReview((prev) => prev ? { ...prev, ...updates } : null);
