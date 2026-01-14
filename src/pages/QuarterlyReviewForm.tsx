@@ -1046,6 +1046,8 @@ const QuarterlyReviewForm = () => {
                       revenue={review.revenue_ytd}
                       profit={review.profit_ytd}
                       ownerPay={review.draw_ytd}
+                      cogs={review.cogs}
+                      totalExpenses={review.total_expenses}
                       targets={{
                         profit: review.profit_first_profit_target ?? 10,
                         ownerPay: review.profit_first_owner_target ?? 50,
