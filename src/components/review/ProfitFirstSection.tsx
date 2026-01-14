@@ -450,6 +450,14 @@ export const ProfitFirstSection = ({
           <p className="text-sm text-muted-foreground">
             <span className="font-medium text-foreground">Profit First</span> is a cash management system where you allocate revenue into specific "buckets" before paying expenses—ensuring profit, owner compensation, and taxes are prioritized. Instead of Revenue − Expenses = Profit, we flip it: <span className="font-medium text-foreground">Revenue − Profit = Expenses</span>. This approach helps build financial discipline and ensures your business is truly profitable.
           </p>
+          <a 
+            href="https://mikemichalowicz.com/profit-first/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-sm text-primary hover:underline mt-2"
+          >
+            Learn more about Profit First →
+          </a>
         </div>
 
         <p className="text-sm text-muted-foreground mb-4">
