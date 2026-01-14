@@ -387,6 +387,7 @@ export type Database = {
           revenue_ytd: number | null
           status: string
           tax_rate_override: number | null
+          tax_ytd: number | null
           total_expenses: number | null
           updated_at: string
         }
@@ -424,6 +425,7 @@ export type Database = {
           revenue_ytd?: number | null
           status?: string
           tax_rate_override?: number | null
+          tax_ytd?: number | null
           total_expenses?: number | null
           updated_at?: string
         }
@@ -461,6 +463,7 @@ export type Database = {
           revenue_ytd?: number | null
           status?: string
           tax_rate_override?: number | null
+          tax_ytd?: number | null
           total_expenses?: number | null
           updated_at?: string
         }

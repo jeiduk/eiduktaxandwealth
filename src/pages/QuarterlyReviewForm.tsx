@@ -92,6 +92,7 @@ interface QuarterlyReview {
   cogs: number | null;
   total_expenses: number | null;
   employee_count: number | null;
+  tax_ytd: number | null;
   // Profit First targets
   profit_first_profit_target: number | null;
   profit_first_owner_target: number | null;
@@ -960,6 +961,7 @@ const QuarterlyReviewForm = () => {
                       revenue={review.revenue_ytd}
                       profit={review.profit_ytd}
                       ownerPay={review.draw_ytd}
+                      taxPaid={review.tax_ytd}
                       totalExpenses={review.total_expenses}
                       targets={{
                         profit: review.profit_first_profit_target ?? 10,
@@ -979,6 +981,10 @@ const QuarterlyReviewForm = () => {
                       onOwnerPayChange={(value) => {
                         updateField("draw_ytd", value);
                         saveReview({ draw_ytd: value });
+                      }}
+                      onTaxPaidChange={(value) => {
+                        updateField("tax_ytd", value);
+                        saveReview({ tax_ytd: value });
                       }}
                       onExpensesChange={(value) => {
                         updateField("total_expenses", value);

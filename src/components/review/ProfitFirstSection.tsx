@@ -25,12 +25,14 @@ interface ProfitFirstSectionProps {
   revenue: number | null;
   profit: number | null;
   ownerPay: number | null;
+  taxPaid: number | null;
   totalExpenses: number | null;
   targets: ProfitFirstTargets;
   industryBenchmark: IndustryBenchmark | null;
   onRevenueChange: (value: number | null) => void;
   onProfitChange: (value: number | null) => void;
   onOwnerPayChange: (value: number | null) => void;
+  onTaxPaidChange: (value: number | null) => void;
   onExpensesChange: (value: number | null) => void;
   onTargetChange: (target: keyof ProfitFirstTargets, value: number) => void;
   onResetToDefaults: () => void;
@@ -192,12 +194,14 @@ export const ProfitFirstSection = ({
   revenue,
   profit,
   ownerPay,
+  taxPaid,
   totalExpenses,
   targets,
   industryBenchmark,
   onRevenueChange,
   onProfitChange,
   onOwnerPayChange,
+  onTaxPaidChange,
   onExpensesChange,
   onTargetChange,
   onResetToDefaults,
@@ -259,12 +263,12 @@ export const ProfitFirstSection = ({
     const rev = revenue!;
     const profitValue = profit || 0;
     const ownerPayValue = ownerPay || 0;
-    const taxReserve = rev * (targets.tax / 100);
-    const opExValue = totalExpenses || (rev - profitValue - ownerPayValue - taxReserve);
+    const taxPaidValue = taxPaid || 0;
+    const opExValue = totalExpenses || 0;
 
     const profitActual = (profitValue / rev) * 100;
     const ownerPayActual = (ownerPayValue / rev) * 100;
-    const taxActual = (taxReserve / rev) * 100;
+    const taxActual = (taxPaidValue / rev) * 100;
     const opExActual = Math.max(0, (opExValue / rev) * 100);
 
     return {
@@ -286,7 +290,7 @@ export const ProfitFirstSection = ({
       },
       tax: {
         actual: taxActual,
-        actualDollars: taxReserve,
+        actualDollars: taxPaidValue,
         target: targets.tax,
         targetDollars: rev * (targets.tax / 100),
         industryTarget: benchmark.tax_target,
@@ -301,7 +305,7 @@ export const ProfitFirstSection = ({
         variance: targets.opEx - opExActual,
       },
     };
-  }, [revenue, profit, ownerPay, totalExpenses, targets, benchmark, hasRevenue]);
+  }, [revenue, profit, ownerPay, taxPaid, totalExpenses, targets, benchmark, hasRevenue]);
 
   const handleTargetBlur = (key: keyof ProfitFirstTargets) => {
     const value = localTargets[key];
@@ -324,7 +328,7 @@ export const ProfitFirstSection = ({
   }> = [
     { key: 'profit', title: 'Profit', isEditable: false },
     { key: 'ownerPay', title: "Owner's Pay", isEditable: true, onActualChange: onOwnerPayChange },
-    { key: 'tax', title: 'Tax', isEditable: false },
+    { key: 'tax', title: 'Tax', isEditable: true, onActualChange: onTaxPaidChange },
     { key: 'opEx', title: 'Operating Expenses', isLowerBetter: true, isEditable: false },
   ];
 
