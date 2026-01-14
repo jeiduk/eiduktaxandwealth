@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { RotateCcw, TrendingUp, TrendingDown, DollarSign, CheckCircle, XCircle, Info } from "lucide-react";
+import { RotateCcw, TrendingUp, TrendingDown, DollarSign, CheckCircle, XCircle, Info, Pencil, Check, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface ProfitFirstTargets {
@@ -64,6 +64,16 @@ function formatCurrency(value: number | null): string {
   }).format(value);
 }
 
+function formatCurrencyFull(value: number | null): string {
+  if (value === null || isNaN(value)) return '$0.00';
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
 function formatPercent(value: number | null): string {
   if (value === null || isNaN(value)) return '0.0%';
   return `${value.toFixed(1)}%`;
@@ -74,46 +84,107 @@ function getStatus(actual: number, target: number, isLowerBetter = false): Statu
   return diff >= 0 ? 'good' : 'review';
 }
 
-// Editable currency input component
-function CurrencyInput({ 
-  value, 
-  onChange, 
-  onBlur,
-  placeholder = "0"
-}: { 
-  value: number | null; 
+// Editable summary card component with edit/confirm pattern
+function EditableSummaryCard({
+  title,
+  subtitle,
+  value,
+  onChange,
+  icon: Icon,
+  iconBgClass,
+  iconClass,
+}: {
+  title: string;
+  subtitle: string;
+  value: number | null;
   onChange: (value: number | null) => void;
-  onBlur?: (value: number | null) => void;
-  placeholder?: string;
+  icon: React.ElementType;
+  iconBgClass: string;
+  iconClass: string;
 }) {
+  const [isEditing, setIsEditing] = useState(false);
   const [localValue, setLocalValue] = useState(value?.toString() ?? '');
 
   useEffect(() => {
-    setLocalValue(value?.toString() ?? '');
-  }, [value]);
+    if (!isEditing) {
+      setLocalValue(value?.toString() ?? '');
+    }
+  }, [value, isEditing]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setLocalValue(val);
-    const num = parseFloat(val);
+  const handleConfirm = () => {
+    const num = parseFloat(localValue);
     onChange(isNaN(num) ? null : num);
+    setIsEditing(false);
   };
 
-  const handleBlur = () => {
-    const num = parseFloat(localValue);
-    const finalValue = isNaN(num) ? null : num;
-    onBlur?.(finalValue);
+  const handleCancel = () => {
+    setLocalValue(value?.toString() ?? '');
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleConfirm();
+    } else if (e.key === 'Escape') {
+      handleCancel();
+    }
   };
 
   return (
-    <Input
-      type="number"
-      value={localValue}
-      onChange={handleChange}
-      onBlur={handleBlur}
-      placeholder={placeholder}
-      className="h-10 text-xl font-bold bg-transparent border-0 border-b-2 border-dashed border-muted-foreground/30 rounded-none px-0 focus-visible:ring-0 focus-visible:border-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-    />
+    <div className="bg-card border rounded-lg p-4 shadow-sm">
+      <div className="flex items-start justify-between">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm text-muted-foreground">{title}</p>
+          
+          {isEditing ? (
+            <div className="mt-1">
+              <div className="flex items-center gap-1">
+                <span className="text-muted-foreground">$</span>
+                <Input
+                  type="number"
+                  value={localValue}
+                  onChange={(e) => setLocalValue(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  autoFocus
+                  className="h-8 text-lg font-bold w-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  placeholder="0"
+                />
+              </div>
+              <div className="flex gap-1 mt-2">
+                <Button size="sm" variant="default" onClick={handleConfirm} className="h-7 px-2">
+                  <Check className="h-3.5 w-3.5 mr-1" />
+                  Save
+                </Button>
+                <Button size="sm" variant="outline" onClick={handleCancel} className="h-7 px-2">
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 mt-1">
+              <p className="text-2xl font-bold text-foreground truncate">
+                {formatCurrencyFull(value)}
+              </p>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setIsEditing(true)}
+                className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          )}
+          
+          <p className={cn("text-xs mt-1", iconClass.includes('primary') ? "text-primary" : "text-muted-foreground")}>
+            {subtitle}
+          </p>
+        </div>
+        <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ml-2", iconBgClass)}>
+          <Icon className={cn("h-5 w-5", iconClass)} />
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -227,7 +298,7 @@ export const ProfitFirstSection = ({
         target: targets.opEx,
         targetDollars: rev * (targets.opEx / 100),
         industryTarget: benchmark.opex_target,
-        variance: targets.opEx - opExActual, // Inverted for OpEx (lower is better)
+        variance: targets.opEx - opExActual,
       },
     };
   }, [revenue, profit, ownerPay, totalExpenses, targets, benchmark, hasRevenue]);
@@ -259,77 +330,39 @@ export const ProfitFirstSection = ({
 
   return (
     <div className="space-y-6">
-      {/* Summary Cards - Top Row (Editable) */}
+      {/* Summary Cards - Top Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Revenue */}
-        <div className="bg-card border rounded-lg p-4 shadow-sm">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <p className="text-sm text-muted-foreground">Total Revenue</p>
-              <div className="flex items-center mt-1">
-                <span className="text-muted-foreground mr-1">$</span>
-                <CurrencyInput 
-                  value={revenue} 
-                  onChange={onRevenueChange}
-                  onBlur={onRevenueChange}
-                />
-              </div>
-              <p className="text-xs text-primary mt-1">Gross receipts</p>
-            </div>
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <DollarSign className="h-5 w-5 text-primary" />
-            </div>
-          </div>
-        </div>
+        <EditableSummaryCard
+          title="Total Revenue"
+          subtitle="Gross receipts"
+          value={revenue}
+          onChange={onRevenueChange}
+          icon={DollarSign}
+          iconBgClass="bg-primary/10"
+          iconClass="text-primary"
+        />
 
-        {/* Total Expenses */}
-        <div className="bg-card border rounded-lg p-4 shadow-sm">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <p className="text-sm text-muted-foreground">Total Expenses</p>
-              <div className="flex items-center mt-1">
-                <span className="text-muted-foreground mr-1">$</span>
-                <CurrencyInput 
-                  value={totalExpenses} 
-                  onChange={onExpensesChange}
-                  onBlur={onExpensesChange}
-                />
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">Operating expenses</p>
-            </div>
-            <div className="w-10 h-10 rounded-lg bg-destructive/10 flex items-center justify-center">
-              <TrendingDown className="h-5 w-5 text-destructive" />
-            </div>
-          </div>
-        </div>
+        <EditableSummaryCard
+          title="Total Expenses"
+          subtitle="Operating expenses"
+          value={totalExpenses}
+          onChange={onExpensesChange}
+          icon={TrendingDown}
+          iconBgClass="bg-destructive/10"
+          iconClass="text-destructive"
+        />
 
-        {/* Net Profit */}
-        <div className="bg-card border rounded-lg p-4 shadow-sm">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <p className="text-sm text-muted-foreground">Net Profit</p>
-              <div className="flex items-center mt-1">
-                <span className="text-muted-foreground mr-1">$</span>
-                <CurrencyInput 
-                  value={profit} 
-                  onChange={onProfitChange}
-                  onBlur={onProfitChange}
-                />
-              </div>
-              <p className={cn("text-xs mt-1", summaryData.isProfitable ? "text-emerald-600" : "text-destructive")}>
-                {summaryData.isProfitable ? "Profitable" : "Not profitable"}
-              </p>
-            </div>
-            <div className={cn(
-              "w-10 h-10 rounded-lg flex items-center justify-center",
-              summaryData.isProfitable ? "bg-emerald-500/10" : "bg-destructive/10"
-            )}>
-              <TrendingUp className={cn("h-5 w-5", summaryData.isProfitable ? "text-emerald-600" : "text-destructive")} />
-            </div>
-          </div>
-        </div>
+        <EditableSummaryCard
+          title="Net Profit"
+          subtitle={summaryData.isProfitable ? "Profitable" : "Not profitable"}
+          value={profit}
+          onChange={onProfitChange}
+          icon={TrendingUp}
+          iconBgClass={summaryData.isProfitable ? "bg-emerald-500/10" : "bg-destructive/10"}
+          iconClass={summaryData.isProfitable ? "text-emerald-600" : "text-destructive"}
+        />
 
-        {/* Profit Margin (calculated) */}
+        {/* Profit Margin (calculated, not editable) */}
         <div className="bg-card border rounded-lg p-4 shadow-sm">
           <div className="flex items-start justify-between">
             <div>
