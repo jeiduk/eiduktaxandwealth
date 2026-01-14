@@ -319,6 +319,10 @@ export const ProfitFirstSection = ({
     setLocalTargets(prev => ({ ...prev, [key]: Math.max(0, Math.min(100, num)) }));
   };
 
+  // Track editing state for editable bucket fields
+  const [editingBucket, setEditingBucket] = useState<string | null>(null);
+  const [bucketEditValue, setBucketEditValue] = useState('');
+
   const buckets: Array<{
     key: keyof CalculatedData;
     title: string;
@@ -331,6 +335,31 @@ export const ProfitFirstSection = ({
     { key: 'tax', title: 'Tax', isEditable: true, onActualChange: onTaxPaidChange },
     { key: 'opEx', title: 'Operating Expenses', isLowerBetter: true, isEditable: false },
   ];
+
+  const handleBucketEditStart = (key: string, currentValue: number) => {
+    setEditingBucket(key);
+    setBucketEditValue(currentValue?.toString() ?? '');
+  };
+
+  const handleBucketEditConfirm = (onActualChange: (value: number | null) => void) => {
+    const num = parseFloat(bucketEditValue);
+    onActualChange(isNaN(num) ? null : num);
+    setEditingBucket(null);
+    setBucketEditValue('');
+  };
+
+  const handleBucketEditCancel = () => {
+    setEditingBucket(null);
+    setBucketEditValue('');
+  };
+
+  const handleBucketKeyDown = (e: React.KeyboardEvent, onActualChange: (value: number | null) => void) => {
+    if (e.key === 'Enter') {
+      handleBucketEditConfirm(onActualChange);
+    } else if (e.key === 'Escape') {
+      handleBucketEditCancel();
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -492,19 +521,55 @@ export const ProfitFirstSection = ({
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Actual</span>
                     {isEditable && onActualChange ? (
-                      <div className="flex items-center">
-                        <span className="text-muted-foreground text-xs mr-1">$</span>
-                        <Input
-                          type="number"
-                          value={data.actualDollars || ''}
-                          onChange={(e) => {
-                            const val = parseFloat(e.target.value);
-                            onActualChange(isNaN(val) ? null : val);
-                          }}
-                          className="w-20 h-6 text-right text-xs px-1"
-                          placeholder="0"
-                        />
-                      </div>
+                      editingBucket === key ? (
+                        <div className="flex flex-col items-end gap-1">
+                          <div className="flex items-center">
+                            <span className="text-muted-foreground text-xs mr-1">$</span>
+                            <Input
+                              type="number"
+                              value={bucketEditValue}
+                              onChange={(e) => setBucketEditValue(e.target.value)}
+                              onKeyDown={(e) => handleBucketKeyDown(e, onActualChange)}
+                              autoFocus
+                              className="w-20 h-6 text-right text-xs px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              placeholder="0"
+                            />
+                          </div>
+                          <div className="flex gap-1">
+                            <Button 
+                              size="sm" 
+                              variant="default" 
+                              onClick={() => handleBucketEditConfirm(onActualChange)} 
+                              className="h-5 px-1.5 text-[10px]"
+                            >
+                              <Check className="h-3 w-3 mr-0.5" />
+                              Save
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              onClick={handleBucketEditCancel} 
+                              className="h-5 px-1 text-[10px]"
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <span className="font-medium tabular-nums">
+                            {hasRevenue ? formatCurrency(data.actualDollars) : '—'}
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleBucketEditStart(key, data.actualDollars)}
+                            className="h-5 w-5 p-0 text-muted-foreground hover:text-foreground"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )
                     ) : (
                       <span className="font-medium tabular-nums">
                         {hasRevenue ? formatCurrency(data.actualDollars) : '—'}
