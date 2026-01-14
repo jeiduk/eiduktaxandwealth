@@ -41,6 +41,22 @@ const extractNumber = (text: string): number | null => {
   return null;
 };
 
+// Helper to extract the last number from a CSV row (the Total column)
+const extractLastNumber = (line: string): number | null => {
+  // Split by comma and find the last non-empty cell
+  const cells = line.split(',');
+  for (let i = cells.length - 1; i >= 0; i--) {
+    const cell = cells[i].trim();
+    if (cell) {
+      const num = extractNumber(cell);
+      if (num !== null) {
+        return num;
+      }
+    }
+  }
+  return null;
+};
+
 function extractFinancials(text: string): ImportedData {
   const result: ImportedData = {
     revenue: null,
@@ -51,18 +67,23 @@ function extractFinancials(text: string): ImportedData {
   };
 
   const lines = text.split('\n');
+  
+  // Detect if this is CSV format (has commas separating values)
+  const isCSV = lines.some(line => line.split(',').length > 3);
+  const getNumber = isCSV ? extractLastNumber : extractNumber;
 
   for (const line of lines) {
     const lower = line.toLowerCase();
 
-    // Revenue patterns
+    // Revenue patterns - look for "Total for Income" or similar
     if (!result.revenue && (
+      lower.includes('total for income') ||
       lower.includes('total income') ||
       lower.includes('gross revenue') ||
       lower.includes('total revenue') ||
-      (lower.includes('revenue') && !lower.includes('net'))
+      (lower.match(/^revenue\b/) && !lower.includes('net'))
     )) {
-      result.revenue = extractNumber(line);
+      result.revenue = getNumber(line);
     }
 
     // Net Profit patterns
@@ -72,24 +93,26 @@ function extractFinancials(text: string): ImportedData {
       lower.includes('net ordinary income') ||
       lower.includes('net operating income')
     )) {
-      result.netProfit = extractNumber(line);
+      result.netProfit = getNumber(line);
     }
 
-    // COGS patterns
+    // COGS patterns - look for "Total for Cost of Goods Sold"
     if (!result.cogs && (
+      lower.includes('total for cost of goods sold') ||
       lower.includes('cost of goods sold') ||
       lower.includes('cost of sales') ||
       lower.includes('cogs')
     )) {
-      result.cogs = extractNumber(line);
+      result.cogs = getNumber(line);
     }
 
-    // Expenses patterns
+    // Expenses patterns - look for "Total for Expenses"
     if (!result.expenses && (
+      lower.includes('total for expenses') ||
       lower.includes('total expenses') ||
       lower.includes('total operating expenses')
     )) {
-      result.expenses = extractNumber(line);
+      result.expenses = getNumber(line);
     }
 
     // Owner Pay / Personal Draw patterns
@@ -105,7 +128,7 @@ function extractFinancials(text: string): ImportedData {
       lower.includes('officer compensation') ||
       lower.includes('owner compensation')
     )) {
-      result.ownerPay = extractNumber(line);
+      result.ownerPay = getNumber(line);
     }
   }
 
