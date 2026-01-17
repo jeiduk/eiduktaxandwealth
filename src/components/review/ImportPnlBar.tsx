@@ -126,6 +126,124 @@ function deduplicateAccounts(accounts: ParsedAccount[]): {
   return { unique: Array.from(seen.values()), duplicates };
 }
 
+// Amount column detection types
+type AmountColumnConfig = {
+  type: 'total' | 'sum_months' | 'single' | 'last_numeric';
+  columns: number[];
+  description: string;
+};
+
+// Month patterns for detecting month columns
+const MONTH_PATTERNS = [
+  /^jan/i, /^feb/i, /^mar/i, /^apr/i, /^may/i, /^jun/i,
+  /^jul/i, /^aug/i, /^sep/i, /^oct/i, /^nov/i, /^dec/i
+];
+
+// Find the account name column in headers
+function findAccountColumn(headers: string[]): number {
+  const headerLower = headers.map(h => String(h || "").toLowerCase().trim());
+  
+  // Look for explicit account/name column
+  const accountIndex = headerLower.findIndex(h => 
+    h === 'account' || h === 'description' || h === 'name' || 
+    h === 'category' || h === 'account name' || h === 'line item' ||
+    h === 'expense' || h === 'income'
+  );
+  
+  if (accountIndex !== -1) return accountIndex;
+  
+  // Default to first column
+  return 0;
+}
+
+// Find the amount column(s) based on header analysis
+function findAmountColumn(headers: string[]): AmountColumnConfig {
+  const headerLower = headers.map(h => String(h || "").toLowerCase().trim());
+  
+  // Priority 1: Look for Total/YTD/Annual column
+  const totalIndex = headerLower.findIndex(h => 
+    h === 'total' || h === 'ytd' || h === 'annual' || 
+    h === 'year total' || h === 'ytd total' || h === 'year to date' ||
+    h === 'ytd amount' || h === 'total amount'
+  );
+  
+  if (totalIndex !== -1) {
+    return { 
+      type: 'total', 
+      columns: [totalIndex],
+      description: `Using '${headers[totalIndex]}' column for amounts`
+    };
+  }
+  
+  // Priority 2: Look for month columns and sum them
+  const monthColumns: number[] = [];
+  headers.forEach((h, i) => {
+    const headerStr = String(h || "").trim();
+    if (MONTH_PATTERNS.some(p => p.test(headerStr))) {
+      monthColumns.push(i);
+    }
+  });
+  
+  if (monthColumns.length > 0) {
+    const monthCount = monthColumns.length;
+    return { 
+      type: 'sum_months', 
+      columns: monthColumns,
+      description: `Summing ${monthCount} month column${monthCount > 1 ? 's' : ''}`
+    };
+  }
+  
+  // Priority 3: Look for single Amount/Balance column
+  const amountIndex = headerLower.findIndex(h => 
+    h === 'amount' || h === 'balance' || h === 'value' || 
+    h === 'debit' || h === 'credit' || h === 'net'
+  );
+  
+  if (amountIndex !== -1) {
+    return { 
+      type: 'single', 
+      columns: [amountIndex],
+      description: `Using '${headers[amountIndex]}' column`
+    };
+  }
+  
+  // Default: use last column (often the total in reports)
+  return { 
+    type: 'last_numeric', 
+    columns: [headers.length - 1],
+    description: 'Using last column for amounts'
+  };
+}
+
+// Get amount from a row based on the column config
+function getAmountFromRow(row: unknown[], config: AmountColumnConfig): number | null {
+  if (config.type === 'sum_months') {
+    // Sum all month columns
+    let sum = 0;
+    let hasValue = false;
+    for (const colIndex of config.columns) {
+      const cellValue = row[colIndex];
+      if (cellValue !== undefined && cellValue !== null && cellValue !== "") {
+        const num = extractNumber(String(cellValue));
+        if (num !== null) {
+          sum += num;
+          hasValue = true;
+        }
+      }
+    }
+    return hasValue ? sum : null;
+  }
+  
+  // For total, single, or last_numeric - use the specified column
+  const colIndex = config.columns[0];
+  const cellValue = row[colIndex];
+  if (cellValue !== undefined && cellValue !== null && cellValue !== "") {
+    return extractNumber(String(cellValue));
+  }
+  
+  return null;
+}
+
 // Helper to extract number from a string
 const extractNumber = (text: string): number | null => {
   const match = text.match(/\(?\$?\s*([\d,]+\.?\d*)\)?/);
@@ -249,51 +367,61 @@ function parseLineItems(text: string, defaults: CategoryDefault[]): ParsedAccoun
   return accounts;
 }
 
-// Parse line items from Excel workbook
-function parseLineItemsFromWorkbook(workbook: XLSX.WorkBook, defaults: CategoryDefault[]): ParsedAccount[] {
+// Result type for parsing with metadata
+interface ParseResult {
+  accounts: ParsedAccount[];
+  amountColumnDescription: string;
+}
+
+// Parse line items from Excel workbook with smart column detection
+function parseLineItemsFromWorkbook(workbook: XLSX.WorkBook, defaults: CategoryDefault[]): ParseResult {
   const accounts: ParsedAccount[] = [];
   const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
   const rawData = XLSX.utils.sheet_to_json<unknown[]>(firstSheet, { header: 1 });
   const data: unknown[][] = rawData as unknown[][];
 
-  if (data.length === 0) return accounts;
+  if (data.length === 0) return { accounts, amountColumnDescription: '' };
 
-  let totalColIndex = -1;
+  // Find header row (first row with column-like content)
   let headerRowIndex = -1;
-
-  for (let i = 0; i < Math.min(data.length, 10); i++) {
+  let headers: string[] = [];
+  
+  for (let i = 0; i < Math.min(data.length, 15); i++) {
     const row = data[i];
-    if (!row || row.length === 0) continue;
-
-    for (let j = row.length - 1; j >= 0; j--) {
-      const cell = String(row[j] || "").toLowerCase().trim();
-      if (cell === "total" || cell === "ytd" || cell === "year to date" || cell === "ytd total") {
-        totalColIndex = j;
-        headerRowIndex = i;
-        break;
-      }
-    }
-    if (totalColIndex >= 0) break;
-  }
-
-  if (totalColIndex === -1) {
-    for (let i = 0; i < data.length; i++) {
-      const row = data[i];
-      if (!row) continue;
-      for (let j = row.length - 1; j >= 0; j--) {
-        const cell = row[j];
-        if (cell !== undefined && cell !== null && cell !== "") {
-          const num = extractNumber(String(cell));
-          if (num !== null) {
-            totalColIndex = j;
-            break;
-          }
-        }
-      }
-      if (totalColIndex >= 0) break;
+    if (!row || row.length < 2) continue;
+    
+    const rowStrings = row.map(cell => String(cell || "").trim());
+    const headerLower = rowStrings.map(s => s.toLowerCase());
+    
+    // Check if this looks like a header row (has Total/YTD, months, or Amount column)
+    const hasTotal = headerLower.some(h => 
+      h === 'total' || h === 'ytd' || h === 'annual' || 
+      h === 'year total' || h === 'ytd total' || h === 'year to date'
+    );
+    const hasMonths = headerLower.some(h => MONTH_PATTERNS.some(p => p.test(h)));
+    const hasAmountCol = headerLower.some(h => 
+      h === 'amount' || h === 'balance' || h === 'value' ||
+      h === 'account' || h === 'description'
+    );
+    
+    if (hasTotal || hasMonths || hasAmountCol) {
+      headerRowIndex = i;
+      headers = rowStrings;
+      break;
     }
   }
-
+  
+  // If no header found, try to detect from first data rows
+  if (headerRowIndex === -1) {
+    // Use first row as potential header or just start from row 0
+    headerRowIndex = 0;
+    headers = data[0]?.map(cell => String(cell || "")) || [];
+  }
+  
+  // Detect column configuration
+  const accountColIndex = findAccountColumn(headers);
+  const amountConfig = findAmountColumn(headers);
+  
   let currentParent: string | undefined;
   let sortOrder = 0;
 
@@ -301,16 +429,16 @@ function parseLineItemsFromWorkbook(workbook: XLSX.WorkBook, defaults: CategoryD
     const row = data[i];
     if (!row || row.length === 0) continue;
 
-    const label = String(row[0] || "").trim();
+    const label = String(row[accountColIndex] || "").trim();
     if (!label) continue;
     
     // Skip metadata/header rows (client name, dates, report titles)
     if (isMetadataRow(label)) continue;
 
-    let value: number | null = null;
-    if (totalColIndex >= 0 && row[totalColIndex] !== undefined) {
-      value = extractNumber(String(row[totalColIndex]));
-    }
+    // Get amount using the detected column config
+    let value = getAmountFromRow(row, amountConfig);
+    
+    // Fallback: if no value from config, try last numeric column
     if (value === null) {
       for (let j = row.length - 1; j >= 1; j--) {
         if (row[j] !== undefined && row[j] !== null && row[j] !== "") {
@@ -349,10 +477,11 @@ function parseLineItemsFromWorkbook(workbook: XLSX.WorkBook, defaults: CategoryD
 
   if (accounts.length === 0) {
     const csvText = XLSX.utils.sheet_to_csv(firstSheet);
-    return parseLineItems(csvText, defaults);
+    const csvAccounts = parseLineItems(csvText, defaults);
+    return { accounts: csvAccounts, amountColumnDescription: 'Parsed as CSV' };
   }
 
-  return accounts;
+  return { accounts, amountColumnDescription: amountConfig.description };
 }
 
 // Calculate totals from mappings using new categories
@@ -395,6 +524,7 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
   const [parsedAccounts, setParsedAccounts] = useState<ParsedAccount[]>([]);
   const [excludedAccounts, setExcludedAccounts] = useState<ParsedAccount[]>([]);
   const [duplicateAccounts, setDuplicateAccounts] = useState<ParsedAccount[]>([]);
+  const [amountColumnDescription, setAmountColumnDescription] = useState("");
   const [previousMappings, setPreviousMappings] = useState<Map<string, PFCategory>>(new Map());
   const [categoryDefaults, setCategoryDefaults] = useState<CategoryDefault[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -540,14 +670,18 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
       
       const extension = file.name.split(".").pop()?.toLowerCase();
       let allAccounts: ParsedAccount[];
+      let columnDescription = "";
 
       if (extension === "xlsx" || extension === "xls") {
         const arrayBuffer = await file.arrayBuffer();
         const workbook = XLSX.read(arrayBuffer, { type: "array" });
-        allAccounts = parseLineItemsFromWorkbook(workbook, defaults);
+        const result = parseLineItemsFromWorkbook(workbook, defaults);
+        allAccounts = result.accounts;
+        columnDescription = result.amountColumnDescription;
       } else {
         const text = await file.text();
         allAccounts = parseLineItems(text, defaults);
+        columnDescription = "Parsed as text/CSV";
       }
 
       if (allAccounts.length === 0) {
@@ -569,18 +703,19 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
       setParsedAccounts(unique);
       setExcludedAccounts(excluded);
       setDuplicateAccounts(duplicates);
+      setAmountColumnDescription(columnDescription);
       setShowMappingModal(true);
 
       const lowConfidence = unique.filter((a) => a.confidence === "low").length;
       const needsReview = unique.filter((a) => a.needsReview).length;
       
-      let description = "Review the category mappings below";
+      let description = columnDescription || "Review the category mappings below";
       const notes: string[] = [];
       if (excluded.length > 0) notes.push(`${excluded.length} totals excluded`);
       if (duplicates.length > 0) notes.push(`${duplicates.length} duplicates merged`);
       if (needsReview > 0) notes.push(`${needsReview} flagged for review`);
       else if (lowConfidence > 0) notes.push(`${lowConfidence} need attention`);
-      if (notes.length > 0) description = notes.join(", ");
+      if (notes.length > 0) description = `${columnDescription}. ${notes.join(", ")}`;
       
       toast({
         title: `Found ${unique.length} line items`,
@@ -789,6 +924,7 @@ Net Income: $85,000"
         accounts={parsedAccounts}
         excludedAccounts={excludedAccounts}
         duplicateAccounts={duplicateAccounts}
+        amountColumnDescription={amountColumnDescription}
         onApply={handleApplyMappings}
         isProcessing={isSavingMappings}
         previousMappings={previousMappings}
