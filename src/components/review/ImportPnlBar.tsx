@@ -18,7 +18,6 @@ import {
   AccountMapping,
   ParsedAccount,
   PFCategory,
-  detectPFCategory,
 } from "./AccountMappingModal";
 
 interface ImportedData {
@@ -36,6 +35,24 @@ interface ImportPnlBarProps {
   onImport: (data: ImportedData) => void;
 }
 
+interface CategoryDefault {
+  keyword: string;
+  pl_category: string | null;
+  pf_category: PFCategory;
+  priority: number;
+}
+
+// Keywords that commonly need manual review (may contain owner compensation)
+const REVIEW_FLAG_KEYWORDS = [
+  "professional fee",
+  "contractor",
+  "consultant",
+  "distribution",
+  "1099",
+  "management fee",
+  "advisory",
+];
+
 // Helper to extract number from a string
 const extractNumber = (text: string): number | null => {
   const match = text.match(/\(?\$?\s*([\d,]+\.?\d*)\)?/);
@@ -50,8 +67,49 @@ const extractNumber = (text: string): number | null => {
   return null;
 };
 
+// Detection function using cached defaults from database
+function detectPFCategory(
+  accountName: string,
+  defaults: CategoryDefault[]
+): { category: PFCategory; confidence: "high" | "low"; needsReview?: string } {
+  const name = accountName.toLowerCase();
+
+  // Check against keywords in priority order (already sorted by priority DESC)
+  for (const def of defaults) {
+    if (name.includes(def.keyword.toLowerCase())) {
+      // High priority (90+) = high confidence
+      const confidence = def.priority >= 90 ? "high" : "low";
+      
+      // Check if this needs special review flagging
+      let needsReview: string | undefined;
+      if (def.pf_category !== "owner_pay") {
+        for (const flagKeyword of REVIEW_FLAG_KEYWORDS) {
+          if (name.includes(flagKeyword)) {
+            needsReview = "This may contain owner compensation - please verify";
+            break;
+          }
+        }
+      }
+      
+      return { category: def.pf_category, confidence, needsReview };
+    }
+  }
+
+  // Check for review flag keywords even if no match found
+  let needsReview: string | undefined;
+  for (const flagKeyword of REVIEW_FLAG_KEYWORDS) {
+    if (name.includes(flagKeyword)) {
+      needsReview = "This may contain owner compensation - please verify";
+      break;
+    }
+  }
+
+  // Default to opex if no match
+  return { category: "opex", confidence: "low", needsReview };
+}
+
 // Parse line items from CSV/text
-function parseLineItems(text: string): ParsedAccount[] {
+function parseLineItems(text: string, defaults: CategoryDefault[]): ParsedAccount[] {
   const accounts: ParsedAccount[] = [];
   const lines = text.split("\n");
   const isCSV = lines.some((line) => line.split(",").length > 3);
@@ -99,13 +157,14 @@ function parseLineItems(text: string): ParsedAccount[] {
     }
 
     if (amount !== null) {
-      const detection = detectPFCategory(accountName, currentParent);
+      const detection = detectPFCategory(accountName, defaults);
       accounts.push({
         accountName,
         amount,
         parentAccount: currentParent,
         suggestedCategory: detection.category,
         confidence: detection.confidence,
+        needsReview: detection.needsReview,
         sortOrder: sortOrder++,
       });
     }
@@ -115,7 +174,7 @@ function parseLineItems(text: string): ParsedAccount[] {
 }
 
 // Parse line items from Excel workbook
-function parseLineItemsFromWorkbook(workbook: XLSX.WorkBook): ParsedAccount[] {
+function parseLineItemsFromWorkbook(workbook: XLSX.WorkBook, defaults: CategoryDefault[]): ParsedAccount[] {
   const accounts: ParsedAccount[] = [];
   const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
   const rawData = XLSX.utils.sheet_to_json<unknown[]>(firstSheet, { header: 1 });
@@ -196,13 +255,14 @@ function parseLineItemsFromWorkbook(workbook: XLSX.WorkBook): ParsedAccount[] {
     }
 
     if (value !== null) {
-      const detection = detectPFCategory(label, currentParent);
+      const detection = detectPFCategory(label, defaults);
       accounts.push({
         accountName: label,
         amount: value,
         parentAccount: currentParent,
         suggestedCategory: detection.category,
         confidence: detection.confidence,
+        needsReview: detection.needsReview,
         sortOrder: sortOrder++,
       });
     }
@@ -210,7 +270,7 @@ function parseLineItemsFromWorkbook(workbook: XLSX.WorkBook): ParsedAccount[] {
 
   if (accounts.length === 0) {
     const csvText = XLSX.utils.sheet_to_csv(firstSheet);
-    return parseLineItems(csvText);
+    return parseLineItems(csvText, defaults);
   }
 
   return accounts;
@@ -237,7 +297,6 @@ function calculateTotalsFromMappings(mappings: AccountMapping[]): ImportedData {
 
   const realRevenue = totals.gross_revenue - Math.abs(totals.materials_subs);
 
-  // Map to ImportedData format
   const result: ImportedData = {
     revenue: totals.gross_revenue,
     cogs: Math.abs(totals.materials_subs),
@@ -256,9 +315,40 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
   const [pastedText, setPastedText] = useState("");
   const [parsedAccounts, setParsedAccounts] = useState<ParsedAccount[]>([]);
   const [previousMappings, setPreviousMappings] = useState<Map<string, PFCategory>>(new Map());
+  const [categoryDefaults, setCategoryDefaults] = useState<CategoryDefault[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSavingMappings, setIsSavingMappings] = useState(false);
+  const [isLoadingDefaults, setIsLoadingDefaults] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load category defaults from database
+  const loadCategoryDefaults = async (): Promise<CategoryDefault[]> => {
+    if (categoryDefaults.length > 0) {
+      return categoryDefaults;
+    }
+
+    setIsLoadingDefaults(true);
+    try {
+      const { data, error } = await supabase
+        .from("pf_category_defaults")
+        .select("keyword, pl_category, pf_category, priority")
+        .order("priority", { ascending: false });
+
+      if (error) {
+        console.error("Error loading category defaults:", error);
+        return [];
+      }
+
+      const defaults = (data || []) as CategoryDefault[];
+      setCategoryDefaults(defaults);
+      return defaults;
+    } catch (err) {
+      console.error("Error loading category defaults:", err);
+      return [];
+    } finally {
+      setIsLoadingDefaults(false);
+    }
+  };
 
   // Load previous mappings for this client
   useEffect(() => {
@@ -291,7 +381,7 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
     loadPreviousMappings();
   }, [clientId]);
 
-  const handleParsePastedData = () => {
+  const handleParsePastedData = async () => {
     if (!pastedText.trim()) {
       toast({
         title: "Error",
@@ -304,7 +394,9 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
     setIsProcessing(true);
 
     try {
-      const accounts = parseLineItems(pastedText);
+      // Load defaults from database
+      const defaults = await loadCategoryDefaults();
+      const accounts = parseLineItems(pastedText, defaults);
 
       if (accounts.length === 0) {
         toast({
@@ -321,11 +413,18 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
       setShowMappingModal(true);
 
       const lowConfidence = accounts.filter((a) => a.confidence === "low").length;
+      const needsReview = accounts.filter((a) => a.needsReview).length;
+      
+      let description = "Review the category mappings below";
+      if (needsReview > 0) {
+        description = `${needsReview} accounts flagged for review`;
+      } else if (lowConfidence > 0) {
+        description = `${lowConfidence} accounts need your attention`;
+      }
+      
       toast({
         title: `Found ${accounts.length} accounts`,
-        description: lowConfidence > 0
-          ? `${lowConfidence} accounts need your attention`
-          : "Review the category mappings below",
+        description,
       });
     } catch (error) {
       toast({
@@ -345,16 +444,19 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
     setIsProcessing(true);
 
     try {
+      // Load defaults from database first
+      const defaults = await loadCategoryDefaults();
+      
       const extension = file.name.split(".").pop()?.toLowerCase();
       let accounts: ParsedAccount[];
 
       if (extension === "xlsx" || extension === "xls") {
         const arrayBuffer = await file.arrayBuffer();
         const workbook = XLSX.read(arrayBuffer, { type: "array" });
-        accounts = parseLineItemsFromWorkbook(workbook);
+        accounts = parseLineItemsFromWorkbook(workbook, defaults);
       } else {
         const text = await file.text();
-        accounts = parseLineItems(text);
+        accounts = parseLineItems(text, defaults);
       }
 
       if (accounts.length === 0) {
@@ -370,11 +472,18 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
       setShowMappingModal(true);
 
       const lowConfidence = accounts.filter((a) => a.confidence === "low").length;
+      const needsReview = accounts.filter((a) => a.needsReview).length;
+      
+      let description = "Review the category mappings below";
+      if (needsReview > 0) {
+        description = `${needsReview} accounts flagged for review`;
+      } else if (lowConfidence > 0) {
+        description = `${lowConfidence} accounts need your attention`;
+      }
+      
       toast({
         title: `Found ${accounts.length} accounts`,
-        description: lowConfidence > 0
-          ? `${lowConfidence} accounts need your attention`
-          : "Review the category mappings below",
+        description,
       });
     } catch (error) {
       console.error("File upload error:", error);
@@ -503,9 +612,9 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
             size="sm"
             className="border-blue-500 text-blue-600 hover:bg-blue-50"
             onClick={() => fileInputRef.current?.click()}
-            disabled={isProcessing}
+            disabled={isProcessing || isLoadingDefaults}
           >
-            {isProcessing ? (
+            {isProcessing || isLoadingDefaults ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
             ) : (
               <Upload className="h-4 w-4 mr-2" />
@@ -557,11 +666,11 @@ Net Income: $85,000"
             <Button variant="outline" onClick={() => setShowPasteModal(false)}>
               Cancel
             </Button>
-            <Button onClick={handleParsePastedData} disabled={isProcessing}>
-              {isProcessing ? (
+            <Button onClick={handleParsePastedData} disabled={isProcessing || isLoadingDefaults}>
+              {isProcessing || isLoadingDefaults ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Processing...
+                  {isLoadingDefaults ? "Loading..." : "Processing..."}
                 </>
               ) : (
                 "Parse & Map Accounts"

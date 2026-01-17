@@ -28,6 +28,7 @@ export interface ParsedAccount {
   parentAccount?: string;
   suggestedCategory: PFCategory;
   confidence: "high" | "low";
+  needsReview?: string;
   sortOrder: number;
 }
 
@@ -96,110 +97,6 @@ export const CATEGORY_CONFIG: Record<
   },
 };
 
-// Auto-detect PF category based on account name
-export function detectPFCategory(
-  accountName: string,
-  plCategory?: string
-): { category: PFCategory; confidence: "high" | "low" } {
-  const name = accountName.toLowerCase();
-  const parent = (plCategory || "").toLowerCase();
-
-  // High confidence matches - Revenue
-  if (
-    name.includes("revenue") ||
-    name.includes("sales") ||
-    name.includes("income") ||
-    name.includes("fees earned") ||
-    name.includes("service income") ||
-    name.includes("consulting income") ||
-    parent.includes("income")
-  ) {
-    return { category: "gross_revenue", confidence: "high" };
-  }
-
-  // High confidence - COGS / Materials
-  if (
-    name.includes("cogs") ||
-    name.includes("cost of goods") ||
-    name.includes("cost of sales") ||
-    name.includes("materials") ||
-    name.includes("subcontractor") ||
-    name.includes("direct labor") ||
-    name.includes("direct cost") ||
-    parent.includes("cost of goods")
-  ) {
-    return { category: "materials_subs", confidence: "high" };
-  }
-
-  // High confidence - Owner's Pay
-  if (
-    name.includes("officer compensation") ||
-    name.includes("officer salary") ||
-    name.includes("owner salary") ||
-    name.includes("shareholder wage") ||
-    name.includes("guaranteed payment")
-  ) {
-    return { category: "owner_pay", confidence: "high" };
-  }
-
-  // High confidence - Tax
-  if (
-    name.includes("tax expense") ||
-    name.includes("income tax") ||
-    name.includes("taxes paid") ||
-    name.includes("franchise tax") ||
-    name.includes("state tax")
-  ) {
-    return { category: "tax", confidence: "high" };
-  }
-
-  // High confidence - Exclude (non-cash items)
-  if (
-    name.includes("depreciation") ||
-    name.includes("amortization") ||
-    name.includes("unrealized")
-  ) {
-    return { category: "exclude", confidence: "high" };
-  }
-
-  // Low confidence - flag for review
-  if (
-    name.includes("professional fee") ||
-    name.includes("contractor") ||
-    name.includes("consultant") ||
-    name.includes("1099")
-  ) {
-    return { category: "opex", confidence: "low" }; // Could be owner pay or materials
-  }
-
-  if (name.includes("distribution") || name.includes("draw")) {
-    return { category: "exclude", confidence: "low" }; // Could be owner pay
-  }
-
-  if (name.includes("payroll tax") || name.includes("fica")) {
-    return { category: "opex", confidence: "low" }; // Could be tax category
-  }
-
-  // Default to OpEx for expense accounts
-  if (
-    name.includes("expense") ||
-    parent.includes("expense") ||
-    name.includes("rent") ||
-    name.includes("utilities") ||
-    name.includes("insurance") ||
-    name.includes("supplies") ||
-    name.includes("advertising") ||
-    name.includes("marketing") ||
-    name.includes("software") ||
-    name.includes("subscription")
-  ) {
-    return { category: "opex", confidence: "high" };
-  }
-
-  // Default to OpEx with low confidence for unknown items
-  return { category: "opex", confidence: "low" };
-}
-
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -225,7 +122,7 @@ export function AccountMappingModal({
   useEffect(() => {
     const map = new Map<string, PFCategory>();
     accounts.forEach((acc) => {
-      // Check for previous mapping first
+      // Check for previous mapping first (client-specific overrides)
       if (previousMappings?.has(acc.accountName)) {
         map.set(acc.accountName, previousMappings.get(acc.accountName)!);
       } else {
@@ -283,6 +180,7 @@ export function AccountMappingModal({
   // Calculate real revenue and stats
   const realRevenue = categoryTotals.gross_revenue - Math.abs(categoryTotals.materials_subs);
   const lowConfidenceCount = accounts.filter((acc) => acc.confidence === "low").length;
+  const needsReviewCount = accounts.filter((acc) => acc.needsReview).length;
   const excludedCount = accounts.filter(
     (acc) => mappings.get(acc.accountName) === "exclude"
   ).length;
@@ -296,7 +194,7 @@ export function AccountMappingModal({
             Map Accounts to Profit First Categories
           </DialogTitle>
           <DialogDescription>
-            Review the suggested categories for each account. Accounts flagged with ⚠️ need your attention.
+            Review the suggested categories for each account. Accounts flagged with ⚠️ may need verification.
           </DialogDescription>
         </DialogHeader>
 
@@ -313,10 +211,10 @@ export function AccountMappingModal({
               <CheckCircle className="h-4 w-4" />
               {accounts.length - excludedCount} mapped
             </span>
-            {lowConfidenceCount > 0 && (
+            {(lowConfidenceCount > 0 || needsReviewCount > 0) && (
               <span className="flex items-center gap-1 text-amber-600">
                 <AlertCircle className="h-4 w-4" />
-                {lowConfidenceCount} need review
+                {Math.max(lowConfidenceCount, needsReviewCount)} need review
               </span>
             )}
           </div>
