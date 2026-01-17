@@ -357,6 +357,33 @@ export type Database = {
         }
         Relationships: []
       }
+      pf_category_defaults: {
+        Row: {
+          created_at: string | null
+          id: string
+          keyword: string
+          pf_category: string
+          pl_category: string | null
+          priority: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          keyword: string
+          pf_category: string
+          pl_category?: string | null
+          priority?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          keyword?: string
+          pf_category?: string
+          pl_category?: string | null
+          priority?: number | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
