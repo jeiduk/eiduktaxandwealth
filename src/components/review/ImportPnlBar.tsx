@@ -53,6 +53,33 @@ const REVIEW_FLAG_KEYWORDS = [
   "advisory",
 ];
 
+// Patterns to exclude total/subtotal rows to avoid double-counting
+const EXCLUDE_TOTAL_PATTERNS = [
+  /^total/i,
+  /^subtotal/i,
+  /^net income/i,
+  /^net profit/i,
+  /^net loss/i,
+  /^gross profit/i,
+  /^gross margin/i,
+  /^operating income/i,
+  /^operating expense total/i,
+  /^ebitda/i,
+  /^ebit/i,
+  /total income/i,
+  /total expense/i,
+  /total cost/i,
+  /total revenue/i,
+  /total cogs/i,
+  /net ordinary income/i,
+];
+
+// Check if an account name is a total/subtotal row
+function isTotalRow(accountName: string): boolean {
+  const trimmed = accountName.trim();
+  return EXCLUDE_TOTAL_PATTERNS.some(pattern => pattern.test(trimmed));
+}
+
 // Helper to extract number from a string
 const extractNumber = (text: string): number | null => {
   const match = text.match(/\(?\$?\s*([\d,]+\.?\d*)\)?/);
@@ -314,6 +341,7 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
   const [showMappingModal, setShowMappingModal] = useState(false);
   const [pastedText, setPastedText] = useState("");
   const [parsedAccounts, setParsedAccounts] = useState<ParsedAccount[]>([]);
+  const [excludedAccounts, setExcludedAccounts] = useState<ParsedAccount[]>([]);
   const [previousMappings, setPreviousMappings] = useState<Map<string, PFCategory>>(new Map());
   const [categoryDefaults, setCategoryDefaults] = useState<CategoryDefault[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -396,9 +424,9 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
     try {
       // Load defaults from database
       const defaults = await loadCategoryDefaults();
-      const accounts = parseLineItems(pastedText, defaults);
+      const allAccounts = parseLineItems(pastedText, defaults);
 
-      if (accounts.length === 0) {
+      if (allAccounts.length === 0) {
         toast({
           title: "No Accounts Found",
           description: "Could not find any line items. Please check the format.",
@@ -408,22 +436,30 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
         return;
       }
 
-      setParsedAccounts(accounts);
+      // Filter out total/subtotal rows to avoid double-counting
+      const lineItems = allAccounts.filter(acc => !isTotalRow(acc.accountName));
+      const excluded = allAccounts.filter(acc => isTotalRow(acc.accountName));
+
+      setParsedAccounts(lineItems);
+      setExcludedAccounts(excluded);
       setShowPasteModal(false);
       setShowMappingModal(true);
 
-      const lowConfidence = accounts.filter((a) => a.confidence === "low").length;
-      const needsReview = accounts.filter((a) => a.needsReview).length;
+      const lowConfidence = lineItems.filter((a) => a.confidence === "low").length;
+      const needsReview = lineItems.filter((a) => a.needsReview).length;
       
       let description = "Review the category mappings below";
+      if (excluded.length > 0) {
+        description = `${excluded.length} totals excluded`;
+      }
       if (needsReview > 0) {
-        description = `${needsReview} accounts flagged for review`;
+        description += `, ${needsReview} accounts flagged`;
       } else if (lowConfidence > 0) {
-        description = `${lowConfidence} accounts need your attention`;
+        description += `, ${lowConfidence} need attention`;
       }
       
       toast({
-        title: `Found ${accounts.length} accounts`,
+        title: `Found ${lineItems.length} line items`,
         description,
       });
     } catch (error) {
@@ -448,18 +484,18 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
       const defaults = await loadCategoryDefaults();
       
       const extension = file.name.split(".").pop()?.toLowerCase();
-      let accounts: ParsedAccount[];
+      let allAccounts: ParsedAccount[];
 
       if (extension === "xlsx" || extension === "xls") {
         const arrayBuffer = await file.arrayBuffer();
         const workbook = XLSX.read(arrayBuffer, { type: "array" });
-        accounts = parseLineItemsFromWorkbook(workbook, defaults);
+        allAccounts = parseLineItemsFromWorkbook(workbook, defaults);
       } else {
         const text = await file.text();
-        accounts = parseLineItems(text, defaults);
+        allAccounts = parseLineItems(text, defaults);
       }
 
-      if (accounts.length === 0) {
+      if (allAccounts.length === 0) {
         toast({
           title: "No Accounts Found",
           description: "Could not find any line items. Please check the file format.",
@@ -468,21 +504,29 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
         return;
       }
 
-      setParsedAccounts(accounts);
+      // Filter out total/subtotal rows to avoid double-counting
+      const lineItems = allAccounts.filter(acc => !isTotalRow(acc.accountName));
+      const excluded = allAccounts.filter(acc => isTotalRow(acc.accountName));
+
+      setParsedAccounts(lineItems);
+      setExcludedAccounts(excluded);
       setShowMappingModal(true);
 
-      const lowConfidence = accounts.filter((a) => a.confidence === "low").length;
-      const needsReview = accounts.filter((a) => a.needsReview).length;
+      const lowConfidence = lineItems.filter((a) => a.confidence === "low").length;
+      const needsReview = lineItems.filter((a) => a.needsReview).length;
       
       let description = "Review the category mappings below";
+      if (excluded.length > 0) {
+        description = `${excluded.length} totals excluded`;
+      }
       if (needsReview > 0) {
-        description = `${needsReview} accounts flagged for review`;
+        description += `, ${needsReview} accounts flagged`;
       } else if (lowConfidence > 0) {
-        description = `${lowConfidence} accounts need your attention`;
+        description += `, ${lowConfidence} need attention`;
       }
       
       toast({
-        title: `Found ${accounts.length} accounts`,
+        title: `Found ${lineItems.length} line items`,
         description,
       });
     } catch (error) {
@@ -558,6 +602,7 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
       onImport(data);
       setShowMappingModal(false);
       setParsedAccounts([]);
+      setExcludedAccounts([]);
       setPastedText("");
 
       toast({
@@ -685,6 +730,7 @@ Net Income: $85,000"
         open={showMappingModal}
         onOpenChange={setShowMappingModal}
         accounts={parsedAccounts}
+        excludedAccounts={excludedAccounts}
         onApply={handleApplyMappings}
         isProcessing={isSavingMappings}
         previousMappings={previousMappings}
