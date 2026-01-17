@@ -602,6 +602,50 @@ export type Database = {
           },
         ]
       }
+      review_account_mappings: {
+        Row: {
+          account_name: string
+          amount: number
+          created_at: string
+          id: string
+          parent_account: string | null
+          pf_category: string
+          review_id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          account_name: string
+          amount?: number
+          created_at?: string
+          id?: string
+          parent_account?: string | null
+          pf_category: string
+          review_id: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          account_name?: string
+          amount?: number
+          created_at?: string
+          id?: string
+          parent_account?: string | null
+          pf_category?: string
+          review_id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_account_mappings_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "quarterly_reviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       strategies: {
         Row: {
           client_overview: string | null
