@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,7 +18,7 @@ import {
   AccountMapping,
   ParsedAccount,
   PFCategory,
-  suggestCategory,
+  detectPFCategory,
 } from "./AccountMappingModal";
 
 interface ImportedData {
@@ -32,17 +32,16 @@ interface ImportedData {
 
 interface ImportPnlBarProps {
   reviewId: string;
+  clientId: string;
   onImport: (data: ImportedData) => void;
 }
 
 // Helper to extract number from a string
 const extractNumber = (text: string): number | null => {
-  // Match numbers with optional $ and commas, including negative numbers in parentheses
   const match = text.match(/\(?\$?\s*([\d,]+\.?\d*)\)?/);
   if (match) {
     const numStr = match[1].replace(/,/g, "");
     const num = parseFloat(numStr);
-    // Check if it was a negative number in parentheses
     if (text.includes("(") && text.includes(")")) {
       return -num;
     }
@@ -55,8 +54,6 @@ const extractNumber = (text: string): number | null => {
 function parseLineItems(text: string): ParsedAccount[] {
   const accounts: ParsedAccount[] = [];
   const lines = text.split("\n");
-
-  // Detect if this is CSV format (has commas separating values)
   const isCSV = lines.some((line) => line.split(",").length > 3);
 
   let currentParent: string | undefined;
@@ -71,8 +68,6 @@ function parseLineItems(text: string): ParsedAccount[] {
     if (isCSV) {
       const cells = line.split(",");
       accountName = cells[0]?.trim() || "";
-
-      // Get the last numeric value (Total column)
       for (let i = cells.length - 1; i >= 1; i--) {
         const cell = cells[i].trim();
         if (cell) {
@@ -81,7 +76,6 @@ function parseLineItems(text: string): ParsedAccount[] {
         }
       }
     } else {
-      // Plain text format - look for patterns like "Account Name: $1,234"
       const parts = line.split(/[:\t]+/);
       accountName = parts[0]?.trim() || "";
       if (parts.length > 1) {
@@ -91,7 +85,6 @@ function parseLineItems(text: string): ParsedAccount[] {
 
     if (!accountName) continue;
 
-    // Detect parent accounts (typically headers without amounts or with "Total" prefix)
     const isHeader = amount === null && !accountName.toLowerCase().startsWith("total");
     const isSubtotal = accountName.toLowerCase().startsWith("total ");
 
@@ -101,17 +94,18 @@ function parseLineItems(text: string): ParsedAccount[] {
     }
 
     if (isSubtotal) {
-      // Skip subtotals but clear parent
       currentParent = undefined;
       continue;
     }
 
     if (amount !== null) {
+      const detection = detectPFCategory(accountName, currentParent);
       accounts.push({
         accountName,
         amount,
         parentAccount: currentParent,
-        suggestedCategory: suggestCategory(accountName, currentParent),
+        suggestedCategory: detection.category,
+        confidence: detection.confidence,
         sortOrder: sortOrder++,
       });
     }
@@ -129,24 +123,16 @@ function parseLineItemsFromWorkbook(workbook: XLSX.WorkBook): ParsedAccount[] {
 
   if (data.length === 0) return accounts;
 
-  // Find header row and identify "Total" column (usually last numeric column)
   let totalColIndex = -1;
   let headerRowIndex = -1;
 
-  // Look for header row (first row with text that looks like column headers)
   for (let i = 0; i < Math.min(data.length, 10); i++) {
     const row = data[i];
     if (!row || row.length === 0) continue;
 
-    // Check if this row has column headers like "Total", "YTD", month names, etc.
     for (let j = row.length - 1; j >= 0; j--) {
       const cell = String(row[j] || "").toLowerCase().trim();
-      if (
-        cell === "total" ||
-        cell === "ytd" ||
-        cell === "year to date" ||
-        cell === "ytd total"
-      ) {
+      if (cell === "total" || cell === "ytd" || cell === "year to date" || cell === "ytd total") {
         totalColIndex = j;
         headerRowIndex = i;
         break;
@@ -155,9 +141,7 @@ function parseLineItemsFromWorkbook(workbook: XLSX.WorkBook): ParsedAccount[] {
     if (totalColIndex >= 0) break;
   }
 
-  // If no "Total" header found, use the last column as fallback
   if (totalColIndex === -1) {
-    // Find the rightmost column with numeric data
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
       if (!row) continue;
@@ -178,7 +162,6 @@ function parseLineItemsFromWorkbook(workbook: XLSX.WorkBook): ParsedAccount[] {
   let currentParent: string | undefined;
   let sortOrder = 0;
 
-  // Now scan rows for financial line items
   for (let i = headerRowIndex + 1; i < data.length; i++) {
     const row = data[i];
     if (!row || row.length === 0) continue;
@@ -186,13 +169,11 @@ function parseLineItemsFromWorkbook(workbook: XLSX.WorkBook): ParsedAccount[] {
     const label = String(row[0] || "").trim();
     if (!label) continue;
 
-    // Get value from total column, or fallback to last non-empty cell
     let value: number | null = null;
     if (totalColIndex >= 0 && row[totalColIndex] !== undefined) {
       value = extractNumber(String(row[totalColIndex]));
     }
     if (value === null) {
-      // Fallback: find last numeric value in the row
       for (let j = row.length - 1; j >= 1; j--) {
         if (row[j] !== undefined && row[j] !== null && row[j] !== "") {
           value = extractNumber(String(row[j]));
@@ -201,7 +182,6 @@ function parseLineItemsFromWorkbook(workbook: XLSX.WorkBook): ParsedAccount[] {
       }
     }
 
-    // Detect parent accounts (headers without amounts)
     const isHeader = value === null && !label.toLowerCase().startsWith("total");
     const isSubtotal = label.toLowerCase().startsWith("total ");
 
@@ -216,17 +196,18 @@ function parseLineItemsFromWorkbook(workbook: XLSX.WorkBook): ParsedAccount[] {
     }
 
     if (value !== null) {
+      const detection = detectPFCategory(label, currentParent);
       accounts.push({
         accountName: label,
         amount: value,
         parentAccount: currentParent,
-        suggestedCategory: suggestCategory(label, currentParent),
+        suggestedCategory: detection.category,
+        confidence: detection.confidence,
         sortOrder: sortOrder++,
       });
     }
   }
 
-  // Fallback to CSV parsing if no accounts found
   if (accounts.length === 0) {
     const csvText = XLSX.utils.sheet_to_csv(firstSheet);
     return parseLineItems(csvText);
@@ -235,69 +216,80 @@ function parseLineItemsFromWorkbook(workbook: XLSX.WorkBook): ParsedAccount[] {
   return accounts;
 }
 
-// Calculate totals from mappings
+// Calculate totals from mappings using new categories
 function calculateTotalsFromMappings(mappings: AccountMapping[]): ImportedData {
-  const result: ImportedData = {
-    revenue: 0,
-    netProfit: null,
-    cogs: 0,
-    expenses: 0,
-    ownerPay: 0,
-    taxPaid: 0,
+  const totals = {
+    gross_revenue: 0,
+    materials_subs: 0,
+    owner_pay: 0,
+    tax: 0,
+    opex: 0,
+    exclude: 0,
   };
 
   mappings.forEach((mapping) => {
-    if (mapping.pfCategory === "exclude") return;
-
-    switch (mapping.pfCategory) {
-      case "revenue":
-        result.revenue = (result.revenue || 0) + mapping.amount;
-        break;
-      case "cogs":
-        result.cogs = (result.cogs || 0) + Math.abs(mapping.amount);
-        break;
-      case "owner_pay":
-        result.ownerPay = (result.ownerPay || 0) + Math.abs(mapping.amount);
-        break;
-      case "tax":
-        result.taxPaid = (result.taxPaid || 0) + Math.abs(mapping.amount);
-        break;
-      case "opex":
-        result.expenses = (result.expenses || 0) + Math.abs(mapping.amount);
-        break;
-      case "profit":
-        result.netProfit = (result.netProfit || 0) + mapping.amount;
-        break;
+    if (mapping.pfCategory === "exclude") {
+      totals.exclude += mapping.amount;
+      return;
     }
+    totals[mapping.pfCategory] += mapping.amount;
   });
 
-  // Calculate net profit if not directly mapped
-  // Net Profit = Revenue - COGS - OpEx - Owner Pay - Tax
-  if (result.netProfit === null || result.netProfit === 0) {
-    const revenue = result.revenue || 0;
-    const cogs = result.cogs || 0;
-    const expenses = result.expenses || 0;
-    const ownerPay = result.ownerPay || 0;
-    const tax = result.taxPaid || 0;
-    result.netProfit = revenue - cogs - expenses - ownerPay - tax;
-  }
+  const realRevenue = totals.gross_revenue - Math.abs(totals.materials_subs);
 
-  // Total expenses includes OpEx + Owner Pay + Tax (for the form)
-  const totalExpenses =
-    (result.expenses || 0) + (result.ownerPay || 0) + (result.taxPaid || 0);
-  result.expenses = totalExpenses;
+  // Map to ImportedData format
+  const result: ImportedData = {
+    revenue: totals.gross_revenue,
+    cogs: Math.abs(totals.materials_subs),
+    ownerPay: Math.abs(totals.owner_pay),
+    taxPaid: Math.abs(totals.tax),
+    expenses: Math.abs(totals.opex) + Math.abs(totals.materials_subs) + Math.abs(totals.owner_pay) + Math.abs(totals.tax),
+    netProfit: realRevenue - Math.abs(totals.opex) - Math.abs(totals.owner_pay) - Math.abs(totals.tax),
+  };
 
   return result;
 }
 
-export const ImportPnlBar = ({ reviewId, onImport }: ImportPnlBarProps) => {
+export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps) => {
   const [showPasteModal, setShowPasteModal] = useState(false);
   const [showMappingModal, setShowMappingModal] = useState(false);
   const [pastedText, setPastedText] = useState("");
   const [parsedAccounts, setParsedAccounts] = useState<ParsedAccount[]>([]);
+  const [previousMappings, setPreviousMappings] = useState<Map<string, PFCategory>>(new Map());
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSavingMappings, setIsSavingMappings] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load previous mappings for this client
+  useEffect(() => {
+    const loadPreviousMappings = async () => {
+      if (!clientId) return;
+
+      try {
+        const { data, error } = await supabase
+          .from("client_account_defaults")
+          .select("account_name, pf_category")
+          .eq("client_id", clientId);
+
+        if (error) {
+          console.error("Error loading previous mappings:", error);
+          return;
+        }
+
+        if (data && data.length > 0) {
+          const map = new Map<string, PFCategory>();
+          data.forEach((row) => {
+            map.set(row.account_name, row.pf_category as PFCategory);
+          });
+          setPreviousMappings(map);
+        }
+      } catch (err) {
+        console.error("Error loading previous mappings:", err);
+      }
+    };
+
+    loadPreviousMappings();
+  }, [clientId]);
 
   const handleParsePastedData = () => {
     if (!pastedText.trim()) {
@@ -328,9 +320,12 @@ export const ImportPnlBar = ({ reviewId, onImport }: ImportPnlBarProps) => {
       setShowPasteModal(false);
       setShowMappingModal(true);
 
+      const lowConfidence = accounts.filter((a) => a.confidence === "low").length;
       toast({
         title: `Found ${accounts.length} accounts`,
-        description: "Review the category mappings below",
+        description: lowConfidence > 0
+          ? `${lowConfidence} accounts need your attention`
+          : "Review the category mappings below",
       });
     } catch (error) {
       toast({
@@ -343,9 +338,7 @@ export const ImportPnlBar = ({ reviewId, onImport }: ImportPnlBarProps) => {
     }
   };
 
-  const handleFileUpload = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -356,12 +349,10 @@ export const ImportPnlBar = ({ reviewId, onImport }: ImportPnlBarProps) => {
       let accounts: ParsedAccount[];
 
       if (extension === "xlsx" || extension === "xls") {
-        // Handle Excel files
         const arrayBuffer = await file.arrayBuffer();
         const workbook = XLSX.read(arrayBuffer, { type: "array" });
         accounts = parseLineItemsFromWorkbook(workbook);
       } else {
-        // Handle text/csv files
         const text = await file.text();
         accounts = parseLineItems(text);
       }
@@ -378,9 +369,12 @@ export const ImportPnlBar = ({ reviewId, onImport }: ImportPnlBarProps) => {
       setParsedAccounts(accounts);
       setShowMappingModal(true);
 
+      const lowConfidence = accounts.filter((a) => a.confidence === "low").length;
       toast({
         title: `Found ${accounts.length} accounts`,
-        description: "Review the category mappings below",
+        description: lowConfidence > 0
+          ? `${lowConfidence} accounts need your attention`
+          : "Review the category mappings below",
       });
     } catch (error) {
       console.error("File upload error:", error);
@@ -391,7 +385,6 @@ export const ImportPnlBar = ({ reviewId, onImport }: ImportPnlBarProps) => {
       });
     } finally {
       setIsProcessing(false);
-      // Reset file input
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
@@ -424,11 +417,23 @@ export const ImportPnlBar = ({ reviewId, onImport }: ImportPnlBarProps) => {
 
       if (insertError) {
         console.error("Error saving mappings:", insertError);
-        toast({
-          title: "Warning",
-          description: "Mappings applied but could not be saved for future reference",
-          variant: "destructive",
-        });
+      }
+
+      // Save modified mappings to client defaults for future imports
+      const modifiedMappings = mappings.filter((m) => m.wasModified);
+      if (modifiedMappings.length > 0 && clientId) {
+        for (const mapping of modifiedMappings) {
+          await supabase
+            .from("client_account_defaults")
+            .upsert(
+              {
+                client_id: clientId,
+                account_name: mapping.accountName,
+                pf_category: mapping.pfCategory,
+              },
+              { onConflict: "client_id,account_name" }
+            );
+        }
       }
 
       // Calculate totals from mappings
@@ -437,7 +442,6 @@ export const ImportPnlBar = ({ reviewId, onImport }: ImportPnlBarProps) => {
       // Build success message
       const found: string[] = [];
       if (data.revenue) found.push(`Revenue ${formatCurrency(data.revenue)}`);
-      if (data.netProfit) found.push(`Net Profit ${formatCurrency(data.netProfit)}`);
       if (data.cogs) found.push(`COGS ${formatCurrency(data.cogs)}`);
       if (data.ownerPay) found.push(`Owner Pay ${formatCurrency(data.ownerPay)}`);
       if (data.taxPaid) found.push(`Tax ${formatCurrency(data.taxPaid)}`);
@@ -478,6 +482,11 @@ export const ImportPnlBar = ({ reviewId, onImport }: ImportPnlBarProps) => {
         <div className="flex items-center gap-2">
           <FileSpreadsheet className="h-5 w-5 text-blue-600" />
           <span className="font-medium text-slate-700">Import from P&L</span>
+          {previousMappings.size > 0 && (
+            <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded">
+              {previousMappings.size} remembered
+            </span>
+          )}
         </div>
         <div className="flex gap-2">
           <Button
@@ -569,6 +578,7 @@ Net Income: $85,000"
         accounts={parsedAccounts}
         onApply={handleApplyMappings}
         isProcessing={isSavingMappings}
+        previousMappings={previousMappings}
       />
     </>
   );

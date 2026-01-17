@@ -933,6 +933,7 @@ const QuarterlyReviewForm = () => {
                     {/* Import P&L Bar */}
                     <ImportPnlBar
                       reviewId={review.id}
+                      clientId={client.id}
                       onImport={(data) => {
                         const updates: Partial<QuarterlyReview> = {};
                         if (data.revenue !== null) {
