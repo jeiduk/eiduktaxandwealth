@@ -46,6 +46,7 @@ interface AccountMappingModalProps {
   accounts: ParsedAccount[];
   excludedAccounts?: ParsedAccount[];
   duplicateAccounts?: ParsedAccount[];
+  amountColumnDescription?: string;
   onApply: (mappings: AccountMapping[]) => void;
   isProcessing?: boolean;
   previousMappings?: Map<string, PFCategory>;
@@ -113,6 +114,7 @@ export function AccountMappingModal({
   accounts,
   excludedAccounts = [],
   duplicateAccounts = [],
+  amountColumnDescription = "",
   onApply,
   isProcessing = false,
   previousMappings,
@@ -219,6 +221,12 @@ export function AccountMappingModal({
               <span className="flex items-center gap-1 text-amber-600">
                 <AlertCircle className="h-4 w-4" />
                 {Math.max(lowConfidenceCount, needsReviewCount)} need review
+              </span>
+            )}
+            {amountColumnDescription && (
+              <span className="flex items-center gap-1 text-blue-600">
+                <DollarSign className="h-4 w-4" />
+                {amountColumnDescription}
               </span>
             )}
           </div>
