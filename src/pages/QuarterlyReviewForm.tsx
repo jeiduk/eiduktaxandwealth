@@ -932,6 +932,7 @@ const QuarterlyReviewForm = () => {
                   <div className="space-y-6">
                     {/* Import P&L Bar */}
                     <ImportPnlBar
+                      reviewId={review.id}
                       onImport={(data) => {
                         const updates: Partial<QuarterlyReview> = {};
                         if (data.revenue !== null) {
@@ -948,6 +949,9 @@ const QuarterlyReviewForm = () => {
                         }
                         if (data.ownerPay !== null) {
                           updates.draw_ytd = data.ownerPay;
+                        }
+                        if ('taxPaid' in data && data.taxPaid !== null) {
+                          updates.tax_ytd = data.taxPaid;
                         }
                         if (Object.keys(updates).length > 0) {
                           // Update local state with all fields at once

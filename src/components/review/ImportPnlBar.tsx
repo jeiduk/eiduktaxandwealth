@@ -12,6 +12,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { FileSpreadsheet, Upload, ClipboardPaste, Loader2 } from "lucide-react";
 import * as XLSX from "xlsx";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  AccountMappingModal,
+  AccountMapping,
+  ParsedAccount,
+  PFCategory,
+  suggestCategory,
+} from "./AccountMappingModal";
 
 interface ImportedData {
   revenue: number | null;
@@ -19,9 +27,11 @@ interface ImportedData {
   cogs: number | null;
   expenses: number | null;
   ownerPay: number | null;
+  taxPaid?: number | null;
 }
 
 interface ImportPnlBarProps {
+  reviewId: string;
   onImport: (data: ImportedData) => void;
 }
 
@@ -30,10 +40,10 @@ const extractNumber = (text: string): number | null => {
   // Match numbers with optional $ and commas, including negative numbers in parentheses
   const match = text.match(/\(?\$?\s*([\d,]+\.?\d*)\)?/);
   if (match) {
-    const numStr = match[1].replace(/,/g, '');
+    const numStr = match[1].replace(/,/g, "");
     const num = parseFloat(numStr);
     // Check if it was a negative number in parentheses
-    if (text.includes('(') && text.includes(')')) {
+    if (text.includes("(") && text.includes(")")) {
       return -num;
     }
     return num;
@@ -41,129 +51,102 @@ const extractNumber = (text: string): number | null => {
   return null;
 };
 
-// Helper to extract the last number from a CSV row (the Total column)
-const extractLastNumber = (line: string): number | null => {
-  // Split by comma and find the last non-empty cell
-  const cells = line.split(',');
-  for (let i = cells.length - 1; i >= 0; i--) {
-    const cell = cells[i].trim();
-    if (cell) {
-      const num = extractNumber(cell);
-      if (num !== null) {
-        return num;
-      }
-    }
-  }
-  return null;
-};
+// Parse line items from CSV/text
+function parseLineItems(text: string): ParsedAccount[] {
+  const accounts: ParsedAccount[] = [];
+  const lines = text.split("\n");
 
-function extractFinancials(text: string): ImportedData {
-  const result: ImportedData = {
-    revenue: null,
-    netProfit: null,
-    cogs: null,
-    expenses: null,
-    ownerPay: null,
-  };
-
-  const lines = text.split('\n');
-  
   // Detect if this is CSV format (has commas separating values)
-  const isCSV = lines.some(line => line.split(',').length > 3);
-  const getNumber = isCSV ? extractLastNumber : extractNumber;
+  const isCSV = lines.some((line) => line.split(",").length > 3);
+
+  let currentParent: string | undefined;
+  let sortOrder = 0;
 
   for (const line of lines) {
-    const lower = line.toLowerCase();
+    if (!line.trim()) continue;
 
-    // Revenue patterns - map from Gross Profit
-    if (!result.revenue && (
-      lower.includes('gross profit') ||
-      lower.includes('total for income') ||
-      lower.includes('total income') ||
-      lower.includes('gross revenue') ||
-      lower.includes('total revenue')
-    )) {
-      result.revenue = getNumber(line);
+    let accountName: string;
+    let amount: number | null = null;
+
+    if (isCSV) {
+      const cells = line.split(",");
+      accountName = cells[0]?.trim() || "";
+
+      // Get the last numeric value (Total column)
+      for (let i = cells.length - 1; i >= 1; i--) {
+        const cell = cells[i].trim();
+        if (cell) {
+          amount = extractNumber(cell);
+          if (amount !== null) break;
+        }
+      }
+    } else {
+      // Plain text format - look for patterns like "Account Name: $1,234"
+      const parts = line.split(/[:\t]+/);
+      accountName = parts[0]?.trim() || "";
+      if (parts.length > 1) {
+        amount = extractNumber(parts.slice(1).join(""));
+      }
     }
 
-    // Net Profit patterns - map from Net Operating Income
-    if (!result.netProfit && (
-      lower.includes('net operating income') ||
-      lower.includes('net ordinary income') ||
-      lower.includes('net income') ||
-      lower.includes('net profit')
-    )) {
-      result.netProfit = getNumber(line);
+    if (!accountName) continue;
+
+    // Detect parent accounts (typically headers without amounts or with "Total" prefix)
+    const isHeader = amount === null && !accountName.toLowerCase().startsWith("total");
+    const isSubtotal = accountName.toLowerCase().startsWith("total ");
+
+    if (isHeader) {
+      currentParent = accountName;
+      continue;
     }
 
-    // COGS patterns - look for "Total for Cost of Goods Sold"
-    if (!result.cogs && (
-      lower.includes('total for cost of goods sold') ||
-      lower.includes('cost of goods sold') ||
-      lower.includes('cost of sales') ||
-      lower.includes('cogs')
-    )) {
-      result.cogs = getNumber(line);
+    if (isSubtotal) {
+      // Skip subtotals but clear parent
+      currentParent = undefined;
+      continue;
     }
 
-    // Expenses patterns - look for "Total for Expenses"
-    if (!result.expenses && (
-      lower.includes('total for expenses') ||
-      lower.includes('total expenses') ||
-      lower.includes('total operating expenses')
-    )) {
-      result.expenses = getNumber(line);
-    }
-
-    // Owner Pay / Personal Draw patterns
-    if (!result.ownerPay && (
-      lower.includes('owner pay') ||
-      lower.includes('owner\'s pay') ||
-      lower.includes('owners pay') ||
-      lower.includes('personal draw') ||
-      lower.includes('owner draw') ||
-      lower.includes('owner\'s draw') ||
-      lower.includes('owners draw') ||
-      lower.includes('shareholder distribution') ||
-      lower.includes('officer compensation') ||
-      lower.includes('owner compensation')
-    )) {
-      result.ownerPay = getNumber(line);
+    if (amount !== null) {
+      accounts.push({
+        accountName,
+        amount,
+        parentAccount: currentParent,
+        suggestedCategory: suggestCategory(accountName, currentParent),
+        sortOrder: sortOrder++,
+      });
     }
   }
 
-  return result;
+  return accounts;
 }
 
-// Extract financials from Excel with Total column fallback
-function extractFinancialsFromWorkbook(workbook: XLSX.WorkBook): ImportedData {
-  const result: ImportedData = {
-    revenue: null,
-    netProfit: null,
-    cogs: null,
-    expenses: null,
-    ownerPay: null,
-  };
-
+// Parse line items from Excel workbook
+function parseLineItemsFromWorkbook(workbook: XLSX.WorkBook): ParsedAccount[] {
+  const accounts: ParsedAccount[] = [];
   const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
   const rawData = XLSX.utils.sheet_to_json<unknown[]>(firstSheet, { header: 1 });
   const data: unknown[][] = rawData as unknown[][];
-  
-  if (data.length === 0) return result;
+
+  if (data.length === 0) return accounts;
 
   // Find header row and identify "Total" column (usually last numeric column)
   let totalColIndex = -1;
   let headerRowIndex = -1;
-  
+
   // Look for header row (first row with text that looks like column headers)
   for (let i = 0; i < Math.min(data.length, 10); i++) {
     const row = data[i];
     if (!row || row.length === 0) continue;
-    
+
     // Check if this row has column headers like "Total", "YTD", month names, etc.
     for (let j = row.length - 1; j >= 0; j--) {
-      const cell = String(row[j] || '').toLowerCase().trim();
-      if (cell === 'total' || cell === 'ytd' || cell === 'year to date' || cell === 'ytd total') {
+      const cell = String(row[j] || "").toLowerCase().trim();
+      if (
+        cell === "total" ||
+        cell === "ytd" ||
+        cell === "year to date" ||
+        cell === "ytd total"
+      ) {
         totalColIndex = j;
         headerRowIndex = i;
         break;
@@ -180,7 +163,7 @@ function extractFinancialsFromWorkbook(workbook: XLSX.WorkBook): ImportedData {
       if (!row) continue;
       for (let j = row.length - 1; j >= 0; j--) {
         const cell = row[j];
-        if (cell !== undefined && cell !== null && cell !== '') {
+        if (cell !== undefined && cell !== null && cell !== "") {
           const num = extractNumber(String(cell));
           if (num !== null) {
             totalColIndex = j;
@@ -192,13 +175,17 @@ function extractFinancialsFromWorkbook(workbook: XLSX.WorkBook): ImportedData {
     }
   }
 
+  let currentParent: string | undefined;
+  let sortOrder = 0;
+
   // Now scan rows for financial line items
   for (let i = headerRowIndex + 1; i < data.length; i++) {
     const row = data[i];
     if (!row || row.length === 0) continue;
-    
-    const label = String(row[0] || '').toLowerCase().trim();
-    
+
+    const label = String(row[0] || "").trim();
+    if (!label) continue;
+
     // Get value from total column, or fallback to last non-empty cell
     let value: number | null = null;
     if (totalColIndex >= 0 && row[totalColIndex] !== undefined) {
@@ -207,85 +194,112 @@ function extractFinancialsFromWorkbook(workbook: XLSX.WorkBook): ImportedData {
     if (value === null) {
       // Fallback: find last numeric value in the row
       for (let j = row.length - 1; j >= 1; j--) {
-        if (row[j] !== undefined && row[j] !== null && row[j] !== '') {
+        if (row[j] !== undefined && row[j] !== null && row[j] !== "") {
           value = extractNumber(String(row[j]));
           if (value !== null) break;
         }
       }
     }
 
-    if (value === null) continue;
+    // Detect parent accounts (headers without amounts)
+    const isHeader = value === null && !label.toLowerCase().startsWith("total");
+    const isSubtotal = label.toLowerCase().startsWith("total ");
 
-    // Revenue patterns - map from Gross Profit
-    if (!result.revenue && (
-      label.includes('gross profit') ||
-      label.includes('total income') ||
-      label.includes('gross revenue') ||
-      label.includes('total revenue')
-    )) {
-      result.revenue = value;
+    if (isHeader) {
+      currentParent = label;
+      continue;
     }
 
-    // Net Profit patterns - map from Net Operating Income
-    if (!result.netProfit && (
-      label.includes('net operating income') ||
-      label.includes('net ordinary income') ||
-      label.includes('net income') ||
-      label.includes('net profit')
-    )) {
-      result.netProfit = value;
+    if (isSubtotal) {
+      currentParent = undefined;
+      continue;
     }
 
-    // COGS patterns
-    if (!result.cogs && (
-      label.includes('cost of goods sold') ||
-      label.includes('cost of sales') ||
-      label === 'cogs'
-    )) {
-      result.cogs = value;
-    }
-
-    // Expenses patterns
-    if (!result.expenses && (
-      label.includes('total expenses') ||
-      label.includes('total operating expenses')
-    )) {
-      result.expenses = value;
-    }
-
-    // Owner Pay patterns
-    if (!result.ownerPay && (
-      label.includes('owner pay') ||
-      label.includes('owner\'s pay') ||
-      label.includes('owners pay') ||
-      label.includes('personal draw') ||
-      label.includes('owner draw') ||
-      label.includes('owner\'s draw') ||
-      label.includes('owners draw') ||
-      label.includes('shareholder distribution') ||
-      label.includes('officer compensation') ||
-      label.includes('owner compensation')
-    )) {
-      result.ownerPay = value;
+    if (value !== null) {
+      accounts.push({
+        accountName: label,
+        amount: value,
+        parentAccount: currentParent,
+        suggestedCategory: suggestCategory(label, currentParent),
+        sortOrder: sortOrder++,
+      });
     }
   }
 
-  // If Excel parsing didn't find data, fallback to CSV text parsing
-  if (!result.revenue && !result.netProfit && !result.cogs && !result.expenses && !result.ownerPay) {
+  // Fallback to CSV parsing if no accounts found
+  if (accounts.length === 0) {
     const csvText = XLSX.utils.sheet_to_csv(firstSheet);
-    return extractFinancials(csvText);
+    return parseLineItems(csvText);
   }
+
+  return accounts;
+}
+
+// Calculate totals from mappings
+function calculateTotalsFromMappings(mappings: AccountMapping[]): ImportedData {
+  const result: ImportedData = {
+    revenue: 0,
+    netProfit: null,
+    cogs: 0,
+    expenses: 0,
+    ownerPay: 0,
+    taxPaid: 0,
+  };
+
+  mappings.forEach((mapping) => {
+    if (mapping.pfCategory === "exclude") return;
+
+    switch (mapping.pfCategory) {
+      case "revenue":
+        result.revenue = (result.revenue || 0) + mapping.amount;
+        break;
+      case "cogs":
+        result.cogs = (result.cogs || 0) + Math.abs(mapping.amount);
+        break;
+      case "owner_pay":
+        result.ownerPay = (result.ownerPay || 0) + Math.abs(mapping.amount);
+        break;
+      case "tax":
+        result.taxPaid = (result.taxPaid || 0) + Math.abs(mapping.amount);
+        break;
+      case "opex":
+        result.expenses = (result.expenses || 0) + Math.abs(mapping.amount);
+        break;
+      case "profit":
+        result.netProfit = (result.netProfit || 0) + mapping.amount;
+        break;
+    }
+  });
+
+  // Calculate net profit if not directly mapped
+  // Net Profit = Revenue - COGS - OpEx - Owner Pay - Tax
+  if (result.netProfit === null || result.netProfit === 0) {
+    const revenue = result.revenue || 0;
+    const cogs = result.cogs || 0;
+    const expenses = result.expenses || 0;
+    const ownerPay = result.ownerPay || 0;
+    const tax = result.taxPaid || 0;
+    result.netProfit = revenue - cogs - expenses - ownerPay - tax;
+  }
+
+  // Total expenses includes OpEx + Owner Pay + Tax (for the form)
+  const totalExpenses =
+    (result.expenses || 0) + (result.ownerPay || 0) + (result.taxPaid || 0);
+  result.expenses = totalExpenses;
 
   return result;
 }
 
-export const ImportPnlBar = ({ onImport }: ImportPnlBarProps) => {
+export const ImportPnlBar = ({ reviewId, onImport }: ImportPnlBarProps) => {
   const [showPasteModal, setShowPasteModal] = useState(false);
+  const [showMappingModal, setShowMappingModal] = useState(false);
   const [pastedText, setPastedText] = useState("");
+  const [parsedAccounts, setParsedAccounts] = useState<ParsedAccount[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isSavingMappings, setIsSavingMappings] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleImportData = () => {
+  const handleParsePastedData = () => {
     if (!pastedText.trim()) {
       toast({
         title: "Error",
@@ -296,36 +310,27 @@ export const ImportPnlBar = ({ onImport }: ImportPnlBarProps) => {
     }
 
     setIsProcessing(true);
-    
+
     try {
-      const data = extractFinancials(pastedText);
-      
-      // Check if we found anything
-      if (!data.revenue && !data.netProfit && !data.cogs && !data.expenses && !data.ownerPay) {
+      const accounts = parseLineItems(pastedText);
+
+      if (accounts.length === 0) {
         toast({
-          title: "No Data Found",
-          description: "Could not find financial data. Please check the format.",
+          title: "No Accounts Found",
+          description: "Could not find any line items. Please check the format.",
           variant: "destructive",
         });
         setIsProcessing(false);
         return;
       }
 
-      // Build success message
-      const found: string[] = [];
-      if (data.revenue) found.push(`Revenue ${formatCurrency(data.revenue)}`);
-      if (data.netProfit) found.push(`Net Profit ${formatCurrency(data.netProfit)}`);
-      if (data.cogs) found.push(`COGS ${formatCurrency(data.cogs)}`);
-      if (data.expenses) found.push(`Expenses ${formatCurrency(data.expenses)}`);
-      if (data.ownerPay) found.push(`Owner Pay ${formatCurrency(data.ownerPay)}`);
-
-      onImport(data);
+      setParsedAccounts(accounts);
       setShowPasteModal(false);
-      setPastedText("");
-      
+      setShowMappingModal(true);
+
       toast({
-        title: "✓ Imported",
-        description: found.join(", "),
+        title: `Found ${accounts.length} accounts`,
+        description: "Review the category mappings below",
       });
     } catch (error) {
       toast({
@@ -338,49 +343,44 @@ export const ImportPnlBar = ({ onImport }: ImportPnlBarProps) => {
     }
   };
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     setIsProcessing(true);
 
     try {
-      const extension = file.name.split('.').pop()?.toLowerCase();
-      let data: ImportedData;
+      const extension = file.name.split(".").pop()?.toLowerCase();
+      let accounts: ParsedAccount[];
 
-      if (extension === 'xlsx' || extension === 'xls') {
-        // Handle Excel files with smart column detection
+      if (extension === "xlsx" || extension === "xls") {
+        // Handle Excel files
         const arrayBuffer = await file.arrayBuffer();
-        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-        data = extractFinancialsFromWorkbook(workbook);
+        const workbook = XLSX.read(arrayBuffer, { type: "array" });
+        accounts = parseLineItemsFromWorkbook(workbook);
       } else {
         // Handle text/csv files
         const text = await file.text();
-        data = extractFinancials(text);
+        accounts = parseLineItems(text);
       }
 
-      if (!data.revenue && !data.netProfit && !data.cogs && !data.expenses && !data.ownerPay) {
+      if (accounts.length === 0) {
         toast({
-          title: "No Data Found",
-          description: "Could not find financial data in the file. Please check the format.",
+          title: "No Accounts Found",
+          description: "Could not find any line items. Please check the file format.",
           variant: "destructive",
         });
         return;
       }
 
-      // Build success message
-      const found: string[] = [];
-      if (data.revenue) found.push(`Revenue ${formatCurrency(data.revenue)}`);
-      if (data.netProfit) found.push(`Net Profit ${formatCurrency(data.netProfit)}`);
-      if (data.cogs) found.push(`COGS ${formatCurrency(data.cogs)}`);
-      if (data.expenses) found.push(`Expenses ${formatCurrency(data.expenses)}`);
-      if (data.ownerPay) found.push(`Owner Pay ${formatCurrency(data.ownerPay)}`);
+      setParsedAccounts(accounts);
+      setShowMappingModal(true);
 
-      onImport(data);
-      
       toast({
-        title: "✓ Imported from file",
-        description: found.join(", "),
+        title: `Found ${accounts.length} accounts`,
+        description: "Review the category mappings below",
       });
     } catch (error) {
       console.error("File upload error:", error);
@@ -395,6 +395,71 @@ export const ImportPnlBar = ({ onImport }: ImportPnlBarProps) => {
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
+    }
+  };
+
+  const handleApplyMappings = async (mappings: AccountMapping[]) => {
+    setIsSavingMappings(true);
+
+    try {
+      // Delete existing mappings for this review
+      await supabase
+        .from("review_account_mappings")
+        .delete()
+        .eq("review_id", reviewId);
+
+      // Insert new mappings
+      const insertData = mappings.map((m) => ({
+        review_id: reviewId,
+        account_name: m.accountName,
+        amount: m.amount,
+        pf_category: m.pfCategory,
+        parent_account: m.parentAccount || null,
+        sort_order: m.sortOrder,
+      }));
+
+      const { error: insertError } = await supabase
+        .from("review_account_mappings")
+        .insert(insertData);
+
+      if (insertError) {
+        console.error("Error saving mappings:", insertError);
+        toast({
+          title: "Warning",
+          description: "Mappings applied but could not be saved for future reference",
+          variant: "destructive",
+        });
+      }
+
+      // Calculate totals from mappings
+      const data = calculateTotalsFromMappings(mappings);
+
+      // Build success message
+      const found: string[] = [];
+      if (data.revenue) found.push(`Revenue ${formatCurrency(data.revenue)}`);
+      if (data.netProfit) found.push(`Net Profit ${formatCurrency(data.netProfit)}`);
+      if (data.cogs) found.push(`COGS ${formatCurrency(data.cogs)}`);
+      if (data.ownerPay) found.push(`Owner Pay ${formatCurrency(data.ownerPay)}`);
+      if (data.taxPaid) found.push(`Tax ${formatCurrency(data.taxPaid)}`);
+
+      onImport(data);
+      setShowMappingModal(false);
+      setParsedAccounts([]);
+      setPastedText("");
+
+      toast({
+        title: "✓ Imported from mapped accounts",
+        description: found.join(", "),
+      });
+    } catch (error) {
+      console.error("Error applying mappings:", error);
+      toast({
+        title: "Error",
+        description: "Failed to apply mappings",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingMappings(false);
     }
   };
 
@@ -448,12 +513,14 @@ export const ImportPnlBar = ({ onImport }: ImportPnlBarProps) => {
         </div>
       </div>
 
+      {/* Paste Modal */}
       <Dialog open={showPasteModal} onOpenChange={setShowPasteModal}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Import P&L Data</DialogTitle>
             <DialogDescription>
-              Paste your P&L report text below. We'll extract the key financial metrics automatically.
+              Paste your P&L report text below. We'll extract the line items and
+              let you map them to Profit First categories.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
@@ -465,7 +532,10 @@ export const ImportPnlBar = ({ onImport }: ImportPnlBarProps) => {
 Example:
 Total Income: $450,000
 Cost of Goods Sold: $120,000
-Total Expenses: $245,000
+Owner's Pay: $85,000
+Payroll Taxes: $12,000
+Rent: $24,000
+Utilities: $6,000
 Net Income: $85,000"
               rows={10}
               className="font-mono text-sm"
@@ -478,19 +548,28 @@ Net Income: $85,000"
             <Button variant="outline" onClick={() => setShowPasteModal(false)}>
               Cancel
             </Button>
-            <Button onClick={handleImportData} disabled={isProcessing}>
+            <Button onClick={handleParsePastedData} disabled={isProcessing}>
               {isProcessing ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Processing...
                 </>
               ) : (
-                "Import Data"
+                "Parse & Map Accounts"
               )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Account Mapping Modal */}
+      <AccountMappingModal
+        open={showMappingModal}
+        onOpenChange={setShowMappingModal}
+        accounts={parsedAccounts}
+        onApply={handleApplyMappings}
+        isProcessing={isSavingMappings}
+      />
     </>
   );
 };
