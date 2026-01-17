@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, DollarSign, CheckCircle, AlertCircle, Eye, EyeOff, Filter } from "lucide-react";
+import { Loader2, DollarSign, CheckCircle, AlertCircle, Eye, EyeOff, Filter, Copy } from "lucide-react";
 import { AccountMappingRow } from "./AccountMappingRow";
 import { MappingSummaryPanel } from "./MappingSummaryPanel";
 
@@ -45,6 +45,7 @@ interface AccountMappingModalProps {
   onOpenChange: (open: boolean) => void;
   accounts: ParsedAccount[];
   excludedAccounts?: ParsedAccount[];
+  duplicateAccounts?: ParsedAccount[];
   onApply: (mappings: AccountMapping[]) => void;
   isProcessing?: boolean;
   previousMappings?: Map<string, PFCategory>;
@@ -111,6 +112,7 @@ export function AccountMappingModal({
   onOpenChange,
   accounts,
   excludedAccounts = [],
+  duplicateAccounts = [],
   onApply,
   isProcessing = false,
   previousMappings,
@@ -302,6 +304,14 @@ export function AccountMappingModal({
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Duplicate rows indicator */}
+        {duplicateAccounts.length > 0 && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 rounded text-sm text-amber-700">
+            <Copy className="h-4 w-4" />
+            <span>{duplicateAccounts.length} duplicate rows merged (same account name and amount)</span>
           </div>
         )}
 
