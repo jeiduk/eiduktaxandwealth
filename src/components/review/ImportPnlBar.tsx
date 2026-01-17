@@ -266,47 +266,82 @@ function getAmountFromRow(row: unknown[], config: AmountColumnConfig): number | 
   return null;
 }
 
-// Helper to extract number from a string
 // Helper to parse amount from any value (handles commas, currency symbols, parentheses)
-const extractNumber = (value: unknown): number | null => {
+// Returns a detailed breakdown to support debugging.
+type AmountParseSteps = {
+  raw: unknown;
+  cleaned: string;
+  parsed: number | null;
+  isNegativeParen: boolean;
+};
+
+function parseAmountSteps(value: unknown): AmountParseSteps {
   // If already a number, return it directly
-  if (typeof value === 'number') {
-    return isNaN(value) ? null : value;
+  if (typeof value === "number") {
+    return {
+      raw: value,
+      cleaned: String(value),
+      parsed: Number.isFinite(value) ? value : null,
+      isNegativeParen: false,
+    };
   }
-  
-  if (value === null || value === undefined) return null;
-  
-  // Convert to string and clean it
+
+  if (value === null || value === undefined) {
+    return { raw: value, cleaned: "", parsed: null, isNegativeParen: false };
+  }
+
   let str = String(value).trim();
-  if (!str) return null;
-  
+  if (!str) {
+    return { raw: value, cleaned: "", parsed: null, isNegativeParen: false };
+  }
+
   // Remove currency symbols and spaces
-  str = str.replace(/[$€£¥\s]/g, '');
-  
-  // Handle parentheses as negative: (1,234.56) → -1234.56
-  const isNegative = str.startsWith('(') && str.endsWith(')');
-  if (isNegative) {
+  str = str.replace(/[$€£¥]/g, "");
+  str = str.replace(/\s+/g, "");
+
+  // Handle parentheses as negative: (1,234) → -1234
+  const isNegativeParen = str.startsWith("(") && str.endsWith(")");
+  if (isNegativeParen) {
     str = str.slice(1, -1);
   }
-  
-  // Remove commas from numbers: 711,777.00 → 711777.00
-  str = str.replace(/,/g, '');
-  
+
+  // Remove commas from numbers: 711,777 → 711777
+  str = str.replace(/,/g, "");
+
   // Remove any remaining non-numeric characters except decimal point and minus
-  str = str.replace(/[^0-9.\-]/g, '');
-  
-  // Handle multiple decimal points (keep only first)
-  const parts = str.split('.');
-  if (parts.length > 2) {
-    str = parts[0] + '.' + parts.slice(1).join('');
+  str = str.replace(/[^0-9.\-]/g, "");
+
+  // If we have no digits left, treat as non-numeric
+  if (!/[0-9]/.test(str)) {
+    return { raw: value, cleaned: str, parsed: null, isNegativeParen };
   }
-  
-  // Parse the number
+
   const num = parseFloat(str);
-  
-  if (isNaN(num)) return null;
-  
-  return isNegative ? -num : num;
+  if (Number.isNaN(num)) {
+    return { raw: value, cleaned: str, parsed: null, isNegativeParen };
+  }
+
+  return { raw: value, cleaned: str, parsed: isNegativeParen ? -num : num, isNegativeParen };
+}
+
+function parseAmount(value: unknown): number {
+  const steps = parseAmountSteps(value);
+  return steps.parsed ?? 0;
+}
+
+function logAmountParse(label: string, rawValue: unknown, context: Record<string, unknown>) {
+  const steps = parseAmountSteps(rawValue);
+  console.groupCollapsed(`[P&L Import Debug] Amount parse: ${label}`);
+  console.log("raw:", rawValue);
+  console.log("cleaned:", steps.cleaned);
+  console.log("parsed:", steps.parsed);
+  console.log("context:", context);
+  console.groupEnd();
+  return steps;
+}
+
+const extractNumber = (value: unknown): number | null => {
+  return parseAmountSteps(value).parsed;
 };
 
 // Detection function using cached defaults from database
@@ -351,10 +386,39 @@ function detectPFCategory(
 }
 
 // Parse line items from CSV/text
-function parseLineItems(text: string, defaults: CategoryDefault[]): ParsedAccount[] {
+function parseLineItems(
+  text: string,
+  defaults: CategoryDefault[],
+  debugEnabled = false
+): ParseResult {
   const accounts: ParsedAccount[] = [];
   const lines = text.split("\n");
   const isCSV = lines.some((line) => line.split(",").length > 3);
+
+  // Debug preview (raw) – before any processing
+  const nonEmptyLines = lines.filter((l) => l.trim().length > 0);
+  const previewLines = nonEmptyLines.slice(0, 3);
+  const previewSplitRows = previewLines.map((line) =>
+    isCSV ? line.split(",") : line.split(/[:\t]+/)
+  );
+  const maxColumnsInPreview = previewSplitRows.reduce(
+    (max, r) => Math.max(max, r.length),
+    0
+  );
+
+  const debug: PnlImportDebug = {
+    source: "text",
+    detectedHeaders: previewSplitRows[0]?.map((c) => String(c ?? "").trim()) ?? [],
+    columnsInHeader: previewSplitRows[0]?.length ?? 0,
+    maxColumnsInPreview,
+    previewRows: previewSplitRows as unknown[][],
+    csvPreview: isCSV
+      ? {
+          firstLines: previewLines,
+          splitRows: previewSplitRows.map((r) => r.map((c) => String(c))),
+        }
+      : undefined,
+  };
 
   let currentParent: string | undefined;
   let sortOrder = 0;
@@ -368,26 +432,84 @@ function parseLineItems(text: string, defaults: CategoryDefault[]): ParsedAccoun
     if (isCSV) {
       const cells = line.split(",");
       rawAccountName = cells[0]?.trim() || "";
+
+      const isPatientFeesLine =
+        debugEnabled && line.toLowerCase().includes("patient fees");
+
+      if (isPatientFeesLine) {
+        console.groupCollapsed("[P&L Import Debug] Patient Fees (CSV/text) raw row");
+        console.log("raw line:", line);
+        console.log("cells (after split):", cells);
+        console.log("cells.length:", cells.length);
+        console.groupEnd();
+        debug.patientFees = {
+          rawRowIndex: -1,
+          rawRow: cells,
+          rawAccountCell: cells[0],
+          cleanedAccount: cleanAccountName(String(cells[0] || "")),
+          amountCells: {
+            "last-non-empty":
+              cells
+                .slice(1)
+                .reverse()
+                .find((c) => String(c).trim().length > 0) ?? null,
+          },
+          amountParse: undefined,
+        };
+      }
+
       for (let i = cells.length - 1; i >= 1; i--) {
         const cell = cells[i].trim();
         if (cell) {
-          amount = extractNumber(cell);
+          const parsed = extractNumber(cell);
+          if (isPatientFeesLine) {
+            logAmountParse("CSV candidate cell", cell, {
+              cellIndex: i,
+              rawAccountName,
+            });
+          }
+          amount = parsed;
           if (amount !== null) break;
+        }
+      }
+
+      // If we captured Patient Fees debug above, also store the chosen cell parse
+      if (debugEnabled && line.toLowerCase().includes("patient fees") && debug.patientFees) {
+        const chosenCell =
+          cells
+            .slice(1)
+            .reverse()
+            .find((c) => String(c).trim().length > 0) ?? null;
+        if (chosenCell !== null) {
+          const steps = parseAmountSteps(chosenCell);
+          debug.patientFees.amountCells = {
+            ...debug.patientFees.amountCells,
+            chosenCell,
+          };
+          debug.patientFees.amountParse = {
+            raw: chosenCell,
+            cleaned: steps.cleaned,
+            parsed: steps.parsed,
+          };
         }
       }
     } else {
       const parts = line.split(/[:\t]+/);
       rawAccountName = parts[0]?.trim() || "";
       if (parts.length > 1) {
-        amount = extractNumber(parts.slice(1).join(""));
+        const rawAmountValue = parts.slice(1).join("");
+        amount = extractNumber(rawAmountValue);
+        if (debugEnabled && rawAccountName.toLowerCase().includes("patient fees")) {
+          logAmountParse("Text/tab amount", rawAmountValue, { rawAccountName });
+        }
       }
     }
 
     if (!rawAccountName) continue;
-    
+
     // Skip metadata/header rows (client name, dates, report titles)
     if (isMetadataRow(rawAccountName)) continue;
-    
+
     // Clean the account name (remove prefixes like "Client Name →")
     const accountName = cleanAccountName(rawAccountName);
 
@@ -418,64 +540,152 @@ function parseLineItems(text: string, defaults: CategoryDefault[]): ParsedAccoun
     }
   }
 
-  return accounts;
+  return {
+    accounts,
+    amountColumnDescription: isCSV ? "Parsed as text/CSV" : "Parsed as text",
+    debug,
+  };
 }
+
+// Debug payload for P&L parsing (raw view before processing)
+type PnlImportDebug = {
+  source: "workbook" | "text";
+  detectedHeaders: string[];
+  headerRowIndex?: number;
+  columnsInHeader?: number;
+  maxColumnsInPreview?: number;
+  accountColumnIndex?: number;
+  amountConfig?: AmountColumnConfig;
+  previewRows: unknown[][];
+  csvPreview?: {
+    firstLines: string[];
+    splitRows: string[][];
+  };
+  patientFees?: {
+    rawRowIndex: number;
+    rawRow: unknown[];
+    rawAccountCell: unknown;
+    cleanedAccount: string;
+    amountCells: Record<string, unknown>;
+    amountParse?: {
+      raw: unknown;
+      cleaned: string;
+      parsed: number | null;
+    };
+  };
+};
 
 // Result type for parsing with metadata
 interface ParseResult {
   accounts: ParsedAccount[];
   amountColumnDescription: string;
+  debug?: PnlImportDebug;
 }
 
 // Parse line items from Excel workbook with smart column detection
-function parseLineItemsFromWorkbook(workbook: XLSX.WorkBook, defaults: CategoryDefault[]): ParseResult {
+function parseLineItemsFromWorkbook(
+  workbook: XLSX.WorkBook,
+  defaults: CategoryDefault[],
+  debugEnabled = false
+): ParseResult {
   const accounts: ParsedAccount[] = [];
   const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
   const rawData = XLSX.utils.sheet_to_json<unknown[]>(firstSheet, { header: 1 });
   const data: unknown[][] = rawData as unknown[][];
 
-  if (data.length === 0) return { accounts, amountColumnDescription: '' };
+  if (data.length === 0) {
+    return {
+      accounts,
+      amountColumnDescription: "",
+      debug: {
+        source: "workbook",
+        detectedHeaders: [],
+        previewRows: [],
+      },
+    };
+  }
 
   // Find header row (first row with column-like content)
   let headerRowIndex = -1;
   let headers: string[] = [];
-  
+
   for (let i = 0; i < Math.min(data.length, 15); i++) {
     const row = data[i];
     if (!row || row.length < 2) continue;
-    
-    const rowStrings = row.map(cell => String(cell || "").trim());
-    const headerLower = rowStrings.map(s => s.toLowerCase());
-    
+
+    const rowStrings = row.map((cell) => String(cell || "").trim());
+    const headerLower = rowStrings.map((s) => s.toLowerCase());
+
     // Check if this looks like a header row (has Total/YTD, months, or Amount column)
-    const hasTotal = headerLower.some(h => 
-      h === 'total' || h === 'ytd' || h === 'annual' || 
-      h === 'year total' || h === 'ytd total' || h === 'year to date'
+    const hasTotal = headerLower.some(
+      (h) =>
+        h === "total" ||
+        h === "ytd" ||
+        h === "annual" ||
+        h === "year total" ||
+        h === "ytd total" ||
+        h === "year to date"
     );
-    const hasMonths = headerLower.some(h => MONTH_PATTERNS.some(p => p.test(h)));
-    const hasAmountCol = headerLower.some(h => 
-      h === 'amount' || h === 'balance' || h === 'value' ||
-      h === 'account' || h === 'description'
+    const hasMonths = headerLower.some((h) => MONTH_PATTERNS.some((p) => p.test(h)));
+    const hasAmountCol = headerLower.some(
+      (h) =>
+        h === "amount" ||
+        h === "balance" ||
+        h === "value" ||
+        h === "account" ||
+        h === "description"
     );
-    
+
     if (hasTotal || hasMonths || hasAmountCol) {
       headerRowIndex = i;
       headers = rowStrings;
       break;
     }
   }
-  
+
   // If no header found, try to detect from first data rows
   if (headerRowIndex === -1) {
-    // Use first row as potential header or just start from row 0
     headerRowIndex = 0;
-    headers = data[0]?.map(cell => String(cell || "")) || [];
+    headers = data[0]?.map((cell) => String(cell || "")) || [];
   }
-  
+
   // Detect column configuration
   const accountColIndex = findAccountColumn(headers);
   const amountConfig = findAmountColumn(headers);
-  
+
+  const previewRows = [
+    data[headerRowIndex] || [],
+    data[headerRowIndex + 1] || [],
+    data[headerRowIndex + 2] || [],
+    data[headerRowIndex + 3] || [],
+  ] as unknown[][];
+
+  const maxColumnsInPreview = previewRows.reduce(
+    (max, r) => Math.max(max, r?.length ?? 0),
+    0
+  );
+
+  const debug: PnlImportDebug = {
+    source: "workbook",
+    detectedHeaders: headers.map((h) => String(h ?? "").trim()),
+    headerRowIndex,
+    columnsInHeader: headers.length,
+    maxColumnsInPreview,
+    accountColumnIndex: accountColIndex,
+    amountConfig,
+    previewRows,
+  };
+
+  if (debugEnabled) {
+    console.groupCollapsed("[P&L Import Debug] Workbook structure detected");
+    console.log("headerRowIndex:", headerRowIndex);
+    console.log("headers:", headers);
+    console.log("accountColIndex:", accountColIndex);
+    console.log("amountConfig:", amountConfig);
+    console.log("previewRows:", previewRows);
+    console.groupEnd();
+  }
+
   let currentParent: string | undefined;
   let sortOrder = 0;
 
@@ -485,17 +695,65 @@ function parseLineItemsFromWorkbook(workbook: XLSX.WorkBook, defaults: CategoryD
 
     const rawLabel = String(row[accountColIndex] || "").trim();
     if (!rawLabel) continue;
-    
+
+    // Capture the raw Patient Fees row before any processing
+    if (debugEnabled) {
+      const rowText = row.map((c) => String(c ?? "")).join("|").toLowerCase();
+      if (rowText.includes("patient fees")) {
+        const cleanedAccount = cleanAccountName(rawLabel);
+
+        const amountCells: Record<string, unknown> = {};
+        if (amountConfig.type === "sum_months") {
+          amountConfig.columns.forEach((colIdx) => {
+            amountCells[headers[colIdx] || String(colIdx)] = row[colIdx];
+          });
+        } else {
+          const colIdx = amountConfig.columns[0];
+          amountCells[headers[colIdx] || String(colIdx)] = row[colIdx];
+        }
+
+        const primaryAmountCell =
+          amountConfig.type === "sum_months"
+            ? row[amountConfig.columns[0]]
+            : row[amountConfig.columns[0]];
+        const steps = parseAmountSteps(primaryAmountCell);
+
+        debug.patientFees = {
+          rawRowIndex: i,
+          rawRow: row,
+          rawAccountCell: row[accountColIndex],
+          cleanedAccount,
+          amountCells,
+          amountParse: {
+            raw: primaryAmountCell,
+            cleaned: steps.cleaned,
+            parsed: steps.parsed,
+          },
+        };
+
+        console.groupCollapsed("[P&L Import Debug] Patient Fees (workbook) raw row");
+        console.log("raw row:", row);
+        console.log("account cell (raw):", row[accountColIndex]);
+        console.log("account cell (cleaned):", cleanedAccount);
+        console.log("amount cells (raw):", amountCells);
+        logAmountParse("workbook primary amount cell", primaryAmountCell, {
+          header: headers[amountConfig.columns[0]] ?? amountConfig.columns[0],
+          rowIndex: i,
+        });
+        console.groupEnd();
+      }
+    }
+
     // Skip metadata/header rows (client name, dates, report titles)
     if (isMetadataRow(rawLabel)) continue;
-    
+
     // Clean the account name (remove prefixes like "Client Name →")
     const label = cleanAccountName(rawLabel);
     if (!label) continue;
 
     // Get amount using the detected column config
     let value = getAmountFromRow(row, amountConfig);
-    
+
     // Fallback: if no value from config, try last numeric column
     if (value === null) {
       for (let j = row.length - 1; j >= 1; j--) {
@@ -535,11 +793,15 @@ function parseLineItemsFromWorkbook(workbook: XLSX.WorkBook, defaults: CategoryD
 
   if (accounts.length === 0) {
     const csvText = XLSX.utils.sheet_to_csv(firstSheet);
-    const csvAccounts = parseLineItems(csvText, defaults);
-    return { accounts: csvAccounts, amountColumnDescription: 'Parsed as CSV' };
+    const csvResult = parseLineItems(csvText, defaults, debugEnabled);
+    return {
+      accounts: csvResult.accounts,
+      amountColumnDescription: "Parsed as CSV",
+      debug: csvResult.debug,
+    };
   }
 
-  return { accounts, amountColumnDescription: amountConfig.description };
+  return { accounts, amountColumnDescription: amountConfig.description, debug };
 }
 
 // Calculate totals from mappings using new categories
@@ -588,6 +850,8 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSavingMappings, setIsSavingMappings] = useState(false);
   const [isLoadingDefaults, setIsLoadingDefaults] = useState(false);
+  const [showDebugPanel, setShowDebugPanel] = useState<boolean>(import.meta.env.DEV);
+  const [parseDebug, setParseDebug] = useState<PnlImportDebug | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load category defaults from database
@@ -665,7 +929,11 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
     try {
       // Load defaults from database
       const defaults = await loadCategoryDefaults();
-      const allAccounts = parseLineItems(pastedText, defaults);
+      const result = parseLineItems(pastedText, defaults, showDebugPanel);
+      const allAccounts = result.accounts;
+
+      setAmountColumnDescription(result.amountColumnDescription);
+      setParseDebug(result.debug ?? null);
 
       if (allAccounts.length === 0) {
         toast({
@@ -678,9 +946,9 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
       }
 
       // Filter out total/subtotal rows to avoid double-counting
-      const lineItems = allAccounts.filter(acc => !isTotalRow(acc.accountName));
-      const excluded = allAccounts.filter(acc => isTotalRow(acc.accountName));
-      
+      const lineItems = allAccounts.filter((acc) => !isTotalRow(acc.accountName));
+      const excluded = allAccounts.filter((acc) => isTotalRow(acc.accountName));
+
       // Deduplicate accounts with same name and amount
       const { unique, duplicates } = deduplicateAccounts(lineItems);
 
@@ -692,15 +960,15 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
 
       const lowConfidence = unique.filter((a) => a.confidence === "low").length;
       const needsReview = unique.filter((a) => a.needsReview).length;
-      
-      let description = "Review the category mappings below";
+
+      let description = result.amountColumnDescription || "Review the category mappings below";
       const notes: string[] = [];
       if (excluded.length > 0) notes.push(`${excluded.length} totals excluded`);
       if (duplicates.length > 0) notes.push(`${duplicates.length} duplicates merged`);
       if (needsReview > 0) notes.push(`${needsReview} flagged for review`);
       else if (lowConfidence > 0) notes.push(`${lowConfidence} need attention`);
-      if (notes.length > 0) description = notes.join(", ");
-      
+      if (notes.length > 0) description = `${description}. ${notes.join(", ")}`;
+
       toast({
         title: `Found ${unique.length} line items`,
         description,
@@ -725,22 +993,28 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
     try {
       // Load defaults from database first
       const defaults = await loadCategoryDefaults();
-      
+
       const extension = file.name.split(".").pop()?.toLowerCase();
       let allAccounts: ParsedAccount[];
       let columnDescription = "";
+      let debugPayload: PnlImportDebug | undefined;
 
       if (extension === "xlsx" || extension === "xls") {
         const arrayBuffer = await file.arrayBuffer();
         const workbook = XLSX.read(arrayBuffer, { type: "array" });
-        const result = parseLineItemsFromWorkbook(workbook, defaults);
+        const result = parseLineItemsFromWorkbook(workbook, defaults, showDebugPanel);
         allAccounts = result.accounts;
         columnDescription = result.amountColumnDescription;
+        debugPayload = result.debug;
       } else {
         const text = await file.text();
-        allAccounts = parseLineItems(text, defaults);
-        columnDescription = "Parsed as text/CSV";
+        const result = parseLineItems(text, defaults, showDebugPanel);
+        allAccounts = result.accounts;
+        columnDescription = result.amountColumnDescription;
+        debugPayload = result.debug;
       }
+
+      setParseDebug(debugPayload ?? null);
 
       if (allAccounts.length === 0) {
         toast({
@@ -752,9 +1026,9 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
       }
 
       // Filter out total/subtotal rows to avoid double-counting
-      const lineItems = allAccounts.filter(acc => !isTotalRow(acc.accountName));
-      const excluded = allAccounts.filter(acc => isTotalRow(acc.accountName));
-      
+      const lineItems = allAccounts.filter((acc) => !isTotalRow(acc.accountName));
+      const excluded = allAccounts.filter((acc) => isTotalRow(acc.accountName));
+
       // Deduplicate accounts with same name and amount
       const { unique, duplicates } = deduplicateAccounts(lineItems);
 
@@ -766,7 +1040,7 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
 
       const lowConfidence = unique.filter((a) => a.confidence === "low").length;
       const needsReview = unique.filter((a) => a.needsReview).length;
-      
+
       let description = columnDescription || "Review the category mappings below";
       const notes: string[] = [];
       if (excluded.length > 0) notes.push(`${excluded.length} totals excluded`);
@@ -774,7 +1048,7 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
       if (needsReview > 0) notes.push(`${needsReview} flagged for review`);
       else if (lowConfidence > 0) notes.push(`${lowConfidence} need attention`);
       if (notes.length > 0) description = `${columnDescription}. ${notes.join(", ")}`;
-      
+
       toast({
         title: `Found ${unique.length} line items`,
         description,
@@ -892,7 +1166,17 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
             </span>
           )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          {import.meta.env.DEV && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 px-2 text-muted-foreground"
+              onClick={() => setShowDebugPanel((s) => !s)}
+            >
+              {showDebugPanel ? "Hide debug" : "Debug"}
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -925,6 +1209,81 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
           />
         </div>
       </div>
+
+      {/* Debug Panel (dev only) */}
+      {showDebugPanel && (
+        <div className="mt-2 rounded-lg border bg-muted/20 p-3 text-xs">
+          <div className="flex items-center justify-between gap-2">
+            <div className="font-medium">P&L Import Debug</div>
+            <div className="text-muted-foreground">
+              Upload a file / paste data to populate.
+            </div>
+          </div>
+
+          {parseDebug && (
+            <div className="mt-3 grid gap-4">
+              <div className="grid gap-1">
+                <div className="font-medium">Raw headers detected</div>
+                <pre className="whitespace-pre-wrap break-words text-muted-foreground">
+                  {JSON.stringify(parseDebug.detectedHeaders, null, 2)}
+                </pre>
+              </div>
+
+              <div className="grid gap-1">
+                <div className="font-medium">Columns</div>
+                <div className="text-muted-foreground">
+                  header columns: {parseDebug.columnsInHeader ?? parseDebug.detectedHeaders.length}
+                  {typeof parseDebug.maxColumnsInPreview === "number"
+                    ? ` • max columns (preview rows): ${parseDebug.maxColumnsInPreview}`
+                    : ""}
+                </div>
+              </div>
+
+              {parseDebug.amountConfig && (
+                <div className="grid gap-1">
+                  <div className="font-medium">Detected amount columns</div>
+                  <pre className="whitespace-pre-wrap break-words text-muted-foreground">
+                    {JSON.stringify(
+                      {
+                        type: parseDebug.amountConfig.type,
+                        columns: parseDebug.amountConfig.columns,
+                        description: parseDebug.amountConfig.description,
+                      },
+                      null,
+                      2
+                    )}
+                  </pre>
+                </div>
+              )}
+
+              <div className="grid gap-1">
+                <div className="font-medium">First 3 raw rows (before processing)</div>
+                <pre className="whitespace-pre-wrap break-words text-muted-foreground">
+                  {JSON.stringify(parseDebug.previewRows, null, 2)}
+                </pre>
+              </div>
+
+              {parseDebug.patientFees && (
+                <div className="grid gap-1">
+                  <div className="font-medium">Raw parsed row for “Patient Fees”</div>
+                  <pre className="whitespace-pre-wrap break-words text-muted-foreground">
+                    {JSON.stringify(parseDebug.patientFees, null, 2)}
+                  </pre>
+                </div>
+              )}
+
+              {parseDebug.csvPreview && (
+                <div className="grid gap-1">
+                  <div className="font-medium">CSV preview (raw lines + split)</div>
+                  <pre className="whitespace-pre-wrap break-words text-muted-foreground">
+                    {JSON.stringify(parseDebug.csvPreview, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Paste Modal */}
       <Dialog open={showPasteModal} onOpenChange={setShowPasteModal}>
