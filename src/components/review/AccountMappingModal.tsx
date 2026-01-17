@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -8,39 +8,18 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { cn } from "@/lib/utils";
-import {
-  Loader2,
-  DollarSign,
-  TrendingUp,
-  Package,
-  PiggyBank,
-  Wallet,
-  Receipt,
-  Building2,
-  XCircle,
-  CheckCircle,
-  AlertTriangle,
-} from "lucide-react";
+import { Loader2, DollarSign, CheckCircle, AlertCircle } from "lucide-react";
+import { AccountMappingRow } from "./AccountMappingRow";
+import { MappingSummaryPanel } from "./MappingSummaryPanel";
 
-export type PFCategory = 
-  | "revenue" 
-  | "cogs" 
-  | "profit" 
-  | "owner_pay" 
-  | "tax" 
-  | "opex" 
+export type PFCategory =
+  | "gross_revenue"
+  | "materials_subs"
+  | "owner_pay"
+  | "tax"
+  | "opex"
   | "exclude";
 
 export interface ParsedAccount {
@@ -48,6 +27,7 @@ export interface ParsedAccount {
   amount: number;
   parentAccount?: string;
   suggestedCategory: PFCategory;
+  confidence: "high" | "low";
   sortOrder: number;
 }
 
@@ -57,6 +37,7 @@ export interface AccountMapping {
   parentAccount?: string;
   pfCategory: PFCategory;
   sortOrder: number;
+  wasModified?: boolean;
 }
 
 interface AccountMappingModalProps {
@@ -65,115 +46,140 @@ interface AccountMappingModalProps {
   accounts: ParsedAccount[];
   onApply: (mappings: AccountMapping[]) => void;
   isProcessing?: boolean;
+  previousMappings?: Map<string, PFCategory>;
 }
 
-const CATEGORY_CONFIG: Record<PFCategory, {
-  label: string;
-  icon: typeof DollarSign;
-  color: string;
-  bgColor: string;
-  description: string;
-}> = {
-  revenue: {
-    label: "Revenue",
-    icon: TrendingUp,
-    color: "#059669",
+export const CATEGORY_CONFIG: Record<
+  PFCategory,
+  {
+    label: string;
+    color: string;
+    bgColor: string;
+    description: string;
+  }
+> = {
+  gross_revenue: {
+    label: "Gross Revenue",
+    color: "#10B981",
     bgColor: "bg-emerald-50",
     description: "Income / Sales",
   },
-  cogs: {
-    label: "COGS",
-    icon: Package,
-    color: "#6366F1",
-    bgColor: "bg-indigo-50",
-    description: "Cost of Goods Sold",
-  },
-  profit: {
-    label: "Profit",
-    icon: PiggyBank,
+  materials_subs: {
+    label: "Materials & Subs",
     color: "#059669",
-    bgColor: "bg-emerald-50",
-    description: "Net Income / Retained",
+    bgColor: "bg-green-50",
+    description: "COGS / Direct Costs",
   },
   owner_pay: {
     label: "Owner's Pay",
-    icon: Wallet,
     color: "#7C3AED",
     bgColor: "bg-violet-50",
     description: "Officer Comp / Draws",
   },
   tax: {
     label: "Tax",
-    icon: Receipt,
     color: "#EA580C",
     bgColor: "bg-orange-50",
     description: "Tax Payments",
   },
   opex: {
     label: "OpEx",
-    icon: Building2,
     color: "#2C5AA0",
     bgColor: "bg-blue-50",
     description: "Operating Expenses",
   },
   exclude: {
     label: "Exclude",
-    icon: XCircle,
-    color: "#6B7280",
+    color: "#9CA3AF",
     bgColor: "bg-gray-50",
-    description: "Don't include in totals",
+    description: "Don't include",
   },
 };
 
-// Auto-suggest category based on account name patterns
-export function suggestCategory(accountName: string, parentAccount?: string): PFCategory {
+// Auto-detect PF category based on account name
+export function detectPFCategory(
+  accountName: string,
+  plCategory?: string
+): { category: PFCategory; confidence: "high" | "low" } {
   const name = accountName.toLowerCase();
-  const parent = (parentAccount || "").toLowerCase();
-  
-  // Revenue patterns
+  const parent = (plCategory || "").toLowerCase();
+
+  // High confidence matches - Revenue
   if (
-    name.includes("income") ||
     name.includes("revenue") ||
     name.includes("sales") ||
-    name.includes("gross profit") ||
+    name.includes("income") ||
+    name.includes("fees earned") ||
+    name.includes("service income") ||
+    name.includes("consulting income") ||
     parent.includes("income")
   ) {
-    return "revenue";
+    return { category: "gross_revenue", confidence: "high" };
   }
-  
-  // COGS patterns
+
+  // High confidence - COGS / Materials
   if (
+    name.includes("cogs") ||
     name.includes("cost of goods") ||
     name.includes("cost of sales") ||
-    name.includes("cogs") ||
     name.includes("materials") ||
+    name.includes("subcontractor") ||
+    name.includes("direct labor") ||
     name.includes("direct cost") ||
     parent.includes("cost of goods")
   ) {
-    return "cogs";
+    return { category: "materials_subs", confidence: "high" };
   }
-  
-  // Owner's Pay patterns
+
+  // High confidence - Owner's Pay
   if (
-    name.includes("owner") ||
-    name.includes("officer") ||
-    name.includes("shareholder") ||
-    name.includes("personal draw") ||
+    name.includes("officer compensation") ||
+    name.includes("officer salary") ||
+    name.includes("owner salary") ||
+    name.includes("shareholder wage") ||
     name.includes("guaranteed payment")
   ) {
-    return "owner_pay";
+    return { category: "owner_pay", confidence: "high" };
   }
-  
-  // Tax patterns
+
+  // High confidence - Tax
   if (
-    name.includes("tax") ||
-    name.includes("payroll tax") ||
+    name.includes("tax expense") ||
     name.includes("income tax") ||
-    name.includes("estimated tax")
+    name.includes("taxes paid") ||
+    name.includes("franchise tax") ||
+    name.includes("state tax")
   ) {
-    return "tax";
+    return { category: "tax", confidence: "high" };
   }
-  
+
+  // High confidence - Exclude (non-cash items)
+  if (
+    name.includes("depreciation") ||
+    name.includes("amortization") ||
+    name.includes("unrealized")
+  ) {
+    return { category: "exclude", confidence: "high" };
+  }
+
+  // Low confidence - flag for review
+  if (
+    name.includes("professional fee") ||
+    name.includes("contractor") ||
+    name.includes("consultant") ||
+    name.includes("1099")
+  ) {
+    return { category: "opex", confidence: "low" }; // Could be owner pay or materials
+  }
+
+  if (name.includes("distribution") || name.includes("draw")) {
+    return { category: "exclude", confidence: "low" }; // Could be owner pay
+  }
+
+  if (name.includes("payroll tax") || name.includes("fica")) {
+    return { category: "opex", confidence: "low" }; // Could be tax category
+  }
+
   // Default to OpEx for expense accounts
   if (
     name.includes("expense") ||
@@ -183,13 +189,15 @@ export function suggestCategory(accountName: string, parentAccount?: string): PF
     name.includes("insurance") ||
     name.includes("supplies") ||
     name.includes("advertising") ||
-    name.includes("professional fees")
+    name.includes("marketing") ||
+    name.includes("software") ||
+    name.includes("subscription")
   ) {
-    return "opex";
+    return { category: "opex", confidence: "high" };
   }
-  
-  // Default to exclude for unclear items
-  return "exclude";
+
+  // Default to OpEx with low confidence for unknown items
+  return { category: "opex", confidence: "low" };
 }
 
 function formatCurrency(value: number): string {
@@ -207,29 +215,36 @@ export function AccountMappingModal({
   accounts,
   onApply,
   isProcessing = false,
+  previousMappings,
 }: AccountMappingModalProps) {
-  // Initialize mappings from accounts with suggested categories
-  const [mappings, setMappings] = useState<Map<string, PFCategory>>(() => {
-    const map = new Map<string, PFCategory>();
-    accounts.forEach((acc) => {
-      map.set(acc.accountName, acc.suggestedCategory);
-    });
-    return map;
-  });
+  // Initialize mappings from accounts
+  const [mappings, setMappings] = useState<Map<string, PFCategory>>(new Map());
+  const [modifiedAccounts, setModifiedAccounts] = useState<Set<string>>(new Set());
 
   // Reset mappings when accounts change
-  useMemo(() => {
+  useEffect(() => {
     const map = new Map<string, PFCategory>();
     accounts.forEach((acc) => {
-      map.set(acc.accountName, acc.suggestedCategory);
+      // Check for previous mapping first
+      if (previousMappings?.has(acc.accountName)) {
+        map.set(acc.accountName, previousMappings.get(acc.accountName)!);
+      } else {
+        map.set(acc.accountName, acc.suggestedCategory);
+      }
     });
     setMappings(map);
-  }, [accounts]);
+    setModifiedAccounts(new Set());
+  }, [accounts, previousMappings]);
 
   const handleCategoryChange = (accountName: string, category: PFCategory) => {
     setMappings((prev) => {
       const next = new Map(prev);
       next.set(accountName, category);
+      return next;
+    });
+    setModifiedAccounts((prev) => {
+      const next = new Set(prev);
+      next.add(accountName);
       return next;
     });
   };
@@ -241,6 +256,7 @@ export function AccountMappingModal({
       parentAccount: acc.parentAccount,
       pfCategory: mappings.get(acc.accountName) || acc.suggestedCategory,
       sortOrder: acc.sortOrder,
+      wasModified: modifiedAccounts.has(acc.accountName),
     }));
     onApply(result);
   };
@@ -248,29 +264,28 @@ export function AccountMappingModal({
   // Calculate category totals for preview
   const categoryTotals = useMemo(() => {
     const totals: Record<PFCategory, number> = {
-      revenue: 0,
-      cogs: 0,
-      profit: 0,
+      gross_revenue: 0,
+      materials_subs: 0,
       owner_pay: 0,
       tax: 0,
       opex: 0,
       exclude: 0,
     };
-    
+
     accounts.forEach((acc) => {
       const category = mappings.get(acc.accountName) || acc.suggestedCategory;
       totals[category] += acc.amount;
     });
-    
+
     return totals;
   }, [accounts, mappings]);
 
-  // Calculate real revenue (revenue - cogs) and check percentages
-  const realRevenue = categoryTotals.revenue - categoryTotals.cogs;
-  const mappedAccounts = accounts.filter(
-    (acc) => mappings.get(acc.accountName) !== "exclude"
+  // Calculate real revenue and stats
+  const realRevenue = categoryTotals.gross_revenue - Math.abs(categoryTotals.materials_subs);
+  const lowConfidenceCount = accounts.filter((acc) => acc.confidence === "low").length;
+  const excludedCount = accounts.filter(
+    (acc) => mappings.get(acc.accountName) === "exclude"
   ).length;
-  const excludedAccounts = accounts.length - mappedAccounts;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -281,52 +296,31 @@ export function AccountMappingModal({
             Map Accounts to Profit First Categories
           </DialogTitle>
           <DialogDescription>
-            Review the suggested categories for each account. Click to change any assignment.
+            Review the suggested categories for each account. Accounts flagged with ⚠️ need your attention.
           </DialogDescription>
         </DialogHeader>
 
-        {/* Summary Preview Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 py-2">
-          {(["revenue", "owner_pay", "tax", "opex"] as PFCategory[]).map((cat) => {
-            const config = CATEGORY_CONFIG[cat];
-            const Icon = config.icon;
-            return (
-              <Card
-                key={cat}
-                className={cn(
-                  "p-3 border",
-                  config.bgColor
-                )}
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <Icon className="h-4 w-4" style={{ color: config.color }} />
-                  <span className="text-xs font-medium" style={{ color: config.color }}>
-                    {config.label}
-                  </span>
-                </div>
-                <p className="text-lg font-bold" style={{ color: config.color }}>
-                  {formatCurrency(categoryTotals[cat])}
-                </p>
-              </Card>
-            );
-          })}
-        </div>
+        {/* Summary Panel */}
+        <MappingSummaryPanel
+          totals={categoryTotals}
+          realRevenue={realRevenue}
+        />
 
         {/* Status bar */}
         <div className="flex items-center justify-between px-2 py-1 bg-muted/50 rounded text-sm">
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1 text-emerald-600">
               <CheckCircle className="h-4 w-4" />
-              {mappedAccounts} mapped
+              {accounts.length - excludedCount} mapped
             </span>
-            {excludedAccounts > 0 && (
-              <span className="flex items-center gap-1 text-muted-foreground">
-                <XCircle className="h-4 w-4" />
-                {excludedAccounts} excluded
+            {lowConfidenceCount > 0 && (
+              <span className="flex items-center gap-1 text-amber-600">
+                <AlertCircle className="h-4 w-4" />
+                {lowConfidenceCount} need review
               </span>
             )}
           </div>
-          <span className="text-muted-foreground">
+          <span className="text-muted-foreground font-medium">
             Real Revenue: {formatCurrency(realRevenue)}
           </span>
         </div>
@@ -336,79 +330,17 @@ export function AccountMappingModal({
         {/* Account List */}
         <ScrollArea className="flex-1 max-h-[400px] pr-4">
           <div className="space-y-2">
-            {accounts.map((acc, index) => {
-              const currentCategory = mappings.get(acc.accountName) || acc.suggestedCategory;
-              const config = CATEGORY_CONFIG[currentCategory];
-              const Icon = config.icon;
-              const isExcluded = currentCategory === "exclude";
-              
-              return (
-                <div
-                  key={acc.accountName + index}
-                  className={cn(
-                    "flex items-center justify-between gap-4 p-3 rounded-lg border transition-colors",
-                    isExcluded
-                      ? "bg-muted/30 border-dashed opacity-60"
-                      : "bg-background"
-                  )}
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      {acc.parentAccount && (
-                        <span className="text-xs text-muted-foreground">
-                          {acc.parentAccount} →
-                        </span>
-                      )}
-                      <span className={cn(
-                        "font-medium truncate",
-                        isExcluded && "line-through"
-                      )}>
-                        {acc.accountName}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-3">
-                    <span className={cn(
-                      "font-mono text-sm min-w-[100px] text-right",
-                      acc.amount < 0 ? "text-red-600" : "text-foreground"
-                    )}>
-                      {formatCurrency(acc.amount)}
-                    </span>
-                    
-                    <Select
-                      value={currentCategory}
-                      onValueChange={(val) => handleCategoryChange(acc.accountName, val as PFCategory)}
-                    >
-                      <SelectTrigger className="w-[140px]">
-                        <SelectValue>
-                          <div className="flex items-center gap-2">
-                            <Icon className="h-4 w-4" style={{ color: config.color }} />
-                            <span>{config.label}</span>
-                          </div>
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(CATEGORY_CONFIG).map(([key, cfg]) => {
-                          const CatIcon = cfg.icon;
-                          return (
-                            <SelectItem key={key} value={key}>
-                              <div className="flex items-center gap-2">
-                                <CatIcon className="h-4 w-4" style={{ color: cfg.color }} />
-                                <span>{cfg.label}</span>
-                                <span className="text-xs text-muted-foreground ml-1">
-                                  ({cfg.description})
-                                </span>
-                              </div>
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              );
-            })}
+            {accounts.map((acc, index) => (
+              <AccountMappingRow
+                key={acc.accountName + index}
+                account={acc}
+                currentCategory={mappings.get(acc.accountName) || acc.suggestedCategory}
+                onCategoryChange={(category) =>
+                  handleCategoryChange(acc.accountName, category)
+                }
+                hasPreviousMapping={previousMappings?.has(acc.accountName)}
+              />
+            ))}
           </div>
         </ScrollArea>
 
