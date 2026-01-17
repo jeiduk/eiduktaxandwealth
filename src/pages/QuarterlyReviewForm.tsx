@@ -41,6 +41,7 @@ import { NextMeetingSection } from "@/components/review/NextMeetingSection";
 import { SignatureSection } from "@/components/review/SignatureSection";
 import { ImportPnlBar } from "@/components/review/ImportPnlBar";
 import { ProfitFirstSection } from "@/components/review/ProfitFirstSection";
+import { CashFlowPreviewSection } from "@/components/review/CashFlowPreviewSection";
 import Footer from "@/components/Footer";
 
 // Phase configuration
@@ -1021,6 +1022,28 @@ const QuarterlyReviewForm = () => {
                         toast({ title: "Reset to industry defaults" });
                       }}
                     />
+
+                    {/* Cash Flow Allocation Preview */}
+                    <div className="mt-6">
+                      <CashFlowPreviewSection
+                        quarter={review.quarter}
+                        revenueYtd={review.revenue_ytd}
+                        profitYtd={review.profit_ytd}
+                        drawYtd={review.draw_ytd}
+                        taxYtd={review.tax_ytd}
+                        totalExpenses={review.total_expenses}
+                        cogs={review.cogs}
+                        targets={{
+                          profit: review.profit_first_profit_target ?? 10,
+                          ownerPay: review.profit_first_owner_target ?? 50,
+                          tax: review.profit_first_tax_target ?? 15,
+                          opEx: review.profit_first_opex_target ?? 25,
+                        }}
+                        onApplyTargets={() => {
+                          toast({ title: "Targets applied to this review" });
+                        }}
+                      />
+                    </div>
                   </div>
                 </AccordionContent>
               </AccordionItem>
