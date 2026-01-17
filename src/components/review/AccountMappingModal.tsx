@@ -8,9 +8,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, DollarSign, CheckCircle, AlertCircle } from "lucide-react";
+import { Loader2, DollarSign, CheckCircle, AlertCircle, Eye, EyeOff, Filter } from "lucide-react";
 import { AccountMappingRow } from "./AccountMappingRow";
 import { MappingSummaryPanel } from "./MappingSummaryPanel";
 
@@ -45,6 +44,7 @@ interface AccountMappingModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   accounts: ParsedAccount[];
+  excludedAccounts?: ParsedAccount[];
   onApply: (mappings: AccountMapping[]) => void;
   isProcessing?: boolean;
   previousMappings?: Map<string, PFCategory>;
@@ -110,6 +110,7 @@ export function AccountMappingModal({
   open,
   onOpenChange,
   accounts,
+  excludedAccounts = [],
   onApply,
   isProcessing = false,
   previousMappings,
@@ -117,6 +118,7 @@ export function AccountMappingModal({
   // Initialize mappings from accounts
   const [mappings, setMappings] = useState<Map<string, PFCategory>>(new Map());
   const [modifiedAccounts, setModifiedAccounts] = useState<Set<string>>(new Set());
+  const [showExcluded, setShowExcluded] = useState(false);
 
   // Reset mappings when accounts change
   useEffect(() => {
@@ -225,22 +227,83 @@ export function AccountMappingModal({
 
         <Separator />
 
-        {/* Account List */}
-        <ScrollArea className="flex-1 max-h-[400px] pr-4">
-          <div className="space-y-2">
-            {accounts.map((acc, index) => (
-              <AccountMappingRow
-                key={acc.accountName + index}
-                account={acc}
-                currentCategory={mappings.get(acc.accountName) || acc.suggestedCategory}
-                onCategoryChange={(category) =>
-                  handleCategoryChange(acc.accountName, category)
-                }
-                hasPreviousMapping={previousMappings?.has(acc.accountName)}
-              />
-            ))}
+        {/* Account List - Scrollable table with sticky header */}
+        <div className="flex-1 max-h-96 overflow-y-auto border rounded-md">
+          <table className="w-full">
+            <thead className="sticky top-0 bg-background border-b z-10">
+              <tr className="text-left text-sm text-muted-foreground">
+                <th className="px-3 py-2 font-medium">Account</th>
+                <th className="px-3 py-2 font-medium text-right w-28">Amount</th>
+                <th className="px-3 py-2 font-medium w-44">Category</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {accounts.map((acc, index) => (
+                <AccountMappingRow
+                  key={acc.accountName + index}
+                  account={acc}
+                  currentCategory={mappings.get(acc.accountName) || acc.suggestedCategory}
+                  onCategoryChange={(category) =>
+                    handleCategoryChange(acc.accountName, category)
+                  }
+                  hasPreviousMapping={previousMappings?.has(acc.accountName)}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Excluded rows indicator */}
+        {excludedAccounts.length > 0 && (
+          <div className="flex items-center justify-between px-3 py-2 bg-muted/30 rounded text-sm">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Filter className="h-4 w-4" />
+              <span>{excludedAccounts.length} total/subtotal rows excluded to avoid double-counting</span>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => setShowExcluded(!showExcluded)}
+            >
+              {showExcluded ? (
+                <>
+                  <EyeOff className="h-3 w-3 mr-1" />
+                  Hide excluded
+                </>
+              ) : (
+                <>
+                  <Eye className="h-3 w-3 mr-1" />
+                  Show excluded
+                </>
+              )}
+            </Button>
           </div>
-        </ScrollArea>
+        )}
+
+        {/* Show excluded rows when toggled */}
+        {showExcluded && excludedAccounts.length > 0 && (
+          <div className="max-h-32 overflow-y-auto border rounded-md bg-muted/20">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-muted/50 border-b">
+                <tr className="text-left text-muted-foreground">
+                  <th className="px-3 py-1 font-medium">Excluded Account</th>
+                  <th className="px-3 py-1 font-medium text-right">Amount</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {excludedAccounts.map((acc, index) => (
+                  <tr key={acc.accountName + index} className="text-muted-foreground">
+                    <td className="px-3 py-1">{acc.accountName}</td>
+                    <td className="px-3 py-1 text-right font-mono">
+                      {formatCurrency(acc.amount)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         <Separator />
 

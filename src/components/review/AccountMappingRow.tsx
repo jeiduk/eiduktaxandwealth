@@ -44,20 +44,21 @@ export function AccountMappingRow({
   const hasReviewFlag = !!account.needsReview;
 
   return (
-    <div
+    <tr
       className={cn(
-        "flex items-center justify-between gap-4 p-3 rounded-lg border transition-colors",
+        "transition-colors",
         isExcluded
-          ? "bg-muted/30 border-dashed opacity-60"
+          ? "bg-muted/30 opacity-60"
           : hasReviewFlag
-          ? "bg-amber-50/70 border-amber-300"
+          ? "bg-amber-50/70"
           : isLowConfidence
-          ? "bg-amber-50/50 border-amber-200"
-          : "bg-background"
+          ? "bg-amber-50/50"
+          : "bg-background hover:bg-muted/30"
       )}
     >
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
+      {/* Account Name Column */}
+      <td className="px-3 py-2">
+        <div className="flex items-center gap-2 min-w-0">
           {/* Review flag with tooltip */}
           {hasReviewFlag && (
             <TooltipProvider>
@@ -102,30 +103,34 @@ export function AccountMappingRow({
           )}
           <span
             className={cn(
-              "font-medium truncate",
+              "font-medium truncate text-sm",
               isExcluded && "line-through text-muted-foreground"
             )}
           >
             {account.accountName}
           </span>
         </div>
-      </div>
+      </td>
 
-      <div className="flex items-center gap-3">
+      {/* Amount Column */}
+      <td className="px-3 py-2 text-right">
         <span
           className={cn(
-            "font-mono text-sm min-w-[100px] text-right",
+            "font-mono text-sm",
             account.amount < 0 ? "text-red-600" : "text-foreground"
           )}
         >
           {formatCurrency(account.amount)}
         </span>
+      </td>
 
+      {/* Category Select Column */}
+      <td className="px-3 py-2">
         <Select
           value={currentCategory}
           onValueChange={(val) => onCategoryChange(val as PFCategory)}
         >
-          <SelectTrigger className="w-[160px]">
+          <SelectTrigger className="w-full h-8">
             <SelectValue>
               <div className="flex items-center gap-2">
                 <Badge
@@ -133,7 +138,7 @@ export function AccountMappingRow({
                   className="h-3 w-3 p-0 rounded-full flex-shrink-0"
                   style={{ backgroundColor: config.color }}
                 />
-                <span className="truncate">{config.label}</span>
+                <span className="truncate text-sm">{config.label}</span>
               </div>
             </SelectValue>
           </SelectTrigger>
@@ -155,7 +160,7 @@ export function AccountMappingRow({
             ))}
           </SelectContent>
         </Select>
-      </div>
-    </div>
+      </td>
+    </tr>
   );
 }
