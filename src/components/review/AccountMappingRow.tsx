@@ -6,8 +6,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { AlertCircle, History } from "lucide-react";
+import { AlertCircle, History, AlertTriangle } from "lucide-react";
 import { PFCategory, ParsedAccount, CATEGORY_CONFIG } from "./AccountMappingModal";
 
 interface AccountMappingRowProps {
@@ -35,6 +41,7 @@ export function AccountMappingRow({
   const config = CATEGORY_CONFIG[currentCategory];
   const isExcluded = currentCategory === "exclude";
   const isLowConfidence = account.confidence === "low";
+  const hasReviewFlag = !!account.needsReview;
 
   return (
     <div
@@ -42,6 +49,8 @@ export function AccountMappingRow({
         "flex items-center justify-between gap-4 p-3 rounded-lg border transition-colors",
         isExcluded
           ? "bg-muted/30 border-dashed opacity-60"
+          : hasReviewFlag
+          ? "bg-amber-50/70 border-amber-300"
           : isLowConfidence
           ? "bg-amber-50/50 border-amber-200"
           : "bg-background"
@@ -49,14 +58,43 @@ export function AccountMappingRow({
     >
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          {isLowConfidence && (
+          {/* Review flag with tooltip */}
+          {hasReviewFlag && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs">
+                  <p>{account.needsReview}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          
+          {/* Low confidence indicator */}
+          {isLowConfidence && !hasReviewFlag && (
             <AlertCircle className="h-4 w-4 text-amber-500 flex-shrink-0" />
           )}
-          {hasPreviousMapping && !isLowConfidence && (
-            <span title="Previously mapped">
-              <History className="h-4 w-4 text-blue-500 flex-shrink-0" />
-            </span>
+          
+          {/* Previous mapping indicator */}
+          {hasPreviousMapping && !isLowConfidence && !hasReviewFlag && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <History className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p>Previously mapped for this client</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )}
+          
           {account.parentAccount && (
             <span className="text-xs text-muted-foreground flex-shrink-0">
               {account.parentAccount} →
