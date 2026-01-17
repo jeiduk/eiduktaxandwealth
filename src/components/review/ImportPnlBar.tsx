@@ -74,10 +74,56 @@ const EXCLUDE_TOTAL_PATTERNS = [
   /net ordinary income/i,
 ];
 
+// Patterns to skip header/metadata rows
+const SKIP_METADATA_PATTERNS = [
+  /^["']?[A-Za-z\s]+→/,           // "Client Name →" pattern
+  /january|february|march|april|may|june|july|august|september|october|november|december/i,  // Date ranges
+  /^\d{4}$/,                       // Just a year
+  /^Q[1-4]\s*\d{4}/i,             // Quarter labels like "Q1 2025"
+  /profit\s*(and|&)\s*loss/i,     // Report title
+  /balance sheet/i,
+  /^date$/i,
+  /^period$/i,
+  /^report$/i,
+  /^prepared/i,
+  /^as of/i,
+  /^page\s*\d/i,                  // Page numbers
+  /^accrual basis/i,              // Accounting method
+  /^cash basis/i,
+  /^\s*$|^[-=]+$/,                // Empty or separator lines
+];
+
 // Check if an account name is a total/subtotal row
 function isTotalRow(accountName: string): boolean {
   const trimmed = accountName.trim();
   return EXCLUDE_TOTAL_PATTERNS.some(pattern => pattern.test(trimmed));
+}
+
+// Check if a row is metadata/header that should be skipped
+function isMetadataRow(text: string): boolean {
+  if (!text || text.trim().length < 2) return true;
+  const trimmed = text.trim();
+  return SKIP_METADATA_PATTERNS.some(pattern => pattern.test(trimmed));
+}
+
+// Check for duplicate accounts and merge or flag them
+function deduplicateAccounts(accounts: ParsedAccount[]): { 
+  unique: ParsedAccount[]; 
+  duplicates: ParsedAccount[] 
+} {
+  const seen = new Map<string, ParsedAccount>();
+  const duplicates: ParsedAccount[] = [];
+  
+  for (const account of accounts) {
+    const key = `${account.accountName.toLowerCase().trim()}|${account.amount}`;
+    if (seen.has(key)) {
+      duplicates.push(account);
+    } else {
+      seen.set(key, account);
+    }
+  }
+  
+  return { unique: Array.from(seen.values()), duplicates };
 }
 
 // Helper to extract number from a string
@@ -169,6 +215,9 @@ function parseLineItems(text: string, defaults: CategoryDefault[]): ParsedAccoun
     }
 
     if (!accountName) continue;
+    
+    // Skip metadata/header rows (client name, dates, report titles)
+    if (isMetadataRow(accountName)) continue;
 
     const isHeader = amount === null && !accountName.toLowerCase().startsWith("total");
     const isSubtotal = accountName.toLowerCase().startsWith("total ");
@@ -254,6 +303,9 @@ function parseLineItemsFromWorkbook(workbook: XLSX.WorkBook, defaults: CategoryD
 
     const label = String(row[0] || "").trim();
     if (!label) continue;
+    
+    // Skip metadata/header rows (client name, dates, report titles)
+    if (isMetadataRow(label)) continue;
 
     let value: number | null = null;
     if (totalColIndex >= 0 && row[totalColIndex] !== undefined) {
@@ -342,6 +394,7 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
   const [pastedText, setPastedText] = useState("");
   const [parsedAccounts, setParsedAccounts] = useState<ParsedAccount[]>([]);
   const [excludedAccounts, setExcludedAccounts] = useState<ParsedAccount[]>([]);
+  const [duplicateAccounts, setDuplicateAccounts] = useState<ParsedAccount[]>([]);
   const [previousMappings, setPreviousMappings] = useState<Map<string, PFCategory>>(new Map());
   const [categoryDefaults, setCategoryDefaults] = useState<CategoryDefault[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -439,27 +492,29 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
       // Filter out total/subtotal rows to avoid double-counting
       const lineItems = allAccounts.filter(acc => !isTotalRow(acc.accountName));
       const excluded = allAccounts.filter(acc => isTotalRow(acc.accountName));
+      
+      // Deduplicate accounts with same name and amount
+      const { unique, duplicates } = deduplicateAccounts(lineItems);
 
-      setParsedAccounts(lineItems);
+      setParsedAccounts(unique);
       setExcludedAccounts(excluded);
+      setDuplicateAccounts(duplicates);
       setShowPasteModal(false);
       setShowMappingModal(true);
 
-      const lowConfidence = lineItems.filter((a) => a.confidence === "low").length;
-      const needsReview = lineItems.filter((a) => a.needsReview).length;
+      const lowConfidence = unique.filter((a) => a.confidence === "low").length;
+      const needsReview = unique.filter((a) => a.needsReview).length;
       
       let description = "Review the category mappings below";
-      if (excluded.length > 0) {
-        description = `${excluded.length} totals excluded`;
-      }
-      if (needsReview > 0) {
-        description += `, ${needsReview} accounts flagged`;
-      } else if (lowConfidence > 0) {
-        description += `, ${lowConfidence} need attention`;
-      }
+      const notes: string[] = [];
+      if (excluded.length > 0) notes.push(`${excluded.length} totals excluded`);
+      if (duplicates.length > 0) notes.push(`${duplicates.length} duplicates merged`);
+      if (needsReview > 0) notes.push(`${needsReview} flagged for review`);
+      else if (lowConfidence > 0) notes.push(`${lowConfidence} need attention`);
+      if (notes.length > 0) description = notes.join(", ");
       
       toast({
-        title: `Found ${lineItems.length} line items`,
+        title: `Found ${unique.length} line items`,
         description,
       });
     } catch (error) {
@@ -507,26 +562,28 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
       // Filter out total/subtotal rows to avoid double-counting
       const lineItems = allAccounts.filter(acc => !isTotalRow(acc.accountName));
       const excluded = allAccounts.filter(acc => isTotalRow(acc.accountName));
+      
+      // Deduplicate accounts with same name and amount
+      const { unique, duplicates } = deduplicateAccounts(lineItems);
 
-      setParsedAccounts(lineItems);
+      setParsedAccounts(unique);
       setExcludedAccounts(excluded);
+      setDuplicateAccounts(duplicates);
       setShowMappingModal(true);
 
-      const lowConfidence = lineItems.filter((a) => a.confidence === "low").length;
-      const needsReview = lineItems.filter((a) => a.needsReview).length;
+      const lowConfidence = unique.filter((a) => a.confidence === "low").length;
+      const needsReview = unique.filter((a) => a.needsReview).length;
       
       let description = "Review the category mappings below";
-      if (excluded.length > 0) {
-        description = `${excluded.length} totals excluded`;
-      }
-      if (needsReview > 0) {
-        description += `, ${needsReview} accounts flagged`;
-      } else if (lowConfidence > 0) {
-        description += `, ${lowConfidence} need attention`;
-      }
+      const notes: string[] = [];
+      if (excluded.length > 0) notes.push(`${excluded.length} totals excluded`);
+      if (duplicates.length > 0) notes.push(`${duplicates.length} duplicates merged`);
+      if (needsReview > 0) notes.push(`${needsReview} flagged for review`);
+      else if (lowConfidence > 0) notes.push(`${lowConfidence} need attention`);
+      if (notes.length > 0) description = notes.join(", ");
       
       toast({
-        title: `Found ${lineItems.length} line items`,
+        title: `Found ${unique.length} line items`,
         description,
       });
     } catch (error) {
@@ -731,6 +788,7 @@ Net Income: $85,000"
         onOpenChange={setShowMappingModal}
         accounts={parsedAccounts}
         excludedAccounts={excludedAccounts}
+        duplicateAccounts={duplicateAccounts}
         onApply={handleApplyMappings}
         isProcessing={isSavingMappings}
         previousMappings={previousMappings}
