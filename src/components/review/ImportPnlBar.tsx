@@ -106,6 +106,28 @@ function isMetadataRow(text: string): boolean {
   return SKIP_METADATA_PATTERNS.some(pattern => pattern.test(trimmed));
 }
 
+// Clean account name by removing prefixes like "Client Name →"
+function cleanAccountName(name: string): string {
+  let cleaned = name.trim();
+  
+  // Remove everything before "→" if present (e.g., "Eatontown Elite Care Center → Patient Fees")
+  if (cleaned.includes("→")) {
+    const parts = cleaned.split("→");
+    cleaned = parts[parts.length - 1].trim();
+  }
+  
+  // Also handle ">" arrow variant
+  if (cleaned.includes(">") && !cleaned.match(/[<>=]/g)?.length) {
+    const parts = cleaned.split(">");
+    if (parts.length === 2 && parts[0].length > 10) {
+      // Only split if first part looks like a long prefix
+      cleaned = parts[1].trim();
+    }
+  }
+  
+  return cleaned;
+}
+
 // Check for duplicate accounts and merge or flag them
 function deduplicateAccounts(accounts: ParsedAccount[]): { 
   unique: ParsedAccount[]; 
@@ -224,7 +246,7 @@ function getAmountFromRow(row: unknown[], config: AmountColumnConfig): number | 
     for (const colIndex of config.columns) {
       const cellValue = row[colIndex];
       if (cellValue !== undefined && cellValue !== null && cellValue !== "") {
-        const num = extractNumber(String(cellValue));
+        const num = extractNumber(cellValue);
         if (num !== null) {
           sum += num;
           hasValue = true;
@@ -238,24 +260,53 @@ function getAmountFromRow(row: unknown[], config: AmountColumnConfig): number | 
   const colIndex = config.columns[0];
   const cellValue = row[colIndex];
   if (cellValue !== undefined && cellValue !== null && cellValue !== "") {
-    return extractNumber(String(cellValue));
+    return extractNumber(cellValue);
   }
   
   return null;
 }
 
 // Helper to extract number from a string
-const extractNumber = (text: string): number | null => {
-  const match = text.match(/\(?\$?\s*([\d,]+\.?\d*)\)?/);
-  if (match) {
-    const numStr = match[1].replace(/,/g, "");
-    const num = parseFloat(numStr);
-    if (text.includes("(") && text.includes(")")) {
-      return -num;
-    }
-    return num;
+// Helper to parse amount from any value (handles commas, currency symbols, parentheses)
+const extractNumber = (value: unknown): number | null => {
+  // If already a number, return it directly
+  if (typeof value === 'number') {
+    return isNaN(value) ? null : value;
   }
-  return null;
+  
+  if (value === null || value === undefined) return null;
+  
+  // Convert to string and clean it
+  let str = String(value).trim();
+  if (!str) return null;
+  
+  // Remove currency symbols and spaces
+  str = str.replace(/[$€£¥\s]/g, '');
+  
+  // Handle parentheses as negative: (1,234.56) → -1234.56
+  const isNegative = str.startsWith('(') && str.endsWith(')');
+  if (isNegative) {
+    str = str.slice(1, -1);
+  }
+  
+  // Remove commas from numbers: 711,777.00 → 711777.00
+  str = str.replace(/,/g, '');
+  
+  // Remove any remaining non-numeric characters except decimal point and minus
+  str = str.replace(/[^0-9.\-]/g, '');
+  
+  // Handle multiple decimal points (keep only first)
+  const parts = str.split('.');
+  if (parts.length > 2) {
+    str = parts[0] + '.' + parts.slice(1).join('');
+  }
+  
+  // Parse the number
+  const num = parseFloat(str);
+  
+  if (isNaN(num)) return null;
+  
+  return isNegative ? -num : num;
 };
 
 // Detection function using cached defaults from database
@@ -311,12 +362,12 @@ function parseLineItems(text: string, defaults: CategoryDefault[]): ParsedAccoun
   for (const line of lines) {
     if (!line.trim()) continue;
 
-    let accountName: string;
+    let rawAccountName: string;
     let amount: number | null = null;
 
     if (isCSV) {
       const cells = line.split(",");
-      accountName = cells[0]?.trim() || "";
+      rawAccountName = cells[0]?.trim() || "";
       for (let i = cells.length - 1; i >= 1; i--) {
         const cell = cells[i].trim();
         if (cell) {
@@ -326,16 +377,19 @@ function parseLineItems(text: string, defaults: CategoryDefault[]): ParsedAccoun
       }
     } else {
       const parts = line.split(/[:\t]+/);
-      accountName = parts[0]?.trim() || "";
+      rawAccountName = parts[0]?.trim() || "";
       if (parts.length > 1) {
         amount = extractNumber(parts.slice(1).join(""));
       }
     }
 
-    if (!accountName) continue;
+    if (!rawAccountName) continue;
     
     // Skip metadata/header rows (client name, dates, report titles)
-    if (isMetadataRow(accountName)) continue;
+    if (isMetadataRow(rawAccountName)) continue;
+    
+    // Clean the account name (remove prefixes like "Client Name →")
+    const accountName = cleanAccountName(rawAccountName);
 
     const isHeader = amount === null && !accountName.toLowerCase().startsWith("total");
     const isSubtotal = accountName.toLowerCase().startsWith("total ");
@@ -429,11 +483,15 @@ function parseLineItemsFromWorkbook(workbook: XLSX.WorkBook, defaults: CategoryD
     const row = data[i];
     if (!row || row.length === 0) continue;
 
-    const label = String(row[accountColIndex] || "").trim();
-    if (!label) continue;
+    const rawLabel = String(row[accountColIndex] || "").trim();
+    if (!rawLabel) continue;
     
     // Skip metadata/header rows (client name, dates, report titles)
-    if (isMetadataRow(label)) continue;
+    if (isMetadataRow(rawLabel)) continue;
+    
+    // Clean the account name (remove prefixes like "Client Name →")
+    const label = cleanAccountName(rawLabel);
+    if (!label) continue;
 
     // Get amount using the detected column config
     let value = getAmountFromRow(row, amountConfig);
