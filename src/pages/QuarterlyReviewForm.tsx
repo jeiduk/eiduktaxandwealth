@@ -94,6 +94,7 @@ interface QuarterlyReview {
   total_expenses: number | null;
   employee_count: number | null;
   tax_ytd: number | null;
+  pnl_month_count: number | null;
   // Profit First targets
   profit_first_profit_target: number | null;
   profit_first_owner_target: number | null;
@@ -954,6 +955,9 @@ const QuarterlyReviewForm = () => {
                         if ('taxPaid' in data && data.taxPaid !== null) {
                           updates.tax_ytd = data.taxPaid;
                         }
+                        if ('monthCount' in data && data.monthCount !== null && data.monthCount !== undefined) {
+                          updates.pnl_month_count = data.monthCount;
+                        }
                         if (Object.keys(updates).length > 0) {
                           // Update local state with all fields at once
                           setReview((prev) => prev ? { ...prev, ...updates } : null);
@@ -1038,6 +1042,7 @@ const QuarterlyReviewForm = () => {
                         taxYtd={review.tax_ytd}
                         totalExpenses={review.total_expenses}
                         cogs={review.cogs}
+                        pnlMonthCount={review.pnl_month_count}
                         targets={{
                           profit: review.profit_first_profit_target ?? 10,
                           ownerPay: review.profit_first_owner_target ?? 50,
