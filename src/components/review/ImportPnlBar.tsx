@@ -1027,6 +1027,7 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
   const [duplicateAccounts, setDuplicateAccounts] = useState<ParsedAccount[]>([]);
   const [amountColumnDescription, setAmountColumnDescription] = useState("");
   const [detectedMonthCount, setDetectedMonthCount] = useState<number | null>(null);
+  const [detectedHeaderRowIndex, setDetectedHeaderRowIndex] = useState<number | null>(null);
   const [previousMappings, setPreviousMappings] = useState<Map<string, PFCategory>>(new Map());
   const [categoryDefaults, setCategoryDefaults] = useState<CategoryDefault[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -1116,6 +1117,7 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
 
       setAmountColumnDescription(result.amountColumnDescription);
       setDetectedMonthCount(result.monthCount ?? null);
+      setDetectedHeaderRowIndex(result.debug?.headerRowIndex ?? null);
       setParseDebug(result.debug ?? null);
 
       if (allAccounts.length === 0) {
@@ -1202,6 +1204,7 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
 
       setParseDebug(debugPayload ?? null);
       setDetectedMonthCount(monthCount ?? null);
+      setDetectedHeaderRowIndex(debugPayload?.headerRowIndex ?? null);
 
       if (allAccounts.length === 0) {
         toast({
@@ -1544,6 +1547,8 @@ Net Income: $85,000"
         excludedAccounts={excludedAccounts}
         duplicateAccounts={duplicateAccounts}
         amountColumnDescription={amountColumnDescription}
+        detectedMonthCount={detectedMonthCount}
+        headerRowIndex={detectedHeaderRowIndex}
         onApply={handleApplyMappings}
         isProcessing={isSavingMappings}
         previousMappings={previousMappings}
