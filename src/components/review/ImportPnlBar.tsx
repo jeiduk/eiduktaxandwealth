@@ -385,6 +385,105 @@ function detectPFCategory(
   return { category: "opex", confidence: "low", needsReview };
 }
 
+// Parse a CSV line properly handling quoted fields
+// "Patient Fees","711,777" → ["Patient Fees", "711,777"]
+// Patient Fees,711,777 → ["Patient Fees", "711", "777"] then we merge numeric tails
+function parseCSVLine(line: string): string[] {
+  const result: string[] = [];
+  let current = "";
+  let inQuotes = false;
+  
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    const nextChar = line[i + 1];
+    
+    if (char === '"' && !inQuotes) {
+      // Start of quoted field
+      inQuotes = true;
+    } else if (char === '"' && inQuotes) {
+      if (nextChar === '"') {
+        // Escaped quote inside quoted field
+        current += '"';
+        i++; // Skip next quote
+      } else {
+        // End of quoted field
+        inQuotes = false;
+      }
+    } else if (char === ',' && !inQuotes) {
+      // Field separator
+      result.push(current.trim());
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+  
+  // Add the last field
+  result.push(current.trim());
+  
+  return result;
+}
+
+// Check if a string looks like a pure numeric fragment (just digits, possibly with leading zeros)
+function isNumericFragment(str: string): boolean {
+  const trimmed = str.trim();
+  // Match pure digits (possibly with leading/trailing spaces), like "777" or "000"
+  return /^\d+$/.test(trimmed);
+}
+
+// Merge split numeric columns caused by commas inside numbers
+// ["Patient Fees", "711", "777"] → ["Patient Fees", "711777"]
+// ["Rent", "1", "234", "567"] → ["Rent", "1234567"]
+function mergeNumericTails(cells: string[]): string[] {
+  if (cells.length < 3) return cells;
+  
+  const result: string[] = [];
+  let i = 0;
+  
+  while (i < cells.length) {
+    const cell = cells[i];
+    
+    // Check if this starts a numeric sequence that got split
+    // Look for pattern: starts with digit or $, followed by pure numeric fragments
+    const looksLikeNumericStart = /^[$€£¥\s]*[\d(]/.test(cell.trim()) || 
+                                   /^\(?\d/.test(cell.trim());
+    
+    if (looksLikeNumericStart && i + 1 < cells.length && isNumericFragment(cells[i + 1])) {
+      // This looks like a split number, merge consecutive numeric fragments
+      let merged = cell;
+      let j = i + 1;
+      
+      while (j < cells.length && isNumericFragment(cells[j])) {
+        merged += cells[j]; // No comma - they're actually part of the same number
+        j++;
+      }
+      
+      result.push(merged);
+      i = j;
+    } else {
+      result.push(cell);
+      i++;
+    }
+  }
+  
+  return result;
+}
+
+// Smart CSV line parser that handles both quoted fields and merges split numbers
+function smartParseCSVLine(line: string, debugEnabled = false): string[] {
+  // First, try proper CSV parsing (handles quoted fields)
+  const parsed = parseCSVLine(line);
+  
+  // Then, detect and merge any numeric fragments that got split
+  const merged = mergeNumericTails(parsed);
+  
+  if (debugEnabled && merged.length !== parsed.length) {
+    console.log("[CSV Parser] Merged split numbers:", { original: parsed, merged });
+  }
+  
+  return merged;
+}
+
 // Parse line items from CSV/text
 function parseLineItems(
   text: string,
@@ -398,8 +497,10 @@ function parseLineItems(
   // Debug preview (raw) – before any processing
   const nonEmptyLines = lines.filter((l) => l.trim().length > 0);
   const previewLines = nonEmptyLines.slice(0, 3);
+  
+  // Use smart CSV parsing that handles quoted fields and merges split numbers
   const previewSplitRows = previewLines.map((line) =>
-    isCSV ? line.split(",") : line.split(/[:\t]+/)
+    isCSV ? smartParseCSVLine(line, debugEnabled) : line.split(/[:\t]+/)
   );
   const maxColumnsInPreview = previewSplitRows.reduce(
     (max, r) => Math.max(max, r.length),
@@ -430,7 +531,8 @@ function parseLineItems(
     let amount: number | null = null;
 
     if (isCSV) {
-      const cells = line.split(",");
+      // Use smart CSV parsing
+      const cells = smartParseCSVLine(line, debugEnabled);
       rawAccountName = cells[0]?.trim() || "";
 
       const isPatientFeesLine =
@@ -439,7 +541,7 @@ function parseLineItems(
       if (isPatientFeesLine) {
         console.groupCollapsed("[P&L Import Debug] Patient Fees (CSV/text) raw row");
         console.log("raw line:", line);
-        console.log("cells (after split):", cells);
+        console.log("cells (after smart parse):", cells);
         console.log("cells.length:", cells.length);
         console.groupEnd();
         debug.patientFees = {
@@ -542,7 +644,7 @@ function parseLineItems(
 
   return {
     accounts,
-    amountColumnDescription: isCSV ? "Parsed as text/CSV" : "Parsed as text",
+    amountColumnDescription: isCSV ? "Parsed as text/CSV (with smart comma handling)" : "Parsed as text",
     debug,
   };
 }
