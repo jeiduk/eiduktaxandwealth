@@ -1024,6 +1024,7 @@ const QuarterlyReviewForm = () => {
                           owner_pay_target: 50,
                           tax_target: 15,
                           opex_target: 25,
+                          display_name: 'Custom / Other',
                         };
                         const updates = {
                           profit_first_profit_target: benchmark.profit_target,
@@ -1035,7 +1036,10 @@ const QuarterlyReviewForm = () => {
                           updateField(key as keyof QuarterlyReview, value);
                         });
                         await saveReview(updates);
-                        toast({ title: "Reset to industry defaults" });
+                        toast({ 
+                          title: `Reset to ${benchmark.display_name} defaults`,
+                          description: `Profit ${benchmark.profit_target}% • Owner ${benchmark.owner_pay_target}% • Tax ${benchmark.tax_target}% • OpEx ${benchmark.opex_target}%`,
+                        });
                       }}
                     />
 

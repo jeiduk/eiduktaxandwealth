@@ -441,7 +441,7 @@ export const ProfitFirstSection = ({
             className="h-8"
           >
             <RotateCcw className="h-3 w-3 mr-1" />
-            Reset to Defaults
+            Reset to Industry Defaults
           </Button>
         </div>
 
