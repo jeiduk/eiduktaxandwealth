@@ -52,6 +52,7 @@ interface CashFlowPreviewSectionProps {
   totalExpenses: number | null;
   cogs: number | null;
   pnlMonthCount?: number | null;
+  pnlMonthCountDetected?: number | null;
   targets: ProfitFirstTargets;
   onApplyTargets?: () => void;
   onMonthCountChange?: (value: number | null) => void;
@@ -156,6 +157,7 @@ export const CashFlowPreviewSection = ({
   totalExpenses,
   cogs,
   pnlMonthCount,
+  pnlMonthCountDetected,
   targets,
   onApplyTargets,
   onMonthCountChange,
@@ -164,6 +166,11 @@ export const CashFlowPreviewSection = ({
   const [showInsights, setShowInsights] = useState(true);
   const [editingMonthCount, setEditingMonthCount] = useState(false);
   const [tempMonthCount, setTempMonthCount] = useState<string>("");
+
+  // Check if month count has been manually overridden
+  const isMonthCountOverridden = pnlMonthCountDetected !== null && 
+    pnlMonthCount !== null && 
+    pnlMonthCount !== pnlMonthCountDetected;
 
   const calculations = useMemo(() => {
     const currentQuarter = getQuarterNumber(quarter);
@@ -432,10 +439,23 @@ export const CashFlowPreviewSection = ({
                             setTempMonthCount(String(pnlMonthCount));
                             setEditingMonthCount(true);
                           }}
-                          className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors"
-                          title="Click to adjust month count"
+                          className={cn(
+                            "inline-flex items-center gap-1 text-xs transition-colors",
+                            isMonthCountOverridden 
+                              ? "text-amber-600 hover:text-amber-700 font-medium" 
+                              : "text-primary hover:text-primary/80"
+                          )}
+                          title={isMonthCountOverridden 
+                            ? `Manually adjusted from detected ${pnlMonthCountDetected} months. Click to edit.`
+                            : "Click to adjust month count"
+                          }
                         >
                           (YTD ÷ {pnlMonthCount})
+                          {isMonthCountOverridden && (
+                            <Badge variant="outline" className="h-4 px-1 text-[10px] font-normal border-amber-400 text-amber-600 bg-amber-50">
+                              manual
+                            </Badge>
+                          )}
                           <Edit2 className="h-3 w-3" />
                         </button>
                       )}
