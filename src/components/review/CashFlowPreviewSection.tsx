@@ -539,7 +539,7 @@ export const CashFlowPreviewSection = ({
                           </TooltipTrigger>
                           <TooltipContent side="top" className="max-w-xs">
                             <p className="text-sm">
-                              Profit First recommends transferring funds <strong>twice per month</strong> (on the 10th and 25th) to build consistent cash flow habits and maintain discipline.
+                              Profit First recommends transferring funds <strong>twice per month</strong> (on the 10th and 25th). Transfers are based on <strong>Real Revenue</strong> (after COGS), not gross revenue.
                             </p>
                           </TooltipContent>
                         </Tooltip>
