@@ -1029,6 +1029,9 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
   const [detectedMonthCount, setDetectedMonthCount] = useState<number | null>(null);
   const [detectedHeaderRowIndex, setDetectedHeaderRowIndex] = useState<number | null>(null);
   const [previousMappings, setPreviousMappings] = useState<Map<string, PFCategory>>(new Map());
+  const [showViewMappingsModal, setShowViewMappingsModal] = useState(false);
+  const [viewMappingsAccounts, setViewMappingsAccounts] = useState<ParsedAccount[]>([]);
+  const [isLoadingMappings, setIsLoadingMappings] = useState(false);
   const [categoryDefaults, setCategoryDefaults] = useState<CategoryDefault[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSavingMappings, setIsSavingMappings] = useState(false);
@@ -1096,6 +1099,59 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
 
     loadPreviousMappings();
   }, [clientId]);
+
+  // Load and view existing mappings
+  const handleViewMappings = async () => {
+    setIsLoadingMappings(true);
+    try {
+      const { data, error } = await supabase
+        .from("review_account_mappings")
+        .select("account_name, amount, pf_category, parent_account, sort_order")
+        .eq("review_id", reviewId)
+        .order("sort_order", { ascending: true });
+
+      if (error) {
+        console.error("Error loading mappings:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load mappings",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        toast({
+          title: "No mappings found",
+          description: "Import a P&L first to create mappings",
+        });
+        return;
+      }
+
+      // Convert to ParsedAccount format for the modal
+      const accounts: ParsedAccount[] = data.map((row) => ({
+        accountName: row.account_name,
+        amount: row.amount,
+        parentAccount: row.parent_account || undefined,
+        suggestedCategory: row.pf_category as PFCategory,
+        confidence: "high" as const,
+        needsReview: undefined,
+        sortOrder: row.sort_order,
+      }));
+
+      setViewMappingsAccounts(accounts);
+      setShowViewMappingsModal(true);
+    } catch (err) {
+      console.error("Error loading mappings:", err);
+      toast({
+        title: "Error",
+        description: "Failed to load mappings",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingMappings(false);
+    }
+  };
 
   const handleParsePastedData = async () => {
     if (!pastedText.trim()) {
@@ -1373,6 +1429,20 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
           <Button
             variant="outline"
             size="sm"
+            className="border-slate-400 text-slate-600 hover:bg-slate-50"
+            onClick={handleViewMappings}
+            disabled={isLoadingMappings}
+          >
+            {isLoadingMappings ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+            )}
+            View Mappings
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             className="border-blue-500 text-blue-600 hover:bg-blue-50"
             onClick={() => setShowPasteModal(true)}
           >
@@ -1552,6 +1622,20 @@ Net Income: $85,000"
         onApply={handleApplyMappings}
         isProcessing={isSavingMappings}
         previousMappings={previousMappings}
+      />
+
+      {/* View Mappings Modal (read-only) */}
+      <AccountMappingModal
+        open={showViewMappingsModal}
+        onOpenChange={setShowViewMappingsModal}
+        accounts={viewMappingsAccounts}
+        excludedAccounts={[]}
+        duplicateAccounts={[]}
+        amountColumnDescription="Saved mappings"
+        onApply={() => setShowViewMappingsModal(false)}
+        isProcessing={false}
+        previousMappings={new Map()}
+        readOnly
       />
     </>
   );

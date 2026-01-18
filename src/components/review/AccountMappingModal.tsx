@@ -52,6 +52,7 @@ interface AccountMappingModalProps {
   onApply: (mappings: AccountMapping[]) => void;
   isProcessing?: boolean;
   previousMappings?: Map<string, PFCategory>;
+  readOnly?: boolean;
 }
 
 export const CATEGORY_CONFIG: Record<
@@ -122,6 +123,7 @@ export function AccountMappingModal({
   onApply,
   isProcessing = false,
   previousMappings,
+  readOnly = false,
 }: AccountMappingModalProps) {
   // Initialize mappings from accounts
   const [mappings, setMappings] = useState<Map<string, PFCategory>>(new Map());
@@ -201,10 +203,12 @@ export function AccountMappingModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <DollarSign className="h-5 w-5 text-blue-600" />
-            Map Accounts to Profit First Categories
+            {readOnly ? "Current Account Mappings" : "Map Accounts to Profit First Categories"}
           </DialogTitle>
           <DialogDescription>
-            Review the suggested categories for each account. Accounts flagged with ⚠️ may need verification.
+            {readOnly
+              ? "Review the current category assignments for each account."
+              : "Review the suggested categories for each account. Accounts flagged with ⚠️ may need verification."}
           </DialogDescription>
         </DialogHeader>
 
@@ -270,6 +274,7 @@ export function AccountMappingModal({
                     handleCategoryChange(acc.accountName, category)
                   }
                   hasPreviousMapping={previousMappings?.has(acc.accountName)}
+                  readOnly={readOnly}
                 />
               ))}
             </tbody>
@@ -340,21 +345,23 @@ export function AccountMappingModal({
 
         <DialogFooter className="gap-2 sm:gap-0">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {readOnly ? "Close" : "Cancel"}
           </Button>
-          <Button onClick={handleApply} disabled={isProcessing}>
-            {isProcessing ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Applying...
-              </>
-            ) : (
-              <>
-                <CheckCircle className="h-4 w-4 mr-2" />
-                Apply Mapping
-              </>
-            )}
-          </Button>
+          {!readOnly && (
+            <Button onClick={handleApply} disabled={isProcessing}>
+              {isProcessing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Applying...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Apply Mapping
+                </>
+              )}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
