@@ -1052,6 +1052,10 @@ const QuarterlyReviewForm = () => {
                         onApplyTargets={() => {
                           toast({ title: "Targets applied to this review" });
                         }}
+                        onMonthCountChange={(value) => {
+                          updateField("pnl_month_count", value);
+                          saveReview({ pnl_month_count: value });
+                        }}
                       />
                     </div>
                   </div>

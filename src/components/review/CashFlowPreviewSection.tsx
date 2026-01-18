@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Collapsible,
   CollapsibleContent,
@@ -32,6 +33,7 @@ import {
   AlertTriangle,
   CheckCircle,
   Info,
+  Edit2,
 } from "lucide-react";
 
 interface ProfitFirstTargets {
@@ -52,6 +54,7 @@ interface CashFlowPreviewSectionProps {
   pnlMonthCount?: number | null;
   targets: ProfitFirstTargets;
   onApplyTargets?: () => void;
+  onMonthCountChange?: (value: number | null) => void;
 }
 
 // Helper functions
@@ -155,9 +158,12 @@ export const CashFlowPreviewSection = ({
   pnlMonthCount,
   targets,
   onApplyTargets,
+  onMonthCountChange,
 }: CashFlowPreviewSectionProps) => {
   const [isOpen, setIsOpen] = useState(true);
   const [showInsights, setShowInsights] = useState(true);
+  const [editingMonthCount, setEditingMonthCount] = useState(false);
+  const [tempMonthCount, setTempMonthCount] = useState<string>("");
 
   const calculations = useMemo(() => {
     const currentQuarter = getQuarterNumber(quarter);
@@ -415,15 +421,58 @@ export const CashFlowPreviewSection = ({
                   <div className="w-10 h-10 rounded-lg bg-slate-200 flex items-center justify-center">
                     <Calendar className="h-5 w-5 text-slate-600" />
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">
-                      Monthly Revenue
-                      {pnlMonthCount && (
-                        <span className="text-xs text-primary ml-1">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-1">
+                      <p className="text-sm text-muted-foreground">
+                        Monthly Revenue
+                      </p>
+                      {pnlMonthCount && !editingMonthCount && (
+                        <button
+                          onClick={() => {
+                            setTempMonthCount(String(pnlMonthCount));
+                            setEditingMonthCount(true);
+                          }}
+                          className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors"
+                          title="Click to adjust month count"
+                        >
                           (YTD ÷ {pnlMonthCount})
-                        </span>
+                          <Edit2 className="h-3 w-3" />
+                        </button>
                       )}
-                    </p>
+                      {editingMonthCount && (
+                        <div className="inline-flex items-center gap-1">
+                          <span className="text-xs text-muted-foreground">(YTD ÷</span>
+                          <Input
+                            type="number"
+                            min="1"
+                            max="12"
+                            value={tempMonthCount}
+                            onChange={(e) => setTempMonthCount(e.target.value)}
+                            onBlur={() => {
+                              const parsed = parseInt(tempMonthCount);
+                              if (parsed >= 1 && parsed <= 12) {
+                                onMonthCountChange?.(parsed);
+                              }
+                              setEditingMonthCount(false);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                const parsed = parseInt(tempMonthCount);
+                                if (parsed >= 1 && parsed <= 12) {
+                                  onMonthCountChange?.(parsed);
+                                }
+                                setEditingMonthCount(false);
+                              } else if (e.key === "Escape") {
+                                setEditingMonthCount(false);
+                              }
+                            }}
+                            autoFocus
+                            className="w-12 h-5 text-xs p-1 text-center"
+                          />
+                          <span className="text-xs text-muted-foreground">)</span>
+                        </div>
+                      )}
+                    </div>
                     <p className="text-xl font-bold">
                       {formatCurrency(calculations.monthlyRevenue)}
                     </p>
