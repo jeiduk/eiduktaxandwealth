@@ -16,6 +16,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import {
   ChevronDown,
@@ -34,6 +40,7 @@ import {
   CheckCircle,
   Info,
   Edit2,
+  HelpCircle,
 } from "lucide-react";
 
 interface ProfitFirstTargets {
@@ -520,9 +527,24 @@ export const CashFlowPreviewSection = ({
                     <TrendingUp className="h-5 w-5 text-teal-600" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm text-muted-foreground">
-                      Monthly Real Revenue
-                    </p>
+                    <div className="flex items-center gap-1">
+                      <p className="text-sm text-muted-foreground">
+                        Monthly Real Revenue
+                      </p>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-xs">
+                            <p className="text-sm">
+                              <strong>Real Revenue</strong> = Gross Revenue minus COGS (Materials & Subs). 
+                              This is your actual revenue after subtracting cost of goods sold.
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
                     <p className="text-xl font-bold text-teal-700">
                       {formatCurrency(calculations.monthlyRealRevenue)}
                     </p>
