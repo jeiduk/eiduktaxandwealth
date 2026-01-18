@@ -501,30 +501,72 @@ function parseLineItems(
   // Debug preview (raw) – before any processing
   const nonEmptyLines = lines.filter((l) => l.trim().length > 0);
   const previewLines = nonEmptyLines.slice(0, 3);
-  
+
+  const parseRow = (line: string) =>
+    isCSV ? smartParseCSVLine(line, debugEnabled) : line.split(/[:\t]+/);
+
   // Use smart CSV parsing that handles quoted fields and merges split numbers
-  const previewSplitRows = previewLines.map((line) =>
-    isCSV ? smartParseCSVLine(line, debugEnabled) : line.split(/[:\t]+/)
-  );
+  const previewSplitRows = previewLines.map(parseRow);
   const maxColumnsInPreview = previewSplitRows.reduce(
     (max, r) => Math.max(max, r.length),
     0
   );
 
-  // Try to detect month columns from first row (headers)
-  const headerRow = previewSplitRows[0] || [];
-  const monthColumnsDetected: number[] = [];
-  headerRow.forEach((h, i) => {
-    const headerStr = String(h || "").trim();
-    if (MONTH_PATTERNS.some(p => p.test(headerStr))) {
-      monthColumnsDetected.push(i);
+  // Detect the header row and month columns by scanning the first chunk of non-empty rows.
+  // This is necessary because many exports include report titles/date ranges above the real header.
+  const headerScanLines = nonEmptyLines.slice(0, Math.min(nonEmptyLines.length, 60));
+  const headerScanRows = headerScanLines.map(parseRow);
+
+  let headerRowIndex = 0;
+  let headerRow = previewSplitRows[0] || [];
+  let monthColumnsDetected: number[] = [];
+  let uniqueMonthCountDetected = 0;
+
+  headerScanRows.forEach((row, idx) => {
+    const monthCols: number[] = [];
+    const uniqueMonths = new Set<number>();
+
+    row.forEach((cell, colIdx) => {
+      const headerStr = String(cell || "").trim();
+      const monthIdx = MONTH_PATTERNS.findIndex((p) => p.test(headerStr));
+      if (monthIdx !== -1) {
+        monthCols.push(colIdx);
+        uniqueMonths.add(monthIdx);
+      }
+    });
+
+    const uniqueCount = uniqueMonths.size;
+
+    // Tie-breaker: prefer rows that also include a Total/YTD column label
+    const hasTotal = row.some((cell) => {
+      const v = String(cell || "").toLowerCase().trim();
+      return (
+        v === "total" ||
+        v === "ytd" ||
+        v === "annual" ||
+        v === "year total" ||
+        v === "ytd total" ||
+        v === "year to date"
+      );
+    });
+
+    const isBetter =
+      uniqueCount > uniqueMonthCountDetected ||
+      (uniqueCount === uniqueMonthCountDetected && hasTotal && uniqueCount > 0);
+
+    if (isBetter) {
+      headerRowIndex = idx;
+      headerRow = row;
+      monthColumnsDetected = monthCols;
+      uniqueMonthCountDetected = uniqueCount;
     }
   });
 
   const debug: PnlImportDebug = {
     source: "text",
-    detectedHeaders: previewSplitRows[0]?.map((c) => String(c ?? "").trim()) ?? [],
-    columnsInHeader: previewSplitRows[0]?.length ?? 0,
+    detectedHeaders: headerRow.map((c) => String(c ?? "").trim()),
+    headerRowIndex,
+    columnsInHeader: headerRow.length,
     maxColumnsInPreview,
     previewRows: previewSplitRows as unknown[][],
     csvPreview: isCSV
@@ -590,7 +632,11 @@ function parseLineItems(
       }
 
       // If we captured Patient Fees debug above, also store the chosen cell parse
-      if (debugEnabled && line.toLowerCase().includes("patient fees") && debug.patientFees) {
+      if (
+        debugEnabled &&
+        line.toLowerCase().includes("patient fees") &&
+        debug.patientFees
+      ) {
         const chosenCell =
           cells
             .slice(1)
@@ -656,12 +702,14 @@ function parseLineItems(
     }
   }
 
-  // Month count is based on detected month columns in the header
-  const monthCount = monthColumnsDetected.length > 0 ? monthColumnsDetected.length : undefined;
+  // Month count is based on unique detected month columns in the header (Jan–Dec), even if a Total column exists.
+  const monthCount = uniqueMonthCountDetected > 0 ? uniqueMonthCountDetected : undefined;
 
   return {
     accounts,
-    amountColumnDescription: isCSV ? "Parsed as text/CSV (with smart comma handling)" : "Parsed as text",
+    amountColumnDescription: isCSV
+      ? "Parsed as text/CSV (with smart comma handling)"
+      : "Parsed as text",
     monthCount,
     debug,
   };
@@ -923,8 +971,15 @@ function parseLineItemsFromWorkbook(
     };
   }
 
-  // Extract month count from the amount config if it was summing months
-  const monthCount = amountConfig.type === 'sum_months' ? amountConfig.columns.length : undefined;
+  // Month count should be based on detected month columns in the header (Jan–Dec),
+  // even when we use a Total/YTD column for the actual amounts.
+  const uniqueMonths = new Set<number>();
+  headers.forEach((h) => {
+    const headerStr = String(h || "").trim();
+    const monthIdx = MONTH_PATTERNS.findIndex((p) => p.test(headerStr));
+    if (monthIdx !== -1) uniqueMonths.add(monthIdx);
+  });
+  const monthCount = uniqueMonths.size > 0 ? uniqueMonths.size : undefined;
 
   return { accounts, amountColumnDescription: amountConfig.description, monthCount, debug };
 }
