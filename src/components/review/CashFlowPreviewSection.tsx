@@ -187,6 +187,9 @@ export const CashFlowPreviewSection = ({
     const annualRevenue = monthlyRevenue * 12;
     const perTransfer = monthlyRevenue / 2; // Bi-monthly (10th & 25th)
 
+    // Real Revenue = Gross Revenue - COGS
+    const realRevenue = revenue - cogsValue;
+    const monthlyRealRevenue = monthsInData > 0 ? realRevenue / monthsInData : 0;
 
     // Target amounts per transfer
     const profitTransfer = perTransfer * (targets.profit / 100);
@@ -195,7 +198,6 @@ export const CashFlowPreviewSection = ({
     const opexTransfer = perTransfer * (targets.opEx / 100);
 
     // Current percentages (CAPs) from actual data
-    const realRevenue = revenue - cogsValue;
     const profit = profitYtd || 0;
     const draw = drawYtd || 0;
     const tax = taxYtd || 0;
@@ -226,6 +228,7 @@ export const CashFlowPreviewSection = ({
       annualRevenue,
       monthlyRevenue,
       realRevenue,
+      monthlyRealRevenue,
       perTransfer,
       transfers: {
         profit: profitTransfer,
@@ -424,6 +427,7 @@ export const CashFlowPreviewSection = ({
           <div className="p-4 space-y-6">
             {/* Row 1: Summary Stats */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Monthly Revenue Card */}
               <Card className="p-4 bg-gradient-to-br from-slate-50 to-slate-100 border-slate-200">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-slate-200 flex items-center justify-center">
@@ -509,28 +513,29 @@ export const CashFlowPreviewSection = ({
                 </div>
               </Card>
 
-              {/* Real Revenue Card */}
-              <Card className="p-4 bg-gradient-to-br from-emerald-50 to-emerald-100 border-emerald-200">
+              {/* Monthly Real Revenue Card */}
+              <Card className="p-4 bg-gradient-to-br from-teal-50 to-teal-100 border-teal-200">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-emerald-200 flex items-center justify-center">
-                    <PiggyBank className="h-5 w-5 text-emerald-600" />
+                  <div className="w-10 h-10 rounded-lg bg-teal-200 flex items-center justify-center">
+                    <TrendingUp className="h-5 w-5 text-teal-600" />
                   </div>
                   <div className="flex-1">
                     <p className="text-sm text-muted-foreground">
-                      Real Revenue
+                      Monthly Real Revenue
                     </p>
-                    <p className="text-xl font-bold text-emerald-700">
-                      {formatCurrency(calculations.realRevenue)}
+                    <p className="text-xl font-bold text-teal-700">
+                      {formatCurrency(calculations.monthlyRealRevenue)}
                     </p>
-                    {(cogs || 0) > 0 && (
+                    {pnlMonthCount && (cogs || 0) > 0 && (
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        {formatCurrency(revenueYtd || 0)} − {formatCurrency(cogs || 0)} COGS
+                        {formatCurrency(calculations.realRevenue)} ÷ {pnlMonthCount} month{pnlMonthCount !== 1 ? 's' : ''}
                       </p>
                     )}
                   </div>
                 </div>
               </Card>
 
+              {/* Per Transfer Card */}
               <Card
                 className="p-4 border-2"
                 style={{
@@ -559,17 +564,21 @@ export const CashFlowPreviewSection = ({
                 </div>
               </Card>
 
-              <Card className="p-4 bg-gradient-to-br from-slate-50 to-slate-100 border-slate-200">
+              {/* Combined Real Revenue + Annual Allocation Card */}
+              <Card className="p-4 bg-gradient-to-br from-emerald-50 to-emerald-100 border-emerald-200">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-slate-200 flex items-center justify-center">
-                    <TrendingUp className="h-5 w-5 text-slate-600" />
+                  <div className="w-10 h-10 rounded-lg bg-emerald-200 flex items-center justify-center">
+                    <PiggyBank className="h-5 w-5 text-emerald-600" />
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <p className="text-sm text-muted-foreground">
-                      Annual Allocation
+                      Real Revenue (YTD)
                     </p>
-                    <p className="text-xl font-bold">
-                      {formatCurrency(calculations.annualRevenue)}
+                    <p className="text-xl font-bold text-emerald-700">
+                      {formatCurrency(calculations.realRevenue)}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {formatCurrency(calculations.annualRevenue)}/yr annualized
                     </p>
                   </div>
                 </div>
