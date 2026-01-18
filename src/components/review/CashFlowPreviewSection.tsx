@@ -803,6 +803,21 @@ export const CashFlowPreviewSection = ({
                 <TableHeader>
                   <TableRow className="bg-muted/30">
                     <TableHead className="w-[140px]">Category</TableHead>
+                    <TableHead className="text-right w-[80px]">
+                      <div className="flex items-center justify-end gap-1">
+                        <span>TAP %</span>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs">
+                              <p className="text-sm">Target Allocation Percentage — the percentage of Real Revenue that should be allocated to this category based on industry benchmarks or your custom settings.</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                    </TableHead>
                     <TableHead className="text-right">
                       <div className="flex flex-col items-end">
                         <div className="flex items-center gap-1">
@@ -913,6 +928,9 @@ export const CashFlowPreviewSection = ({
                             />
                             <span className="font-medium">{label}</span>
                           </div>
+                        </TableCell>
+                        <TableCell className="text-right font-mono font-semibold text-primary">
+                          {formatPercent(targetPct)}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="font-mono">
