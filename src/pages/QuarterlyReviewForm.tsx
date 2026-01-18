@@ -420,11 +420,11 @@ const QuarterlyReviewForm = () => {
     }
   };
 
-  // Calculate pathway stats
+  // Calculate system stats
   const pathwayStats = useMemo(() => {
-    // Find current phase (first in-progress, or first not-started, or 8 if all complete)
+    // Find current phase (first in-progress, or first not-started, or 9 if all complete)
     let currentPhase = 1;
-    for (let i = 1; i <= 8; i++) {
+    for (let i = 1; i <= 9; i++) {
       const status = getPhaseStatus(i);
       if (status === "in-progress") {
         currentPhase = i;
@@ -434,7 +434,7 @@ const QuarterlyReviewForm = () => {
         currentPhase = i;
         break;
       }
-      if (i === 8) currentPhase = 8;
+      if (i === 9) currentPhase = 9;
     }
 
     // Calculate progress (count completed phase strategies)
@@ -1105,7 +1105,7 @@ const QuarterlyReviewForm = () => {
                 </AccordionContent>
               </AccordionItem>
 
-              {/* Section 4: The Eiduk Pathway Dashboard */}
+              {/* Section 4: The Eiduk System Dashboard */}
               <AccordionItem value="section-4" className="border rounded-lg px-4">
                 <AccordionTrigger className="hover:no-underline">
                   <span className="text-lg font-semibold">4. The Eiduk System™ Dashboard</span>
