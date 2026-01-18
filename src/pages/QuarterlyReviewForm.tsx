@@ -44,19 +44,20 @@ import { ProfitFirstSection } from "@/components/review/ProfitFirstSection";
 import { CashFlowPreviewSection } from "@/components/review/CashFlowPreviewSection";
 import Footer from "@/components/Footer";
 
-// Phase configuration
+// Phase configuration - 80 strategies across 9 phases (v6.0)
 const PHASES = [
-  { id: 1, name: "Foundation", color: "#1E40AF", strategies: 6, range: [1, 6] },
-  { id: 2, name: "Core Deductions", color: "#059669", strategies: 7, range: [7, 13] },
-  { id: 3, name: "Retirement", color: "#7C3AED", strategies: 10, range: [14, 23] },
-  { id: 4, name: "Credits", color: "#EA580C", strategies: 7, range: [24, 30] },
-  { id: 5, name: "Real Estate", color: "#0891B2", strategies: 9, range: [31, 39] },
-  { id: 6, name: "Acquisitions", color: "#DC2626", strategies: 11, range: [40, 50] },
-  { id: 7, name: "Exit", color: "#CA8A04", strategies: 10, range: [51, 60] },
-  { id: 8, name: "Charitable", color: "#9333EA", strategies: 10, range: [61, 70] },
+  { id: 1, name: "Foundation", color: "#1E40AF", strategies: 7, range: [1, 7] },
+  { id: 2, name: "Core Deductions", color: "#059669", strategies: 10, range: [8, 17] },
+  { id: 3, name: "Retirement & Benefits", color: "#7C3AED", strategies: 11, range: [18, 28] },
+  { id: 4, name: "Credits & Multistate", color: "#EA580C", strategies: 7, range: [29, 35] },
+  { id: 5, name: "Real Estate & PAL", color: "#0891B2", strategies: 8, range: [36, 43] },
+  { id: 6, name: "Acquisitions & Leverage", color: "#DC2626", strategies: 7, range: [44, 50] },
+  { id: 7, name: "Exit & Wealth Transfer", color: "#CA8A04", strategies: 11, range: [51, 61] },
+  { id: 8, name: "Charitable & Philanthropic", color: "#9333EA", strategies: 11, range: [62, 72] },
+  { id: 9, name: "Premium Alternative Investments", color: "#BE185D", strategies: 8, range: [73, 80] },
 ];
 
-const TOTAL_STRATEGIES = 70;
+const TOTAL_STRATEGIES = 80;
 
 interface PhaseStatus {
   [key: string]: "not-started" | "in-progress" | "complete";
@@ -709,7 +710,7 @@ const QuarterlyReviewForm = () => {
                 Quarterly Review Guide
               </h1>
               <p className="text-white/80 text-lg">
-                The Eiduk Pathway™ — 70-Strategy Tax Optimization
+                The Eiduk Pathway™ — 80-Strategy Tax Optimization
               </p>
               <p className="text-eiduk-gold font-medium mt-2">
                 Pay Less. Keep More. Build Wealth.
@@ -1108,11 +1109,11 @@ const QuarterlyReviewForm = () => {
                 </AccordionTrigger>
                 <AccordionContent className="pt-4 pb-6">
                   <p className="text-muted-foreground mb-6 text-center">
-                    70-Strategy Framework • 8 Phases • Building Wealth While Reducing Taxes
+                    80-Strategy Framework • 9 Phases • Building Wealth While Reducing Taxes
                   </p>
 
                   {/* Phase Badges Row */}
-                  <div className="grid grid-cols-4 md:grid-cols-8 gap-2 md:gap-4 mb-8">
+                  <div className="grid grid-cols-3 md:grid-cols-9 gap-2 md:gap-3 mb-8">
                     {PHASES.map((phase) => {
                       const phaseStatus = getPhaseStatus(phase.id);
                       return (

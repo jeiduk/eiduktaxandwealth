@@ -39,21 +39,22 @@ const PHASES = [
   { id: "5", name: "Real Estate & PAL", color: "#0891b2" },
   { id: "6", name: "Acquisitions & Leverage", color: "#dc2626" },
   { id: "7", name: "Exit & Wealth Transfer", color: "#ca8a04" },
-  { id: "8", name: "Charitable", color: "#9333ea" },
+  { id: "8", name: "Charitable & Philanthropic", color: "#9333ea" },
+  { id: "9", name: "Premium Alternative Investments", color: "#be185d" },
 ];
 
 const TIER_MAX_PHASE: Record<string, number> = {
   Essentials: 0,
   Foundation: 2,
-  Complete: 4,
-  Premium: 7,
+  Complete: 5,
+  Premium: 9,
 };
 
 const TIER_STRATEGY_COUNTS: Record<string, number> = {
   Essentials: 0,
-  Foundation: 13,
-  Complete: 30,
-  Premium: 59,
+  Foundation: 17,
+  Complete: 35,
+  Premium: 80,
 };
 
 // Estimated annual fee by tier for ROI calculation
