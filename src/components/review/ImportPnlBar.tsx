@@ -1021,12 +1021,14 @@ function calculateTotalsFromMappings(mappings: AccountMapping[], monthCount?: nu
 
   const realRevenue = totals.gross_revenue - Math.abs(totals.materials_subs);
 
+  // Total Expenses = OPEX + COGS + Tax (owner_pay is excluded as it's a distribution, not an expense)
+  // Owner's Pay is still tracked separately for Profit First analysis
   const result: ImportedData = {
     revenue: totals.gross_revenue,
     cogs: Math.abs(totals.materials_subs),
     ownerPay: Math.abs(totals.owner_pay),
     taxPaid: Math.abs(totals.tax),
-    expenses: Math.abs(totals.opex) + Math.abs(totals.materials_subs) + Math.abs(totals.owner_pay) + Math.abs(totals.tax),
+    expenses: Math.abs(totals.opex) + Math.abs(totals.materials_subs) + Math.abs(totals.tax),
     netProfit: realRevenue - Math.abs(totals.opex) - Math.abs(totals.owner_pay) - Math.abs(totals.tax),
     monthCount: monthCount ?? null,
   };
