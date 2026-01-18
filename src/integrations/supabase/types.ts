@@ -55,6 +55,53 @@ export type Database = {
           },
         ]
       }
+      analyses: {
+        Row: {
+          adjustments: Json | null
+          client_id: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          pl_data: Json | null
+          raw_matches: Json | null
+          report_date: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          adjustments?: Json | null
+          client_id?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          pl_data?: Json | null
+          raw_matches?: Json | null
+          report_date?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          adjustments?: Json | null
+          client_id?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          pl_data?: Json | null
+          raw_matches?: Json | null
+          report_date?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analyses_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_account_defaults: {
         Row: {
           account_name: string
@@ -239,7 +286,11 @@ export type Database = {
       }
       clients: {
         Row: {
+          address: string | null
+          contact_first_name: string | null
+          contact_last_name: string | null
           created_at: string
+          email: string | null
           entity_type: string
           first_name: string | null
           id: string
@@ -252,11 +303,16 @@ export type Database = {
           notes: string | null
           package_tier: string
           phase_status: Json | null
+          phone: string | null
           tax_rate: number | null
           user_id: string
         }
         Insert: {
+          address?: string | null
+          contact_first_name?: string | null
+          contact_last_name?: string | null
           created_at?: string
+          email?: string | null
           entity_type?: string
           first_name?: string | null
           id?: string
@@ -269,11 +325,16 @@ export type Database = {
           notes?: string | null
           package_tier?: string
           phase_status?: Json | null
+          phone?: string | null
           tax_rate?: number | null
           user_id: string
         }
         Update: {
+          address?: string | null
+          contact_first_name?: string | null
+          contact_last_name?: string | null
           created_at?: string
+          email?: string | null
           entity_type?: string
           first_name?: string | null
           id?: string
@@ -286,7 +347,113 @@ export type Database = {
           notes?: string | null
           package_tier?: string
           phase_status?: Json | null
+          phone?: string | null
           tax_rate?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      custom_benchmarks: {
+        Row: {
+          category: string | null
+          created_at: string
+          id: string
+          ideal_pct: number | null
+          industry: string | null
+          max_pct: number | null
+          min_pct: number | null
+          notes: string | null
+          revenue_tier: string | null
+          source: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          ideal_pct?: number | null
+          industry?: string | null
+          max_pct?: number | null
+          min_pct?: number | null
+          notes?: string | null
+          revenue_tier?: string | null
+          source?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          ideal_pct?: number | null
+          industry?: string | null
+          max_pct?: number | null
+          min_pct?: number | null
+          notes?: string | null
+          revenue_tier?: string | null
+          source?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      custom_mappings: {
+        Row: {
+          account_label: string | null
+          category: string | null
+          created_at: string
+          id: string
+          pf_category: string | null
+          user_id: string
+        }
+        Insert: {
+          account_label?: string | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          pf_category?: string | null
+          user_id: string
+        }
+        Update: {
+          account_label?: string | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          pf_category?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      custom_tax_line_mappings: {
+        Row: {
+          account_label: string | null
+          created_at: string
+          form_number: string | null
+          id: string
+          tax_line_key: string | null
+          updated_at: string
+          usage_count: number | null
+          user_id: string
+        }
+        Insert: {
+          account_label?: string | null
+          created_at?: string
+          form_number?: string | null
+          id?: string
+          tax_line_key?: string | null
+          updated_at?: string
+          usage_count?: number | null
+          user_id: string
+        }
+        Update: {
+          account_label?: string | null
+          created_at?: string
+          form_number?: string | null
+          id?: string
+          tax_line_key?: string | null
+          updated_at?: string
+          usage_count?: number | null
           user_id?: string
         }
         Relationships: []
@@ -357,9 +524,108 @@ export type Database = {
         }
         Relationships: []
       }
+      pf_assessments: {
+        Row: {
+          actual_opex: number | null
+          actual_owner_pay: number | null
+          actual_profit: number | null
+          actual_tax: number | null
+          assessment_date: string | null
+          client_id: string | null
+          created_at: string
+          health_score: number | null
+          id: string
+          materials_subs: number | null
+          notes: string | null
+          period_end: string | null
+          period_start: string | null
+          real_revenue: number | null
+          revenue_tier: string | null
+          source_analysis_id: string | null
+          target_opex: number | null
+          target_owner_pay: number | null
+          target_profit: number | null
+          target_tax: number | null
+          total_revenue: number | null
+          updated_at: string
+          user_id: string
+          variance_opex: number | null
+          variance_owner_pay: number | null
+          variance_profit: number | null
+          variance_tax: number | null
+        }
+        Insert: {
+          actual_opex?: number | null
+          actual_owner_pay?: number | null
+          actual_profit?: number | null
+          actual_tax?: number | null
+          assessment_date?: string | null
+          client_id?: string | null
+          created_at?: string
+          health_score?: number | null
+          id?: string
+          materials_subs?: number | null
+          notes?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          real_revenue?: number | null
+          revenue_tier?: string | null
+          source_analysis_id?: string | null
+          target_opex?: number | null
+          target_owner_pay?: number | null
+          target_profit?: number | null
+          target_tax?: number | null
+          total_revenue?: number | null
+          updated_at?: string
+          user_id: string
+          variance_opex?: number | null
+          variance_owner_pay?: number | null
+          variance_profit?: number | null
+          variance_tax?: number | null
+        }
+        Update: {
+          actual_opex?: number | null
+          actual_owner_pay?: number | null
+          actual_profit?: number | null
+          actual_tax?: number | null
+          assessment_date?: string | null
+          client_id?: string | null
+          created_at?: string
+          health_score?: number | null
+          id?: string
+          materials_subs?: number | null
+          notes?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          real_revenue?: number | null
+          revenue_tier?: string | null
+          source_analysis_id?: string | null
+          target_opex?: number | null
+          target_owner_pay?: number | null
+          target_profit?: number | null
+          target_tax?: number | null
+          total_revenue?: number | null
+          updated_at?: string
+          user_id?: string
+          variance_opex?: number | null
+          variance_owner_pay?: number | null
+          variance_profit?: number | null
+          variance_tax?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pf_assessments_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pf_category_defaults: {
         Row: {
           created_at: string | null
+          description: string | null
           id: string
           keyword: string
           pf_category: string
@@ -368,6 +634,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          description?: string | null
           id?: string
           keyword: string
           pf_category: string
@@ -376,6 +643,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          description?: string | null
           id?: string
           keyword?: string
           pf_category?: string
@@ -383,6 +651,95 @@ export type Database = {
           priority?: number | null
         }
         Relationships: []
+      }
+      pf_taps: {
+        Row: {
+          id: string
+          opex_pct: number | null
+          owner_pay_pct: number | null
+          profit_pct: number | null
+          revenue_max: number | null
+          revenue_min: number | null
+          tax_pct: number | null
+          tier_name: string | null
+        }
+        Insert: {
+          id?: string
+          opex_pct?: number | null
+          owner_pay_pct?: number | null
+          profit_pct?: number | null
+          revenue_max?: number | null
+          revenue_min?: number | null
+          tax_pct?: number | null
+          tier_name?: string | null
+        }
+        Update: {
+          id?: string
+          opex_pct?: number | null
+          owner_pay_pct?: number | null
+          profit_pct?: number | null
+          revenue_max?: number | null
+          revenue_min?: number | null
+          tax_pct?: number | null
+          tier_name?: string | null
+        }
+        Relationships: []
+      }
+      pl_analyses: {
+        Row: {
+          client_id: string | null
+          cogs: number | null
+          created_at: string
+          gross_profit: number | null
+          id: string
+          net_income: number | null
+          notes: string | null
+          pl_data: Json | null
+          revenue: number | null
+          statement_year: number | null
+          total_expenses: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client_id?: string | null
+          cogs?: number | null
+          created_at?: string
+          gross_profit?: number | null
+          id?: string
+          net_income?: number | null
+          notes?: string | null
+          pl_data?: Json | null
+          revenue?: number | null
+          statement_year?: number | null
+          total_expenses?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client_id?: string | null
+          cogs?: number | null
+          created_at?: string
+          gross_profit?: number | null
+          id?: string
+          net_income?: number | null
+          notes?: string | null
+          pl_data?: Json | null
+          revenue?: number | null
+          statement_year?: number | null
+          total_expenses?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pl_analyses_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
