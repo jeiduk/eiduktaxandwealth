@@ -104,11 +104,44 @@ function getGapStatus(gap: number, isLowerBetter = false): GapStatus {
 function getStatusIcon(status: GapStatus) {
   switch (status) {
     case "good":
-      return <div className="w-3 h-3 rounded-full bg-emerald-500" />;
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="w-3 h-3 rounded-full bg-emerald-500 cursor-help" />
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p className="text-sm"><strong>On Track</strong> – Within 2% of target</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
     case "warning":
-      return <div className="w-3 h-3 rounded-full bg-amber-500" />;
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="w-3 h-3 rounded-full bg-amber-500 cursor-help" />
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p className="text-sm"><strong>Review</strong> – 2-5% off target, needs attention</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
     case "danger":
-      return <div className="w-3 h-3 rounded-full bg-red-500" />;
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="w-3 h-3 rounded-full bg-red-500 cursor-help" />
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p className="text-sm"><strong>Off Track</strong> – More than 5% off target, action needed</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
   }
 }
 
