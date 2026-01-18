@@ -249,20 +249,35 @@ export const CashFlowPreviewSection = ({
     const tax = taxYtd || 0;
     const expenses = totalExpenses || 0;
 
+    // Actual YTD amounts for each category
+    const actualOpex = expenses - cogsValue - tax; // Pure OpEx (expenses excludes owner_pay now)
+
     const currentProfitPct = realRevenue > 0 ? (profit / realRevenue) * 100 : 0;
     const currentOwnerPct = realRevenue > 0 ? (draw / realRevenue) * 100 : 0;
     const currentTaxPct = realRevenue > 0 ? (tax / realRevenue) * 100 : 0;
     // OpEx CAP: expenses now = OPEX + COGS + Tax (owner_pay excluded), so subtract COGS and Tax to get pure OpEx
     const currentOpexPct =
       realRevenue > 0
-        ? ((expenses - cogsValue - tax) / realRevenue) * 100
+        ? (actualOpex / realRevenue) * 100
         : 0;
 
-    // Gap calculations
+    // Target YTD amounts based on Real Revenue × TAP%
+    const targetProfitAmt = realRevenue * (targets.profit / 100);
+    const targetOwnerAmt = realRevenue * (targets.ownerPay / 100);
+    const targetTaxAmt = realRevenue * (targets.tax / 100);
+    const targetOpexAmt = realRevenue * (targets.opEx / 100);
+
+    // Gap calculations (in percentages)
     const profitGap = currentProfitPct - targets.profit;
     const ownerGap = currentOwnerPct - targets.ownerPay;
     const taxGap = currentTaxPct - targets.tax;
     const opexGap = currentOpexPct - targets.opEx;
+
+    // Dollar gap (actual - target)
+    const profitDollarGap = profit - targetProfitAmt;
+    const ownerDollarGap = draw - targetOwnerAmt;
+    const taxDollarGap = tax - targetTaxAmt;
+    const opexDollarGap = actualOpex - targetOpexAmt;
 
     // 12-month impact - use monthly real revenue × 12 for consistent annualization
     const annualRealRevenue = monthlyRealRevenue * 12;
@@ -288,6 +303,27 @@ export const CashFlowPreviewSection = ({
         ownerPay: ownerTransfer * 24,
         tax: taxTransfer * 24,
         opEx: opexTransfer * 24,
+      },
+      // Actual YTD dollar amounts
+      actualAmounts: {
+        profit: profit,
+        ownerPay: draw,
+        tax: tax,
+        opEx: Math.max(0, actualOpex),
+      },
+      // Target YTD dollar amounts (Real Revenue × TAP%)
+      targetAmounts: {
+        profit: targetProfitAmt,
+        ownerPay: targetOwnerAmt,
+        tax: targetTaxAmt,
+        opEx: targetOpexAmt,
+      },
+      // Dollar gaps (actual - target)
+      dollarGaps: {
+        profit: profitDollarGap,
+        ownerPay: ownerDollarGap,
+        tax: taxDollarGap,
+        opEx: opexDollarGap,
       },
       current: {
         profit: currentProfitPct,
@@ -757,15 +793,28 @@ export const CashFlowPreviewSection = ({
 
             {/* Row 3: Gap Analysis Table */}
             <Card className="overflow-hidden">
-              <div className="p-3 bg-slate-50 border-b">
+              <div className="p-3 bg-slate-50 border-b flex items-center justify-between">
                 <h4 className="font-semibold text-sm">Gap Analysis</h4>
+                <span className="text-xs text-muted-foreground">
+                  Based on Real Revenue: {formatCurrency(calculations.realRevenue)}
+                </span>
               </div>
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/30">
                     <TableHead className="w-[140px]">Category</TableHead>
-                    <TableHead className="text-right">You Now</TableHead>
-                    <TableHead className="text-right">Target</TableHead>
+                    <TableHead className="text-right">
+                      <div className="flex flex-col items-end">
+                        <span>Actual YTD</span>
+                        <span className="text-[10px] font-normal text-muted-foreground">(% of Real Rev)</span>
+                      </div>
+                    </TableHead>
+                    <TableHead className="text-right">
+                      <div className="flex flex-col items-end">
+                        <span>Target YTD</span>
+                        <span className="text-[10px] font-normal text-muted-foreground">(TAP%)</span>
+                      </div>
+                    </TableHead>
                     <TableHead className="text-right">Gap</TableHead>
                     <TableHead className="text-right">12-Month Impact</TableHead>
                     <TableHead className="w-[60px] text-center">Status</TableHead>
@@ -778,8 +827,11 @@ export const CashFlowPreviewSection = ({
                     { key: "tax" as const, label: "Tax", isLowerBetter: false },
                     { key: "opEx" as const, label: "OpEx", isLowerBetter: true },
                   ].map(({ key, label, isLowerBetter }) => {
-                    const current = calculations.current[key];
-                    const target = targets[key];
+                    const currentPct = calculations.current[key];
+                    const targetPct = targets[key];
+                    const actualAmt = calculations.actualAmounts[key];
+                    const targetAmt = calculations.targetAmounts[key];
+                    const dollarGap = calculations.dollarGaps[key];
                     const gap = calculations.gaps[key];
                     const impact = calculations.impacts[key];
                     const status = getGapStatus(gap, isLowerBetter);
@@ -796,23 +848,31 @@ export const CashFlowPreviewSection = ({
                             <span className="font-medium">{label}</span>
                           </div>
                         </TableCell>
-                        <TableCell className="text-right font-mono">
-                          {formatPercent(current)}
+                        <TableCell className="text-right">
+                          <div className="font-mono">
+                            <div className="font-semibold">{formatCurrency(actualAmt)}</div>
+                            <div className="text-xs text-muted-foreground">({formatPercent(currentPct)})</div>
+                          </div>
                         </TableCell>
-                        <TableCell className="text-right font-mono">
-                          {formatPercent(target)}
+                        <TableCell className="text-right">
+                          <div className="font-mono">
+                            <div className="font-semibold">{formatCurrency(targetAmt)}</div>
+                            <div className="text-xs text-muted-foreground">({formatPercent(targetPct)})</div>
+                          </div>
                         </TableCell>
                         <TableCell
                           className={cn(
                             "text-right font-mono font-medium",
-                            gap > 0 && !isLowerBetter && "text-emerald-600",
-                            gap < 0 && !isLowerBetter && "text-red-600",
-                            gap > 0 && isLowerBetter && "text-red-600",
-                            gap < 0 && isLowerBetter && "text-emerald-600"
+                            dollarGap > 0 && !isLowerBetter && "text-emerald-600",
+                            dollarGap < 0 && !isLowerBetter && "text-red-600",
+                            dollarGap > 0 && isLowerBetter && "text-red-600",
+                            dollarGap < 0 && isLowerBetter && "text-emerald-600"
                           )}
                         >
-                          {gap >= 0 ? "+" : ""}
-                          {formatPercent(gap)}
+                          <div>
+                            <div>{dollarGap >= 0 ? "+" : ""}{formatCurrency(dollarGap)}</div>
+                            <div className="text-xs opacity-75">({gap >= 0 ? "+" : ""}{formatPercent(gap)})</div>
+                          </div>
                         </TableCell>
                         <TableCell
                           className={cn(
