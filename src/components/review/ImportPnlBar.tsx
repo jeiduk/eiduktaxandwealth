@@ -60,6 +60,8 @@ const EXCLUDE_TOTAL_PATTERNS = [
   /^net income/i,
   /^net profit/i,
   /^net loss/i,
+  /^net operating income/i,
+  /^net other income/i,
   /^gross profit/i,
   /^gross margin/i,
   /^operating income/i,
