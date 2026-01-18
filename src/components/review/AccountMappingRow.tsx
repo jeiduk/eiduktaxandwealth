@@ -21,6 +21,7 @@ interface AccountMappingRowProps {
   currentCategory: PFCategory;
   onCategoryChange: (category: PFCategory) => void;
   hasPreviousMapping?: boolean;
+  readOnly?: boolean;
 }
 
 function formatCurrency(value: number): string {
@@ -37,6 +38,7 @@ export function AccountMappingRow({
   currentCategory,
   onCategoryChange,
   hasPreviousMapping = false,
+  readOnly = false,
 }: AccountMappingRowProps) {
   const config = CATEGORY_CONFIG[currentCategory];
   const isExcluded = currentCategory === "exclude";
@@ -129,8 +131,9 @@ export function AccountMappingRow({
         <Select
           value={currentCategory}
           onValueChange={(val) => onCategoryChange(val as PFCategory)}
+          disabled={readOnly}
         >
-          <SelectTrigger className="w-full h-8">
+          <SelectTrigger className={cn("w-full h-8", readOnly && "opacity-70 cursor-default")}>
             <SelectValue>
               <div className="flex items-center gap-2">
                 <Badge

@@ -225,6 +225,7 @@ export const CashFlowPreviewSection = ({
     return {
       annualRevenue,
       monthlyRevenue,
+      realRevenue,
       perTransfer,
       transfers: {
         profit: profitTransfer,
@@ -422,7 +423,7 @@ export const CashFlowPreviewSection = ({
         <CollapsibleContent>
           <div className="p-4 space-y-6">
             {/* Row 1: Summary Stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <Card className="p-4 bg-gradient-to-br from-slate-50 to-slate-100 border-slate-200">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-slate-200 flex items-center justify-center">
@@ -502,6 +503,28 @@ export const CashFlowPreviewSection = ({
                         {isMonthCountOverridden && (
                           <span className="text-amber-600 ml-1">(adjusted)</span>
                         )}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </Card>
+
+              {/* Real Revenue Card */}
+              <Card className="p-4 bg-gradient-to-br from-emerald-50 to-emerald-100 border-emerald-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-emerald-200 flex items-center justify-center">
+                    <PiggyBank className="h-5 w-5 text-emerald-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm text-muted-foreground">
+                      Real Revenue
+                    </p>
+                    <p className="text-xl font-bold text-emerald-700">
+                      {formatCurrency(calculations.realRevenue)}
+                    </p>
+                    {(cogs || 0) > 0 && (
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {formatCurrency(revenueYtd || 0)} − {formatCurrency(cogs || 0)} COGS
                       </p>
                     )}
                   </div>
