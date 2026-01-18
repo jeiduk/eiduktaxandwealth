@@ -597,9 +597,24 @@ export const CashFlowPreviewSection = ({
                     <PiggyBank className="h-5 w-5 text-emerald-600" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm text-muted-foreground">
-                      Real Revenue (YTD)
-                    </p>
+                    <div className="flex items-center gap-1">
+                      <p className="text-sm text-muted-foreground">
+                        Real Revenue (YTD)
+                      </p>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-xs">
+                            <p className="text-sm">
+                              <strong>Annualized</strong> = (Real Revenue ÷ months of data) × 12. 
+                              This projects your current performance to a full year for planning purposes.
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
                     <p className="text-xl font-bold text-emerald-700">
                       {formatCurrency(calculations.realRevenue)}
                     </p>
