@@ -122,6 +122,7 @@ const CATEGORY_CONFIG = {
     label: "PROFIT",
     description: "Funds Strategy #19 Solo 401(k), #20 Cash Balance",
     yearLabel: "for retirement contributions",
+    tooltip: "The percentage of Real Revenue set aside as true profit before paying yourself. This is money for growth, dividends, or emergency reserves.",
   },
   ownerPay: {
     icon: Wallet,
@@ -132,6 +133,7 @@ const CATEGORY_CONFIG = {
     label: "OWNER'S PAY",
     description: "Strategy #1 Reasonable Compensation",
     yearLabel: "W-2 salary",
+    tooltip: "Your reasonable compensation as the business owner. This is your W-2 salary that should reflect fair market value for your role.",
   },
   tax: {
     icon: Receipt,
@@ -142,6 +144,7 @@ const CATEGORY_CONFIG = {
     label: "TAX",
     description: "Strategy #31 PTET Election",
     yearLabel: "for estimates & PTET",
+    tooltip: "Money set aside for federal, state, and local taxes including quarterly estimated payments and PTET (Pass-Through Entity Tax) elections.",
   },
   opEx: {
     icon: Building2,
@@ -152,6 +155,7 @@ const CATEGORY_CONFIG = {
     label: "OPEX",
     description: "Strategy #3 Accountable Plan, #8 Depreciation",
     yearLabel: "operating expenses",
+    tooltip: "Operating Expenses - the costs to run your business day-to-day including rent, utilities, payroll, software, and other overhead costs.",
   },
 };
 
@@ -633,16 +637,28 @@ export const CashFlowPreviewSection = ({
                       >
                         <Icon className="h-4 w-4 text-white" />
                       </div>
-                      <Badge
-                        variant="secondary"
-                        className="text-xs font-semibold"
-                        style={{
-                          backgroundColor: `${config.color}20`,
-                          color: config.color,
-                        }}
-                      >
-                        {config.label}
-                      </Badge>
+                      <div className="flex items-center gap-1">
+                        <Badge
+                          variant="secondary"
+                          className="text-xs font-semibold"
+                          style={{
+                            backgroundColor: `${config.color}20`,
+                            color: config.color,
+                          }}
+                        >
+                          {config.label}
+                        </Badge>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs">
+                              <p className="text-sm">{config.tooltip}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
                       <span className="text-xs text-muted-foreground ml-auto">
                         {targetPct}%
                       </span>
