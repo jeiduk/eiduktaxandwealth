@@ -439,6 +439,7 @@ export type Database = {
           next_meeting_date: string | null
           next_meeting_time: string | null
           pnl_month_count: number | null
+          pnl_month_count_detected: number | null
           profit_first_opex_target: number | null
           profit_first_owner_target: number | null
           profit_first_profit_target: number | null
@@ -478,6 +479,7 @@ export type Database = {
           next_meeting_date?: string | null
           next_meeting_time?: string | null
           pnl_month_count?: number | null
+          pnl_month_count_detected?: number | null
           profit_first_opex_target?: number | null
           profit_first_owner_target?: number | null
           profit_first_profit_target?: number | null
@@ -517,6 +519,7 @@ export type Database = {
           next_meeting_date?: string | null
           next_meeting_time?: string | null
           pnl_month_count?: number | null
+          pnl_month_count_detected?: number | null
           profit_first_opex_target?: number | null
           profit_first_owner_target?: number | null
           profit_first_profit_target?: number | null

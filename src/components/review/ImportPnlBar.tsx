@@ -28,6 +28,7 @@ interface ImportedData {
   ownerPay: number | null;
   taxPaid?: number | null;
   monthCount?: number | null;
+  monthCountDetected?: number | null;
 }
 
 interface ImportPnlBarProps {
@@ -1255,7 +1256,8 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
       if (data.taxPaid) found.push(`Tax ${formatCurrency(data.taxPaid)}`);
       if (data.monthCount) found.push(`${data.monthCount} months detected`);
 
-      onImport(data);
+      // Pass both monthCount and monthCountDetected (same value on initial import)
+      onImport({ ...data, monthCountDetected: detectedMonthCount });
       setShowMappingModal(false);
       setParsedAccounts([]);
       setExcludedAccounts([]);
