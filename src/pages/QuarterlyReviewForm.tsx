@@ -44,7 +44,7 @@ import { ProfitFirstSection } from "@/components/review/ProfitFirstSection";
 import { CashFlowPreviewSection } from "@/components/review/CashFlowPreviewSection";
 import Footer from "@/components/Footer";
 
-// Phase configuration - 80 strategies across 9 phases (v6.0)
+// Phase configuration - 70+ strategies across 9 phases (v6.0)
 const PHASES = [
   { id: 1, name: "Foundation", color: "#1E40AF", strategies: 7, range: [1, 7] },
   { id: 2, name: "Core Deductions", color: "#059669", strategies: 10, range: [8, 17] },
@@ -710,10 +710,13 @@ const QuarterlyReviewForm = () => {
                 Quarterly Review Guide
               </h1>
               <p className="text-white/80 text-lg">
-                The Eiduk Pathway™ — 80-Strategy Tax Optimization
+                The Eiduk System™ — 70+ Strategy Tax Optimization
               </p>
               <p className="text-eiduk-gold font-medium mt-2">
                 Pay Less. Keep More. Build Wealth.
+              </p>
+              <p className="text-white/60 text-sm mt-1">
+                Systematic Tax Optimization For Business Owners
               </p>
             </div>
           </div>
@@ -1105,11 +1108,11 @@ const QuarterlyReviewForm = () => {
               {/* Section 4: The Eiduk Pathway Dashboard */}
               <AccordionItem value="section-4" className="border rounded-lg px-4">
                 <AccordionTrigger className="hover:no-underline">
-                  <span className="text-lg font-semibold">4. The Eiduk Pathway™ Dashboard</span>
+                  <span className="text-lg font-semibold">4. The Eiduk System™ Dashboard</span>
                 </AccordionTrigger>
                 <AccordionContent className="pt-4 pb-6">
                   <p className="text-muted-foreground mb-6 text-center">
-                    80-Strategy Framework • 9 Phases • Building Wealth While Reducing Taxes
+                    70+ Strategy Framework • 9 Phases • Building Wealth While Reducing Taxes
                   </p>
 
                   {/* Phase Badges Row */}

@@ -1,4 +1,4 @@
-// Strategy phase configuration for 80 strategies across 9 phases (v6.0)
+// Strategy phase configuration for 70+ strategies across 9 phases (v6.0)
 // Phase 1: #1-7 (7 strategies) - Foundation
 // Phase 2: #8-17 (10 strategies) - Core Deductions
 // Phase 3: #18-28 (11 strategies) - Retirement & Benefits
