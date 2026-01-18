@@ -196,11 +196,13 @@ export const CashFlowPreviewSection = ({
     
     // Annualize based on monthly average
     const annualRevenue = monthlyRevenue * 12;
-    const perTransfer = monthlyRevenue / 2; // Bi-monthly (10th & 25th)
 
     // Real Revenue = Gross Revenue - COGS
     const realRevenue = revenue - cogsValue;
     const monthlyRealRevenue = monthsInData > 0 ? realRevenue / monthsInData : 0;
+    
+    // Per transfer based on Real Revenue (Profit First uses Real Revenue, not gross)
+    const perTransfer = monthlyRealRevenue / 2; // Bi-monthly (10th & 25th)
 
     // Target amounts per transfer
     const profitTransfer = perTransfer * (targets.profit / 100);
