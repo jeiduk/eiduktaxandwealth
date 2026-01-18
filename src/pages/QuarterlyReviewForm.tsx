@@ -932,7 +932,7 @@ const QuarterlyReviewForm = () => {
               {/* Section 2: Financial Goals */}
               <AccordionItem value="section-2" className="border rounded-lg px-4">
                 <AccordionTrigger className="hover:no-underline">
-                  <span className="text-lg font-semibold">2. Financial Goals for {getYear()}</span>
+                  <span className="text-lg font-semibold">2. Financials</span>
                 </AccordionTrigger>
                 <AccordionContent className="pt-4 pb-6">
                   <div className="space-y-6">
