@@ -496,6 +496,14 @@ export const CashFlowPreviewSection = ({
                     <p className="text-xl font-bold">
                       {formatCurrency(calculations.monthlyRevenue)}
                     </p>
+                    {pnlMonthCount && !editingMonthCount && (
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {formatCurrency(revenueYtd || 0)} YTD ÷ {pnlMonthCount} month{pnlMonthCount !== 1 ? 's' : ''}
+                        {isMonthCountOverridden && (
+                          <span className="text-amber-600 ml-1">(adjusted)</span>
+                        )}
+                      </p>
+                    )}
                   </div>
                 </div>
               </Card>
