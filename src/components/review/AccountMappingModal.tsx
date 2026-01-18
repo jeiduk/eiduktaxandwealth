@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, DollarSign, CheckCircle, AlertCircle, Eye, EyeOff, Filter, Copy } from "lucide-react";
+import { Loader2, DollarSign, CheckCircle, AlertCircle, Eye, EyeOff, Filter, Copy, Calendar } from "lucide-react";
 import { AccountMappingRow } from "./AccountMappingRow";
 import { MappingSummaryPanel } from "./MappingSummaryPanel";
 
@@ -47,6 +47,8 @@ interface AccountMappingModalProps {
   excludedAccounts?: ParsedAccount[];
   duplicateAccounts?: ParsedAccount[];
   amountColumnDescription?: string;
+  detectedMonthCount?: number | null;
+  headerRowIndex?: number | null;
   onApply: (mappings: AccountMapping[]) => void;
   isProcessing?: boolean;
   previousMappings?: Map<string, PFCategory>;
@@ -115,6 +117,8 @@ export function AccountMappingModal({
   excludedAccounts = [],
   duplicateAccounts = [],
   amountColumnDescription = "",
+  detectedMonthCount,
+  headerRowIndex,
   onApply,
   isProcessing = false,
   previousMappings,
@@ -227,6 +231,15 @@ export function AccountMappingModal({
               <span className="flex items-center gap-1 text-blue-600">
                 <DollarSign className="h-4 w-4" />
                 {amountColumnDescription}
+              </span>
+            )}
+            {detectedMonthCount != null && detectedMonthCount > 0 && (
+              <span className="flex items-center gap-1 text-violet-600">
+                <Calendar className="h-4 w-4" />
+                {detectedMonthCount} month{detectedMonthCount !== 1 ? 's' : ''} detected
+                {headerRowIndex != null && (
+                  <span className="text-muted-foreground ml-1">(row {headerRowIndex + 1})</span>
+                )}
               </span>
             )}
           </div>
