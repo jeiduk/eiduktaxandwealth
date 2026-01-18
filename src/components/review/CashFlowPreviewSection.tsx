@@ -577,9 +577,23 @@ export const CashFlowPreviewSection = ({
                     <DollarSign className="h-5 w-5 text-white" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">
-                      Per Transfer (2x/month)
-                    </p>
+                    <div className="flex items-center gap-1">
+                      <p className="text-sm text-muted-foreground">
+                        Per Transfer (2x/month)
+                      </p>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-xs">
+                            <p className="text-sm">
+                              Profit First recommends transferring funds <strong>twice per month</strong> (on the 10th and 25th) to build consistent cash flow habits and maintain discipline.
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
                     <p
                       className="text-xl font-bold"
                       style={{ color: "#1E3A5F" }}
