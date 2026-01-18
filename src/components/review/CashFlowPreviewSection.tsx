@@ -263,8 +263,8 @@ export const CashFlowPreviewSection = ({
     const taxGap = currentTaxPct - targets.tax;
     const opexGap = currentOpexPct - targets.opEx;
 
-    // 12-month impact
-    const annualRealRevenue = realRevenue * (4 / currentQuarter);
+    // 12-month impact - use monthly real revenue × 12 for consistent annualization
+    const annualRealRevenue = monthlyRealRevenue * 12;
     const profitImpact = (profitGap / 100) * annualRealRevenue;
     const ownerImpact = (ownerGap / 100) * annualRealRevenue;
     const taxImpact = (taxGap / 100) * annualRealRevenue;
