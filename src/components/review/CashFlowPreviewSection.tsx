@@ -805,19 +805,85 @@ export const CashFlowPreviewSection = ({
                     <TableHead className="w-[140px]">Category</TableHead>
                     <TableHead className="text-right">
                       <div className="flex flex-col items-end">
-                        <span>Actual YTD</span>
+                        <div className="flex items-center gap-1">
+                          <span>Actual YTD</span>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-xs">
+                                <p className="text-sm">The actual dollar amount allocated to this category year-to-date, and what percentage of Real Revenue it represents.</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
                         <span className="text-[10px] font-normal text-muted-foreground">(% of Real Rev)</span>
                       </div>
                     </TableHead>
                     <TableHead className="text-right">
                       <div className="flex flex-col items-end">
-                        <span>Target YTD</span>
+                        <div className="flex items-center gap-1">
+                          <span>Target YTD</span>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-xs">
+                                <p className="text-sm">The dollar amount that <strong>should</strong> have been transferred to this account based on Real Revenue × your Target Allocation Percentage (TAP).</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
                         <span className="text-[10px] font-normal text-muted-foreground">(TAP%)</span>
                       </div>
                     </TableHead>
-                    <TableHead className="text-right">Gap</TableHead>
-                    <TableHead className="text-right">12-Month Impact</TableHead>
-                    <TableHead className="w-[60px] text-center">Status</TableHead>
+                    <TableHead className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <span>Gap</span>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs">
+                              <p className="text-sm">The difference between Actual and Target. <strong>Green = on track or ahead</strong>, <strong>Red = behind target</strong>. For OpEx, lower is better.</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                    </TableHead>
+                    <TableHead className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <span>12-Month Impact</span>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs">
+                              <p className="text-sm">If the current gap continues for 12 months, this is the projected annual dollar impact on your business.</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                    </TableHead>
+                    <TableHead className="w-[60px] text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <span>Status</span>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs">
+                              <p className="text-sm"><strong>🟢 On Track</strong> = within 2% of target<br/><strong>🟡 Review</strong> = 2-5% off<br/><strong>🔴 Off Track</strong> = more than 5% off</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
