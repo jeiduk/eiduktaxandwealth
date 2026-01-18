@@ -49,10 +49,18 @@ const REVIEW_FLAG_KEYWORDS = [
   "professional fee",
   "contractor",
   "consultant",
-  "distribution",
   "1099",
   "management fee",
   "advisory",
+];
+
+// Keywords that should always be mapped to owner_pay (not expenses)
+const OWNER_PAY_KEYWORDS = [
+  "distribution",
+  "owner draw",
+  "shareholder distribution",
+  "member distribution",
+  "partner distribution",
 ];
 
 // Patterns to exclude total/subtotal rows to avoid double-counting
@@ -354,6 +362,14 @@ function detectPFCategory(
   defaults: CategoryDefault[]
 ): { category: PFCategory; confidence: "high" | "low"; needsReview?: string } {
   const name = accountName.toLowerCase();
+
+  // First, check for owner_pay keywords - these should ALWAYS map to owner_pay
+  // regardless of what the database defaults say (distributions are not expenses)
+  for (const keyword of OWNER_PAY_KEYWORDS) {
+    if (name.includes(keyword)) {
+      return { category: "owner_pay", confidence: "high" };
+    }
+  }
 
   // Check against keywords in priority order (already sorted by priority DESC)
   for (const def of defaults) {
