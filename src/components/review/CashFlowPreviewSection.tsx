@@ -49,6 +49,7 @@ interface CashFlowPreviewSectionProps {
   taxYtd: number | null;
   totalExpenses: number | null;
   cogs: number | null;
+  pnlMonthCount?: number | null;
   targets: ProfitFirstTargets;
   onApplyTargets?: () => void;
 }
@@ -151,6 +152,7 @@ export const CashFlowPreviewSection = ({
   taxYtd,
   totalExpenses,
   cogs,
+  pnlMonthCount,
   targets,
   onApplyTargets,
 }: CashFlowPreviewSectionProps) => {
@@ -162,10 +164,16 @@ export const CashFlowPreviewSection = ({
     const revenue = revenueYtd || 0;
     const cogsValue = cogs || 0;
 
-    // Annualize YTD revenue
-    const annualRevenue = revenue * (4 / currentQuarter);
-    const monthlyRevenue = annualRevenue / 12;
+    // Use detected month count from P&L import if available, otherwise calculate from quarter
+    const monthsInData = pnlMonthCount || (currentQuarter * 3);
+    
+    // Calculate true monthly revenue by dividing YTD by actual months
+    const monthlyRevenue = monthsInData > 0 ? revenue / monthsInData : 0;
+    
+    // Annualize based on monthly average
+    const annualRevenue = monthlyRevenue * 12;
     const perTransfer = monthlyRevenue / 2; // Bi-monthly (10th & 25th)
+
 
     // Target amounts per transfer
     const profitTransfer = perTransfer * (targets.profit / 100);
@@ -245,6 +253,7 @@ export const CashFlowPreviewSection = ({
     taxYtd,
     totalExpenses,
     cogs,
+    pnlMonthCount,
     targets,
   ]);
 
@@ -409,6 +418,11 @@ export const CashFlowPreviewSection = ({
                   <div>
                     <p className="text-sm text-muted-foreground">
                       Monthly Revenue
+                      {pnlMonthCount && (
+                        <span className="text-xs text-primary ml-1">
+                          (YTD ÷ {pnlMonthCount})
+                        </span>
+                      )}
                     </p>
                     <p className="text-xl font-bold">
                       {formatCurrency(calculations.monthlyRevenue)}

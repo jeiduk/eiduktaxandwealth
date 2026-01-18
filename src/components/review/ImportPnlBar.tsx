@@ -27,6 +27,7 @@ interface ImportedData {
   expenses: number | null;
   ownerPay: number | null;
   taxPaid?: number | null;
+  monthCount?: number | null;
 }
 
 interface ImportPnlBarProps {
@@ -509,6 +510,16 @@ function parseLineItems(
     0
   );
 
+  // Try to detect month columns from first row (headers)
+  const headerRow = previewSplitRows[0] || [];
+  const monthColumnsDetected: number[] = [];
+  headerRow.forEach((h, i) => {
+    const headerStr = String(h || "").trim();
+    if (MONTH_PATTERNS.some(p => p.test(headerStr))) {
+      monthColumnsDetected.push(i);
+    }
+  });
+
   const debug: PnlImportDebug = {
     source: "text",
     detectedHeaders: previewSplitRows[0]?.map((c) => String(c ?? "").trim()) ?? [],
@@ -644,9 +655,13 @@ function parseLineItems(
     }
   }
 
+  // Month count is based on detected month columns in the header
+  const monthCount = monthColumnsDetected.length > 0 ? monthColumnsDetected.length : undefined;
+
   return {
     accounts,
     amountColumnDescription: isCSV ? "Parsed as text/CSV (with smart comma handling)" : "Parsed as text",
+    monthCount,
     debug,
   };
 }
@@ -683,6 +698,7 @@ type PnlImportDebug = {
 interface ParseResult {
   accounts: ParsedAccount[];
   amountColumnDescription: string;
+  monthCount?: number;
   debug?: PnlImportDebug;
 }
 
@@ -901,15 +917,19 @@ function parseLineItemsFromWorkbook(
     return {
       accounts: csvResult.accounts,
       amountColumnDescription: "Parsed as CSV",
+      monthCount: csvResult.monthCount,
       debug: csvResult.debug,
     };
   }
 
-  return { accounts, amountColumnDescription: amountConfig.description, debug };
+  // Extract month count from the amount config if it was summing months
+  const monthCount = amountConfig.type === 'sum_months' ? amountConfig.columns.length : undefined;
+
+  return { accounts, amountColumnDescription: amountConfig.description, monthCount, debug };
 }
 
 // Calculate totals from mappings using new categories
-function calculateTotalsFromMappings(mappings: AccountMapping[]): ImportedData {
+function calculateTotalsFromMappings(mappings: AccountMapping[], monthCount?: number | null): ImportedData {
   const totals = {
     gross_revenue: 0,
     materials_subs: 0,
@@ -936,6 +956,7 @@ function calculateTotalsFromMappings(mappings: AccountMapping[]): ImportedData {
     taxPaid: Math.abs(totals.tax),
     expenses: Math.abs(totals.opex) + Math.abs(totals.materials_subs) + Math.abs(totals.owner_pay) + Math.abs(totals.tax),
     netProfit: realRevenue - Math.abs(totals.opex) - Math.abs(totals.owner_pay) - Math.abs(totals.tax),
+    monthCount: monthCount ?? null,
   };
 
   return result;
@@ -949,6 +970,7 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
   const [excludedAccounts, setExcludedAccounts] = useState<ParsedAccount[]>([]);
   const [duplicateAccounts, setDuplicateAccounts] = useState<ParsedAccount[]>([]);
   const [amountColumnDescription, setAmountColumnDescription] = useState("");
+  const [detectedMonthCount, setDetectedMonthCount] = useState<number | null>(null);
   const [previousMappings, setPreviousMappings] = useState<Map<string, PFCategory>>(new Map());
   const [categoryDefaults, setCategoryDefaults] = useState<CategoryDefault[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -1037,6 +1059,7 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
       const allAccounts = result.accounts;
 
       setAmountColumnDescription(result.amountColumnDescription);
+      setDetectedMonthCount(result.monthCount ?? null);
       setParseDebug(result.debug ?? null);
 
       if (allAccounts.length === 0) {
@@ -1102,6 +1125,7 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
       let allAccounts: ParsedAccount[];
       let columnDescription = "";
       let debugPayload: PnlImportDebug | undefined;
+      let monthCount: number | undefined;
 
       if (extension === "xlsx" || extension === "xls") {
         const arrayBuffer = await file.arrayBuffer();
@@ -1110,15 +1134,18 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
         allAccounts = result.accounts;
         columnDescription = result.amountColumnDescription;
         debugPayload = result.debug;
+        monthCount = result.monthCount;
       } else {
         const text = await file.text();
         const result = parseLineItems(text, defaults, showDebugPanel);
         allAccounts = result.accounts;
         columnDescription = result.amountColumnDescription;
         debugPayload = result.debug;
+        monthCount = result.monthCount;
       }
 
       setParseDebug(debugPayload ?? null);
+      setDetectedMonthCount(monthCount ?? null);
 
       if (allAccounts.length === 0) {
         toast({
@@ -1217,8 +1244,8 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
         }
       }
 
-      // Calculate totals from mappings
-      const data = calculateTotalsFromMappings(mappings);
+      // Calculate totals from mappings (pass month count for monthly average calculation)
+      const data = calculateTotalsFromMappings(mappings, detectedMonthCount);
 
       // Build success message
       const found: string[] = [];
@@ -1226,11 +1253,13 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
       if (data.cogs) found.push(`COGS ${formatCurrency(data.cogs)}`);
       if (data.ownerPay) found.push(`Owner Pay ${formatCurrency(data.ownerPay)}`);
       if (data.taxPaid) found.push(`Tax ${formatCurrency(data.taxPaid)}`);
+      if (data.monthCount) found.push(`${data.monthCount} months detected`);
 
       onImport(data);
       setShowMappingModal(false);
       setParsedAccounts([]);
       setExcludedAccounts([]);
+      setDetectedMonthCount(null);
       setPastedText("");
 
       toast({
