@@ -1210,7 +1210,19 @@ export const ImportPnlBar = ({ reviewId, clientId, onImport }: ImportPnlBarProps
         </div>
       </div>
 
-      {/* Debug Panel (dev only) */}
+      {/* Debug Panel toggle button (always visible) */}
+      <div className="mt-2 flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowDebugPanel((prev) => !prev)}
+          className="text-xs text-muted-foreground"
+        >
+          {showDebugPanel ? "Hide Debug Panel" : "Show Debug Panel"}
+        </Button>
+      </div>
+
+      {/* Debug Panel */}
       {showDebugPanel && (
         <div className="mt-2 rounded-lg border bg-muted/20 p-3 text-xs">
           <div className="flex items-center justify-between gap-2">
