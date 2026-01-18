@@ -252,9 +252,10 @@ export const CashFlowPreviewSection = ({
     const currentProfitPct = realRevenue > 0 ? (profit / realRevenue) * 100 : 0;
     const currentOwnerPct = realRevenue > 0 ? (draw / realRevenue) * 100 : 0;
     const currentTaxPct = realRevenue > 0 ? (tax / realRevenue) * 100 : 0;
+    // OpEx CAP: expenses now = OPEX + COGS + Tax (owner_pay excluded), so subtract COGS and Tax to get pure OpEx
     const currentOpexPct =
       realRevenue > 0
-        ? ((expenses - cogsValue - draw - tax) / realRevenue) * 100
+        ? ((expenses - cogsValue - tax) / realRevenue) * 100
         : 0;
 
     // Gap calculations
