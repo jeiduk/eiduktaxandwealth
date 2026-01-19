@@ -56,6 +56,8 @@ interface Strategy {
   savings_high: number | null;
   tool_url: string | null;
   tool_name: string | null;
+  documents: unknown | null;
+  parent_strategy: number | null;
 }
 
 interface Client {
@@ -274,6 +276,51 @@ export default function Strategies() {
     URL.revokeObjectURL(url);
   };
 
+  const exportFullJson = () => {
+    const exportData = {
+      exportDate: new Date().toISOString(),
+      totalStrategies: strategies.length,
+      strategies: strategies.map((s) => ({
+        id: s.id,
+        strategy_number: s.strategy_number,
+        name: s.name,
+        phase: s.phase,
+        phase_name: s.phase_name,
+        irc_citation: s.irc_citation,
+        irc_sections: s.irc_sections,
+        description: s.description,
+        what_it_is: s.what_it_is,
+        client_overview: s.client_overview,
+        implementation: s.implementation,
+        forms_required: s.forms_required,
+        risk_level: s.risk_level,
+        irs_scrutiny: s.irs_scrutiny,
+        tier: s.tier,
+        typical_savings_low: s.typical_savings_low,
+        typical_savings_high: s.typical_savings_high,
+        savings_low: s.savings_low,
+        savings_high: s.savings_high,
+        tool_name: s.tool_name,
+        tool_url: s.tool_url,
+        documents: s.documents,
+        parent_strategy: s.parent_strategy,
+      })),
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'strategies-full-export.json';
+    link.click();
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: "Export Complete",
+      description: `Exported ${strategies.length} strategies to JSON`,
+    });
+  };
+
   const formatCurrency = (value: number | null) => {
     if (value === null || value === 0) return '$0';
     return new Intl.NumberFormat('en-US', {
@@ -380,7 +427,7 @@ export default function Strategies() {
             <h1 className="text-3xl font-bold text-foreground">Strategy Library</h1>
             <p className="text-muted-foreground">70+ Tax Reduction Strategies Across 9 Phases</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => setUpdateModalOpen(true)}>
               <Upload className="h-4 w-4 mr-2" />
               Update Strategies
@@ -388,6 +435,10 @@ export default function Strategies() {
             <Button variant="outline" onClick={exportStrategiesWithTools}>
               <Download className="h-4 w-4 mr-2" />
               Export Tools CSV
+            </Button>
+            <Button variant="default" onClick={exportFullJson}>
+              <Download className="h-4 w-4 mr-2" />
+              Export Full JSON
             </Button>
           </div>
         </div>
